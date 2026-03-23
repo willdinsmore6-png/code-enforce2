@@ -153,18 +153,27 @@ export default function CaseDetail() {
         <InfoCard icon={User} label="Owner" value={caseData.property_owner_name || '—'} />
         <InfoCard icon={AlertTriangle} label="Violation" value={caseData.violation_type?.replace('_', ' ') || '—'} />
         <InfoCard icon={Clock} label="Abatement Deadline" value={caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : '—'} />
-        <InfoCard icon={Scale} label="Compliance Path" value={pathLabels[caseData.compliance_path] || 'Not Selected'} />
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <User className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Assigned Officer</span>
+          </div>
+          <div>
+            <Select value={caseData.assigned_officer || ''} onValueChange={async (v) => {
+              await base44.entities.Case.update(id, { assigned_officer: v || null });
+              setCaseData(prev => ({ ...prev, assigned_officer: v || null }));
+            }}>
+              <SelectTrigger className="h-auto text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>— Unassigned —</SelectItem>
+                {investigations.length > 0 && investigations.map((inv, i) => (
+                  <SelectItem key={i} value={inv.officer_name}>{inv.officer_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
-
-      {/* Public Access Code */}
-      {caseData.public_access_code && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">Public Portal Access Code</p>
-              <p className="text-xs text-blue-600 mt-0.5">Share this code with the property owner so they can check their case status at the Public Portal page</p>
-            </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
