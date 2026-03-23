@@ -5,7 +5,18 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import AppLayout from './components/layout/AppLayout';
+import Dashboard from './pages/Dashboard';
+import Cases from './pages/Cases';
+import CaseDetail from './pages/CaseDetail';
+import NewComplaint from './pages/NewComplaint';
+import Investigations from './pages/Investigations';
+import Deadlines from './pages/Deadlines';
+import CourtActions from './pages/CourtActions';
+import ActionWizard from './pages/ActionWizard';
+import ResourceLibrary from './pages/ResourceLibrary';
+import PublicPortal from './pages/PublicPortal';
+import DocumentVault from './pages/DocumentVault';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +44,19 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/cases" element={<Cases />} />
+        <Route path="/cases/:id" element={<CaseDetail />} />
+        <Route path="/new-complaint" element={<NewComplaint />} />
+        <Route path="/investigations" element={<Investigations />} />
+        <Route path="/deadlines" element={<Deadlines />} />
+        <Route path="/court-actions" element={<CourtActions />} />
+        <Route path="/wizard" element={<ActionWizard />} />
+        <Route path="/resources" element={<ResourceLibrary />} />
+        <Route path="/public-portal" element={<PublicPortal />} />
+        <Route path="/documents" element={<DocumentVault />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
