@@ -51,6 +51,7 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
   }
 
   async function deleteNotice(noticeId) {
+    if (!window.confirm('Are you sure you want to delete this notice? This cannot be undone.')) return;
     await base44.entities.Notice.delete(noticeId);
     setNotices(prev => prev.filter(n => n.id !== noticeId));
   }

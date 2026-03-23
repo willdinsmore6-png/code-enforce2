@@ -23,6 +23,7 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   async function handleDelete(docId) {
+    if (!window.confirm('Are you sure you want to delete this document? This cannot be undone.')) return;
     await base44.entities.Document.delete(docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
   }
