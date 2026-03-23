@@ -26,9 +26,9 @@ export default function PublicPortal() {
     setNotFound(false);
     setCaseData(null);
 
-    const results = await base44.entities.Case.filter({ public_access_code: accessCode.trim().toUpperCase() });
-    if (results.length > 0) {
-      setCaseData(results[0]);
+    const response = await base44.functions.invoke('lookupCaseByCode', { access_code: accessCode.trim().toUpperCase() });
+    if (response.data?.found) {
+      setCaseData(response.data.case);
     } else {
       setNotFound(true);
     }
