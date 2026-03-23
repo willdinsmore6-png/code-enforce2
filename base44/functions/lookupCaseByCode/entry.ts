@@ -19,6 +19,10 @@ Deno.serve(async (req) => {
 
     // Return only fields needed for the public portal (no sensitive internal data)
     const c = results[0];
+
+    // Fetch documents for this case (public can see them)
+    const allDocs = await base44.asServiceRole.entities.Document.filter({ case_id: c.id });
+
     return Response.json({
       found: true,
       case: {
@@ -30,7 +34,16 @@ Deno.serve(async (req) => {
         specific_code_violated: c.specific_code_violated,
         abatement_deadline: c.abatement_deadline,
         zba_appeal_deadline: c.zba_appeal_deadline,
-      }
+      },
+      documents: allDocs.map(d => ({
+        id: d.id,
+        title: d.title,
+        document_type: d.document_type,
+        description: d.description,
+        file_url: d.file_url,
+        created_date: d.created_date,
+        version: d.version,
+      }))
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
