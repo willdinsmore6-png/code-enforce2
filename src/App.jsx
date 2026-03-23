@@ -17,6 +17,7 @@ import ActionWizard from './pages/ActionWizard';
 import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
 import DocumentVault from './pages/DocumentVault';
+import AdminTools from './pages/AdminTools';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,6 +60,7 @@ const AuthenticatedApp = () => {
         <Route path="/resources" element={<ResourceLibrary />} />
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
+        <Route path="/admin" element={<AdminTools />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
