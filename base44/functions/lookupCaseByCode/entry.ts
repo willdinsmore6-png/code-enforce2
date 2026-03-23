@@ -20,8 +20,15 @@ Deno.serve(async (req) => {
     // Return only fields needed for the public portal (no sensitive internal data)
     const c = results[0];
 
-    // Fetch documents for this case (public can see them)
-    const allDocs = await base44.asServiceRole.entities.Document.filter({ case_id: c.id });
+    // Fetch documents (NOV types + owner-uploaded) and notices
+    const [allDocs, allNotices] = await Promise.all([
+      base44.asServiceRole.entities.Document.filter({ case_id: c.id }),
+      base44.asServiceRole.entities.Notice.filter({ case_id: c.id }),
+    ]);
+
+    // Only show NOV/citation documents and abatement_proof (owner uploads)
+    const publicDocTypes = ['nov', 'citation', 'abatement_proof', 'court_filing', 'correspondence', 'other'];
+    const publicDocs = allDocs.filter(d => publicDocTypes.includes(d.document_type));
 
     return Response.json({
       found: true,
@@ -35,7 +42,20 @@ Deno.serve(async (req) => {
         abatement_deadline: c.abatement_deadline,
         zba_appeal_deadline: c.zba_appeal_deadline,
       },
-      documents: allDocs.map(d => ({
+      notices: allNotices.map(n => ({
+        id: n.id,
+        notice_type: n.notice_type,
+        date_issued: n.date_issued,
+        delivery_method: n.delivery_method,
+        delivery_confirmed: n.delivery_confirmed,
+        rsa_cited: n.rsa_cited,
+        abatement_deadline: n.abatement_deadline,
+        appeal_deadline: n.appeal_deadline,
+        appeal_instructions: n.appeal_instructions,
+        notice_content: n.notice_content,
+        document_url: n.document_url,
+      })),
+      documents: publicDocs.map(d => ({
         id: d.id,
         title: d.title,
         document_type: d.document_type,
