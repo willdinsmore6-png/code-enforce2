@@ -23,6 +23,7 @@ export default function CaseDetail() {
   const [courtActions, setCourtActions] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -30,6 +31,7 @@ export default function CaseDetail() {
   useEffect(() => {
     async function load() {
       try {
+        setError(null);
         const [c, inv, not, doc, dl, ca] = await Promise.all([
           base44.entities.Case.filter({ id }),
           base44.entities.Investigation.filter({ case_id: id }),
@@ -38,15 +40,16 @@ export default function CaseDetail() {
           base44.entities.Deadline.filter({ case_id: id }),
           base44.entities.CourtAction.filter({ case_id: id }),
         ]);
-        setCaseData(c[0]);
-        setInvestigations(inv);
-        setNotices(not);
-        setDocuments(doc);
-        setDeadlines(dl);
-        setCourtActions(ca);
+        setCaseData(c[0] || null);
+        setInvestigations(inv || []);
+        setNotices(not || []);
+        setDocuments(doc || []);
+        setDeadlines(dl || []);
+        setCourtActions(ca || []);
         setLoading(false);
-      } catch (error) {
-        console.error('Failed to load case data:', error);
+      } catch (err) {
+        console.error('Failed to load case data:', err);
+        setError(err.message || 'Failed to load case details');
         setLoading(false);
       }
     }
@@ -88,6 +91,16 @@ export default function CaseDetail() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-destructive font-medium mb-2">Error loading case</p>
+        <p className="text-muted-foreground text-sm mb-4">{error}</p>
+        <Link to="/cases" className="text-primary hover:underline text-sm inline-block">Back to cases</Link>
       </div>
     );
   }
