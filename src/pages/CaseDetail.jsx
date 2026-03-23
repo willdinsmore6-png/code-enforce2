@@ -169,27 +169,14 @@ export default function CaseDetail() {
               <SelectTrigger className="h-auto text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={null}>— Unassigned —</SelectItem>
-                {investigations.length > 0 && investigations.map((inv, i) => (
-                  <SelectItem key={i} value={inv.officer_name}>{inv.officer_name}</SelectItem>
+                {users.map(u => (
+                  <SelectItem key={u.id} value={u.email}>{u.full_name} ({u.email})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
-              {caseData.public_access_code}
-            </span>
-            <button
-              onClick={() => copyToClipboard(caseData.public_access_code)}
-              className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
-              title="Copy code"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       )}
 
