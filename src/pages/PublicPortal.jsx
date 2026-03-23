@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload } from 'lucide-react';
+import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download } from 'lucide-react';
+import DocumentPreview from '../components/case/DocumentPreview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +15,8 @@ export default function PublicPortal() {
   const [caseData, setCaseData] = useState(null);
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [showAbatementForm, setShowAbatementForm] = useState(false);
   const [abatementFile, setAbatementFile] = useState(null);
   const [abatementNotes, setAbatementNotes] = useState('');
@@ -29,6 +32,7 @@ export default function PublicPortal() {
     const response = await base44.functions.invoke('lookupCaseByCode', { access_code: accessCode.trim().toUpperCase() });
     if (response.data?.found) {
       setCaseData(response.data.case);
+      setDocuments(response.data.documents || []);
     } else {
       setNotFound(true);
     }
@@ -43,15 +47,14 @@ export default function PublicPortal() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: abatementFile });
       fileUrl = file_url;
     }
-    if (fileUrl) {
-      await base44.entities.Document.create({
-        case_id: caseData.id,
-        title: `Abatement Proof — ${format(new Date(), 'MMM d, yyyy')}`,
-        document_type: 'abatement_proof',
-        file_url: fileUrl,
-        description: abatementNotes || 'Submitted by property owner via public portal',
-      });
-    }
+    const newDoc = await base44.entities.Document.create({
+      case_id: caseData.id,
+      title: `Owner Submission — ${format(new Date(), 'MMM d, yyyy')}`,
+      document_type: 'abatement_proof',
+      file_url: fileUrl || '',
+      description: abatementNotes || 'Submitted by property owner via public portal',
+    });
+    setDocuments(prev => [...prev, newDoc]);
     setSubmitted(true);
     setSubmitting(false);
   }
@@ -166,6 +169,37 @@ export default function PublicPortal() {
             </ul>
           </div>
 
+          {/* Documents */}
+          {documents.length > 0 && (
+            <div className="bg-card rounded-xl border border-border p-5">
+              <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
+              <h3 className="font-semibold mb-3">Case Documents</h3>
+              <div className="space-y-2">
+                {documents.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+                    <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.title}</p>
+                      <p className="text-xs text-muted-foreground">{doc.document_type?.replace(/_/g, ' ')}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {doc.file_url && (
+                        <button onClick={() => setPreviewDoc(doc)} className="text-muted-foreground hover:text-primary transition-colors" title="Preview">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                      {doc.file_url && (
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Download">
+                          <Download className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Submit Abatement Proof */}
           {!submitted ? (
             <div className="bg-card rounded-xl border border-border p-5">
@@ -174,7 +208,7 @@ export default function PublicPortal() {
                 className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
               >
                 <Upload className="w-4 h-4" />
-                Submit Proof of Abatement
+                Submit Proof of Abatement / Upload Document
               </button>
               {showAbatementForm && (
                 <form onSubmit={handleAbatementSubmit} className="mt-4 space-y-4">
@@ -193,7 +227,7 @@ export default function PublicPortal() {
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-600" />
-              <p className="text-sm text-green-700 font-medium">Your proof of abatement has been submitted. A code enforcement officer will review it.</p>
+              <p className="text-sm text-green-700 font-medium">Your document has been submitted. A code enforcement officer will review it.</p>
             </div>
           )}
         </div>
