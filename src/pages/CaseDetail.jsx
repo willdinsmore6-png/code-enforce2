@@ -21,6 +21,7 @@ export default function CaseDetail() {
   const [documents, setDocuments] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [courtActions, setCourtActions] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -28,13 +29,14 @@ export default function CaseDetail() {
 
   useEffect(() => {
     async function load() {
-      const [c, inv, not, doc, dl, ca] = await Promise.all([
+      const [c, inv, not, doc, dl, ca, u] = await Promise.all([
         base44.entities.Case.filter({ id }),
         base44.entities.Investigation.filter({ case_id: id }),
         base44.entities.Notice.filter({ case_id: id }),
         base44.entities.Document.filter({ case_id: id }),
         base44.entities.Deadline.filter({ case_id: id }),
         base44.entities.CourtAction.filter({ case_id: id }),
+        base44.entities.User.list(),
       ]);
       setCaseData(c[0]);
       setInvestigations(inv);
@@ -42,6 +44,7 @@ export default function CaseDetail() {
       setDocuments(doc);
       setDeadlines(dl);
       setCourtActions(ca);
+      setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
       setLoading(false);
     }
     load();
