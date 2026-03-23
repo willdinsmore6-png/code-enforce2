@@ -44,22 +44,26 @@ export default function CaseDetail() {
         setDocuments(doc);
         setDeadlines(dl);
         setCourtActions(ca);
-        
-        try {
-          const u = await base44.entities.User.list();
-          setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
-        } catch (error) {
-          console.error('Failed to load users:', error);
-          setUsers([]);
-        }
+        setLoading(false);
       } catch (error) {
         console.error('Failed to load case data:', error);
-      } finally {
         setLoading(false);
       }
     }
     load();
   }, [id]);
+
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const u = await base44.entities.User.list();
+        setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    }
+    loadUsers();
+  }, []);
 
   async function updateStatus(newStatus) {
     await base44.entities.Case.update(id, { status: newStatus });
