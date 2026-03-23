@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, FileText, Search, Bell, Scale, 
   FolderOpen, Wand2, BookOpen, Globe, ChevronLeft, 
-  ChevronRight, Shield, Plus, LogOut
+  ChevronRight, Shield, Plus, LogOut, Settings
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/wizard', icon: Wand2, label: 'Action Wizard' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
+  { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
 export default function Sidebar() {
