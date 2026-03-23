@@ -35,7 +35,10 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
+      // Allow public portal without login
+      if (window.location.pathname === '/public-portal') {
+        return <Routes><Route path="/public-portal" element={<PublicPortal />} /></Routes>;
+      }
       navigateToLogin();
       return null;
     }
