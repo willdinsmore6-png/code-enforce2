@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2 } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
 import CaseDocuments from '../components/case/CaseDocuments';
+import EditCaseModal from '../components/case/EditCaseModal';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function CaseDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [caseData, setCaseData] = useState(null);
   const [investigations, setInvestigations] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -20,6 +22,9 @@ export default function CaseDetail() {
   const [deadlines, setDeadlines] = useState([]);
   const [courtActions, setCourtActions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -52,6 +57,14 @@ export default function CaseDetail() {
       compliance_path: path,
       daily_penalty_rate: path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : caseData.daily_penalty_rate 
     });
+    setCaseData(prev => ({ ...prev, compliance_path: path }));
+  }
+
+  async function handleDeleteCase() {
+    setDeleting(true);
+    await base44.entities.Case.delete(id);
+    navigate('/cases');
+  });
     setCaseData(prev => ({ ...prev, compliance_path: path }));
   }
 
@@ -100,7 +113,23 @@ export default function CaseDetail() {
               <MapPin className="w-3.5 h-3.5" /> {caseData.property_address}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
+              <Pencil className="w-3.5 h-3.5" /> Edit Case
+            </Button>
+            {!deleteConfirm ? (
+              <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(true)} className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Case
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-red-600 font-medium">Are you sure?</span>
+                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDeleteCase}>
+                  {deleting ? 'Deleting...' : 'Yes, Delete'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
+              </div>
+            )}
             <Select value={caseData.status} onValueChange={updateStatus}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Update status" />
@@ -170,6 +199,14 @@ export default function CaseDetail() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      <EditCaseModal
+        caseData={caseData}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSave={(updated) => setCaseData(updated)}
+      />
+
       {/* Tabbed Content */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="bg-muted/50 p-1">
@@ -190,6 +227,17 @@ export default function CaseDetail() {
               </div>
             )}
           </div>
+
+          {/* Assigned Officer */}
+          {caseData.assigned_officer && (
+            <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-3">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned Officer (receives deadline alerts)</p>
+                <p className="text-sm font-medium">{caseData.assigned_officer}</p>
+              </div>
+            </div>
+          )}
 
           {/* Deadlines */}
           <div className="bg-card rounded-xl border border-border p-5">
