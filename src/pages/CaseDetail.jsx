@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
