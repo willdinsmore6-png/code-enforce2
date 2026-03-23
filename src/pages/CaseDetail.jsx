@@ -177,6 +177,29 @@ export default function CaseDetail() {
           </div>
         </div>
       </div>
+
+      {/* Public Access Code */}
+      {caseData.public_access_code && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Public Portal Access Code</p>
+              <p className="text-xs text-blue-600 mt-0.5">Share this code with the property owner so they can check their case status at the Public Portal page</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
+              {caseData.public_access_code}
+            </span>
+            <button
+              onClick={() => copyToClipboard(caseData.public_access_code)}
+              className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+              title="Copy code"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
