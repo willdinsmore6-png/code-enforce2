@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Mail, CheckCircle } from 'lucide-react';
+import { Plus, Mail, CheckCircle, Trash2, X } from 'lucide-react';
+import ClearableInput from '../shared/ClearableInput';
 import { format, addDays } from 'date-fns';
 
 export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
@@ -46,6 +47,13 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
       delivery_confirmed: true,
       delivery_confirmed_date: format(new Date(), 'yyyy-MM-dd'),
     });
+    setNotices(prev => prev.map(n => n.id === noticeId ? { ...n, delivery_confirmed: true, delivery_confirmed_date: format(new Date(), 'yyyy-MM-dd') } : n));
+  }
+
+  async function deleteNotice(noticeId) {
+    await base44.entities.Notice.delete(noticeId);
+    setNotices(prev => prev.filter(n => n.id !== noticeId));
+  });
     setNotices(prev => prev.map(n => n.id === noticeId ? { ...n, delivery_confirmed: true, delivery_confirmed_date: format(new Date(), 'yyyy-MM-dd') } : n));
   }
 
@@ -99,16 +107,16 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
               </div>
               <div className="space-y-1.5">
                 <Label>RSA / Ordinance Cited</Label>
-                <Input value={form.rsa_cited} onChange={e => update('rsa_cited', e.target.value)} />
+                <ClearableInput value={form.rsa_cited} onChange={e => update('rsa_cited', e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Recipient Name</Label>
-                  <Input value={form.recipient_name} onChange={e => update('recipient_name', e.target.value)} />
+                  <ClearableInput value={form.recipient_name} onChange={e => update('recipient_name', e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Recipient Address</Label>
-                  <Input value={form.recipient_address} onChange={e => update('recipient_address', e.target.value)} />
+                  <ClearableInput value={form.recipient_address} onChange={e => update('recipient_address', e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -142,15 +150,24 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
                   {n.abatement_deadline && <p className="text-xs text-muted-foreground">Abatement by: {format(new Date(n.abatement_deadline), 'MMM d, yyyy')}</p>}
                 </div>
               </div>
-              {n.delivery_confirmed ? (
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                  <CheckCircle className="w-3.5 h-3.5" /> Delivered
-                </span>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => confirmDelivery(n.id)}>
-                  Confirm Delivery
-                </Button>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {n.delivery_confirmed ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                    <CheckCircle className="w-3.5 h-3.5" /> Delivered
+                  </span>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => confirmDelivery(n.id)}>
+                    Confirm Delivery
+                  </Button>
+                )}
+                <button
+                  onClick={() => deleteNotice(n.id)}
+                  className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                  title="Delete notice"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         ))}
