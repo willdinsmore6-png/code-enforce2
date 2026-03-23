@@ -64,8 +64,6 @@ export default function CaseDetail() {
     setDeleting(true);
     await base44.entities.Case.delete(id);
     navigate('/cases');
-  });
-    setCaseData(prev => ({ ...prev, compliance_path: path }));
   }
 
   if (loading) {
