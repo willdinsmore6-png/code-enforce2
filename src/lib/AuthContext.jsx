@@ -101,6 +101,9 @@ export const AuthProvider = ({ children }) => {
       }
       
       setIsLoadingAuth(false);
+    } catch (error) {
+      console.error('User auth check failed:', error);
+      setIsLoadingAuth(false);
       setIsAuthenticated(false);
       
       // If user auth fails, it might be an expired token
