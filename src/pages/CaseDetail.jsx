@@ -1,0 +1,230 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle } from 'lucide-react';
+import StatusBadge from '../components/shared/StatusBadge';
+import CaseTimeline from '../components/case/CaseTimeline';
+import CaseNotices from '../components/case/CaseNotices';
+import CaseDocuments from '../components/case/CaseDocuments';
+import { format } from 'date-fns';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+export default function CaseDetail() {
+  const { id } = useParams();
+  const [caseData, setCaseData] = useState(null);
+  const [investigations, setInvestigations] = useState([]);
+  const [notices, setNotices] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [deadlines, setDeadlines] = useState([]);
+  const [courtActions, setCourtActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const [c, inv, not, doc, dl, ca] = await Promise.all([
+        base44.entities.Case.filter({ id }),
+        base44.entities.Investigation.filter({ case_id: id }),
+        base44.entities.Notice.filter({ case_id: id }),
+        base44.entities.Document.filter({ case_id: id }),
+        base44.entities.Deadline.filter({ case_id: id }),
+        base44.entities.CourtAction.filter({ case_id: id }),
+      ]);
+      setCaseData(c[0]);
+      setInvestigations(inv);
+      setNotices(not);
+      setDocuments(doc);
+      setDeadlines(dl);
+      setCourtActions(ca);
+      setLoading(false);
+    }
+    load();
+  }, [id]);
+
+  async function updateStatus(newStatus) {
+    await base44.entities.Case.update(id, { status: newStatus });
+    setCaseData(prev => ({ ...prev, status: newStatus }));
+  }
+
+  async function updatePath(path) {
+    await base44.entities.Case.update(id, { 
+      compliance_path: path,
+      daily_penalty_rate: path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : caseData.daily_penalty_rate 
+    });
+    setCaseData(prev => ({ ...prev, compliance_path: path }));
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground">Case not found.</p>
+        <Link to="/cases" className="text-primary hover:underline text-sm mt-2 inline-block">Back to cases</Link>
+      </div>
+    );
+  }
+
+  const pathLabels = {
+    none: 'Not Selected',
+    citation_676_17b: 'Path A: Citation (RSA 676:17-b)',
+    superior_court_676_15: 'Path B: Superior Court (RSA 676:15)',
+  };
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <Link to="/cases" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-3">
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to cases
+        </Link>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h1>
+              <StatusBadge status={caseData.status} />
+              <StatusBadge status={caseData.priority} type="priority" />
+            </div>
+            <p className="text-muted-foreground flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" /> {caseData.property_address}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Select value={caseData.status} onValueChange={updateStatus}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Update status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="intake">Intake</SelectItem>
+                <SelectItem value="investigation">Investigation</SelectItem>
+                <SelectItem value="notice_sent">Notice Sent</SelectItem>
+                <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
+                <SelectItem value="in_compliance">In Compliance</SelectItem>
+                <SelectItem value="citation_issued">Citation Issued</SelectItem>
+                <SelectItem value="court_action">Court Action</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Info Grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <InfoCard icon={User} label="Owner" value={caseData.property_owner_name || '—'} />
+        <InfoCard icon={AlertTriangle} label="Violation" value={caseData.violation_type?.replace('_', ' ') || '—'} />
+        <InfoCard icon={Clock} label="Abatement Deadline" value={caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : '—'} />
+        <InfoCard icon={Scale} label="Compliance Path" value={pathLabels[caseData.compliance_path] || 'Not Selected'} />
+      </div>
+
+      {/* Compliance Path Selector */}
+      {caseData.compliance_path === 'none' && caseData.status !== 'intake' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+          <h3 className="font-semibold text-amber-800 mb-2">Select Compliance Path</h3>
+          <p className="text-sm text-amber-700 mb-4">Choose the enforcement path for this violation:</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button variant="outline" onClick={() => updatePath('citation_676_17b')} className="border-amber-300 hover:bg-amber-100">
+              Path A: Land Use Citation (RSA 676:17-b)
+            </Button>
+            <Button variant="outline" onClick={() => updatePath('superior_court_676_15')} className="border-amber-300 hover:bg-amber-100">
+              Path B: Superior Court (RSA 676:15)
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabbed Content */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="notices">Notices ({notices.length})</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h3 className="font-semibold mb-3">Violation Description</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{caseData.violation_description}</p>
+            {caseData.specific_code_violated && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <span className="text-xs font-medium text-muted-foreground">Code Cited: </span>
+                <span className="text-sm font-medium">{caseData.specific_code_violated}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Deadlines */}
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h3 className="font-semibold mb-3">Deadlines</h3>
+            <div className="space-y-2">
+              {deadlines.map(d => (
+                <div key={d.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div>
+                    <p className="text-sm font-medium">{d.description}</p>
+                    <p className="text-xs text-muted-foreground">{d.deadline_type.replace('_', ' ')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm">{format(new Date(d.due_date), 'MMM d, yyyy')}</p>
+                    <StatusBadge status={d.priority} type="priority" />
+                  </div>
+                </div>
+              ))}
+              {deadlines.length === 0 && <p className="text-sm text-muted-foreground">No deadlines set.</p>}
+            </div>
+          </div>
+
+          {/* Court Actions */}
+          {courtActions.length > 0 && (
+            <div className="bg-card rounded-xl border border-border p-5">
+              <h3 className="font-semibold mb-3">Court Actions</h3>
+              <div className="space-y-2">
+                {courtActions.map(ca => (
+                  <div key={ca.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{ca.action_type.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-muted-foreground">{ca.court_type.replace('_', ' ')} • {ca.docket_number || 'No docket #'}</p>
+                    </div>
+                    <StatusBadge status={ca.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="notices">
+          <CaseNotices caseId={id} caseData={caseData} notices={notices} setNotices={setNotices} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
+        </TabsContent>
+
+        <TabsContent value="timeline">
+          <CaseTimeline caseData={caseData} investigations={investigations} notices={notices} courtActions={courtActions} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function InfoCard({ icon: Icon, label, value }) {
+  return (
+    <div className="bg-card rounded-xl border border-border p-4">
+      <div className="flex items-center gap-2 mb-1.5">
+        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      </div>
+      <p className="text-sm font-semibold capitalize">{value}</p>
+    </div>
+  );
+}
