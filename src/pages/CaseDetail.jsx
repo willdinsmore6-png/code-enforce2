@@ -29,23 +29,34 @@ export default function CaseDetail() {
 
   useEffect(() => {
     async function load() {
-      const [c, inv, not, doc, dl, ca, u] = await Promise.all([
-        base44.entities.Case.filter({ id }),
-        base44.entities.Investigation.filter({ case_id: id }),
-        base44.entities.Notice.filter({ case_id: id }),
-        base44.entities.Document.filter({ case_id: id }),
-        base44.entities.Deadline.filter({ case_id: id }),
-        base44.entities.CourtAction.filter({ case_id: id }),
-        base44.entities.User.list(),
-      ]);
-      setCaseData(c[0]);
-      setInvestigations(inv);
-      setNotices(not);
-      setDocuments(doc);
-      setDeadlines(dl);
-      setCourtActions(ca);
-      setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
-      setLoading(false);
+      try {
+        const [c, inv, not, doc, dl, ca] = await Promise.all([
+          base44.entities.Case.filter({ id }),
+          base44.entities.Investigation.filter({ case_id: id }),
+          base44.entities.Notice.filter({ case_id: id }),
+          base44.entities.Document.filter({ case_id: id }),
+          base44.entities.Deadline.filter({ case_id: id }),
+          base44.entities.CourtAction.filter({ case_id: id }),
+        ]);
+        setCaseData(c[0]);
+        setInvestigations(inv);
+        setNotices(not);
+        setDocuments(doc);
+        setDeadlines(dl);
+        setCourtActions(ca);
+        
+        try {
+          const u = await base44.entities.User.list();
+          setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
+        } catch (error) {
+          console.error('Failed to load users:', error);
+          setUsers([]);
+        }
+      } catch (error) {
+        console.error('Failed to load case data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [id]);
