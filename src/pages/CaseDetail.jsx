@@ -78,6 +78,10 @@ export default function CaseDetail() {
     superior_court_676_15: 'Path B: Superior Court (RSA 676:15)',
   };
 
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       {/* Header */}
