@@ -53,8 +53,6 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
   async function deleteNotice(noticeId) {
     await base44.entities.Notice.delete(noticeId);
     setNotices(prev => prev.filter(n => n.id !== noticeId));
-  });
-    setNotices(prev => prev.map(n => n.id === noticeId ? { ...n, delivery_confirmed: true, delivery_confirmed_date: format(new Date(), 'yyyy-MM-dd') } : n));
   }
 
   const typeLabels = {
