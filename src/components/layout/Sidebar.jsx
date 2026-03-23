@@ -35,8 +35,8 @@ export default function Sidebar() {
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">NH Code Enforcement</span>
-            <span className="text-[11px] text-sidebar-foreground/60 truncate">Compliance System</span>
+            <span className="text-sm font-semibold truncate">Bow Code Enforcement</span>
+            <span className="text-[11px] text-sidebar-foreground/60 truncate">Bow, NH Compliance System</span>
           </div>
         )}
       </div>
