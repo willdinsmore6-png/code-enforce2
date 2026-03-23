@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Image, Download } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function CaseDocuments({ caseId, documents, setDocuments }) {
@@ -19,6 +19,11 @@ export default function CaseDocuments({ caseId, documents, setDocuments }) {
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  async function handleDelete(docId) {
+    await base44.entities.Document.delete(docId);
+    setDocuments(prev => prev.filter(d => d.id !== docId));
+  }
 
   async function handleUpload(e) {
     e.preventDefault();
@@ -118,11 +123,16 @@ export default function CaseDocuments({ caseId, documents, setDocuments }) {
                   {doc.created_date ? format(new Date(doc.created_date), 'MMM d, yyyy') : ''}
                 </p>
               </div>
+              <div className="flex flex-col gap-1">
               {doc.file_url && (
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
                   <Download className="w-4 h-4" />
                 </a>
               )}
+              <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
             </div>
           );
         })}
