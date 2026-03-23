@@ -59,8 +59,8 @@ export default function CaseDetail() {
   useEffect(() => {
     async function loadUsers() {
       try {
-        const u = await base44.entities.User.list();
-        setUsers(u.filter(user => user.email !== 'will@buildwithme.biz'));
+        const response = await base44.functions.invoke('getUsers', {});
+        setUsers(response.data?.users || []);
       } catch (error) {
         console.error('Failed to load users:', error);
       }
