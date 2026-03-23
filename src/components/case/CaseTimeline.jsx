@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { FileText, Camera, Scale, AlertTriangle } from 'lucide-react';
+import { FileText, Camera, Scale, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function CaseTimeline({ caseData, investigations, notices, courtActions }) {
@@ -12,8 +12,14 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
       type: 'case',
       icon: FileText,
       title: 'Complaint Filed',
-      description: `Case ${caseData.case_number} created for ${caseData.property_address}`,
       color: 'bg-blue-100 text-blue-700',
+      details: [
+        caseData.complainant_anonymous ? 'Anonymous complaint' : caseData.complainant_name ? `Complainant: ${caseData.complainant_name}` : null,
+        caseData.violation_type ? `Violation type: ${caseData.violation_type.replace(/_/g, ' ')}` : null,
+        caseData.violation_description ? caseData.violation_description.slice(0, 200) : null,
+        caseData.specific_code_violated ? `Code cited: ${caseData.specific_code_violated}` : null,
+        caseData.assigned_officer ? `Assigned to: ${caseData.assigned_officer}` : null,
+      ].filter(Boolean),
     });
   }
 
@@ -24,8 +30,18 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
       type: 'investigation',
       icon: Camera,
       title: 'Site Investigation',
-      description: `Officer ${inv.officer_name}: ${inv.field_notes?.slice(0, 100) || 'Field investigation conducted'}${inv.violation_confirmed ? ' — Violation confirmed' : ''}`,
       color: 'bg-purple-100 text-purple-700',
+      details: [
+        `Officer: ${inv.officer_name}`,
+        inv.violation_confirmed !== undefined ? (inv.violation_confirmed ? '✓ Violation confirmed' : '✗ No violation found') : null,
+        inv.field_notes ? `Notes: ${inv.field_notes.slice(0, 200)}` : null,
+        inv.site_conditions ? `Site conditions: ${inv.site_conditions}` : null,
+        inv.weather_conditions ? `Weather: ${inv.weather_conditions}` : null,
+        inv.witnesses ? `Witnesses: ${inv.witnesses}` : null,
+        inv.warrant_required ? `Warrant required — Ref: ${inv.warrant_reference || 'RSA 595-B'}` : null,
+        inv.evidence_summary ? `Evidence: ${inv.evidence_summary.slice(0, 150)}` : null,
+        inv.photos?.length > 0 ? `${inv.photos.length} photo(s) on file` : null,
+      ].filter(Boolean),
     });
   });
 
@@ -43,8 +59,17 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
       type: 'notice',
       icon: AlertTriangle,
       title: labels[n.notice_type] || 'Notice Issued',
-      description: `Sent via ${n.delivery_method?.replace('_', ' ') || 'mail'}${n.rsa_cited ? ` — Citing ${n.rsa_cited}` : ''}`,
       color: 'bg-amber-100 text-amber-700',
+      details: [
+        `Delivery: ${n.delivery_method?.replace(/_/g, ' ') || 'Unknown'}`,
+        n.rsa_cited ? `RSA cited: ${n.rsa_cited}` : null,
+        n.ordinance_cited ? `Ordinance: ${n.ordinance_cited}` : null,
+        n.recipient_name ? `Recipient: ${n.recipient_name}` : null,
+        n.abatement_deadline ? `Abatement deadline: ${format(new Date(n.abatement_deadline), 'MMM d, yyyy')}` : null,
+        n.appeal_deadline ? `Appeal deadline: ${format(new Date(n.appeal_deadline), 'MMM d, yyyy')}` : null,
+        n.delivery_confirmed ? `✓ Delivery confirmed ${n.delivery_confirmed_date ? 'on ' + format(new Date(n.delivery_confirmed_date), 'MMM d, yyyy') : ''}` : '⚠ Delivery not yet confirmed',
+        n.tracking_number ? `Tracking: ${n.tracking_number}` : null,
+      ].filter(Boolean),
     });
   });
 
@@ -55,8 +80,19 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
       type: 'court',
       icon: Scale,
       title: ca.action_type.replace(/_/g, ' '),
-      description: `${ca.court_type.replace('_', ' ')}${ca.docket_number ? ` • Docket: ${ca.docket_number}` : ''}`,
       color: 'bg-rose-100 text-rose-700',
+      details: [
+        `Court: ${ca.court_type.replace(/_/g, ' ')}`,
+        ca.docket_number ? `Docket: ${ca.docket_number}` : null,
+        ca.attorney_assigned ? `Attorney: ${ca.attorney_assigned}` : null,
+        ca.hearing_date ? `Hearing: ${format(new Date(ca.hearing_date), 'MMM d, yyyy h:mm a')}` : null,
+        ca.court_location ? `Location: ${ca.court_location}` : null,
+        ca.outcome ? `Outcome: ${ca.outcome}` : null,
+        ca.penalties_awarded ? `Penalties awarded: $${ca.penalties_awarded.toLocaleString()}` : null,
+        ca.injunction_granted ? '✓ Injunction granted' : null,
+        ca.next_action_required ? `Next action: ${ca.next_action_required}` : null,
+        ca.attorney_notes ? `Notes: ${ca.attorney_notes.slice(0, 150)}` : null,
+      ].filter(Boolean),
     });
   });
 
@@ -76,12 +112,18 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
                 <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10", event.color)}>
                   <event.icon className="w-3.5 h-3.5" />
                 </div>
-                <div className="pb-1">
-                  <p className="text-sm font-medium capitalize">{event.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>
-                  <p className="text-[11px] text-muted-foreground/70 mt-1">
+                <div className="pb-1 flex-1">
+                  <p className="text-sm font-semibold capitalize">{event.title}</p>
+                  <p className="text-[11px] text-muted-foreground/70 mb-2">
                     {format(new Date(event.date), 'MMM d, yyyy')}
                   </p>
+                  {event.details?.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {event.details.map((d, j) => (
+                        <li key={j} className="text-xs text-muted-foreground leading-relaxed">• {d}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             ))}
