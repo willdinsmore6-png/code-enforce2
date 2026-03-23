@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download } from 'lucide-react';
+import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download, Mail } from 'lucide-react';
 import DocumentPreview from '../components/case/DocumentPreview';
+import ClearableInput from '../components/shared/ClearableInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +17,7 @@ export default function PublicPortal() {
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [documents, setDocuments] = useState([]);
+  const [notices, setNotices] = useState([]);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [showAbatementForm, setShowAbatementForm] = useState(false);
   const [abatementFile, setAbatementFile] = useState(null);
@@ -33,6 +35,7 @@ export default function PublicPortal() {
     if (response.data?.found) {
       setCaseData(response.data.case);
       setDocuments(response.data.documents || []);
+      setNotices(response.data.notices || []);
     } else {
       setNotFound(true);
     }
@@ -90,9 +93,9 @@ export default function PublicPortal() {
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-3">
-          <Input
+          <ClearableInput
             value={accessCode}
-            onChange={e => setAccessCode(e.target.value)}
+            onChange={e => setAccessCode(e.target.value.toUpperCase())}
             placeholder="Enter access code (e.g., A1B2C3D4)"
             className="flex-1 uppercase"
             required
@@ -169,6 +172,46 @@ export default function PublicPortal() {
             </ul>
           </div>
 
+          {/* Official Notices */}
+          {notices.length > 0 && (
+            <div className="bg-card rounded-xl border border-border p-5">
+              <h3 className="font-semibold mb-3">Official Notices</h3>
+              <div className="space-y-3">
+                {notices.map(n => {
+                  const typeLabels = {
+                    first_nov: 'First Notice of Violation',
+                    second_nov: 'Second Notice of Violation',
+                    cease_desist_676_17a: 'Cease & Desist (RSA 676:17-a)',
+                    citation_676_17b: 'Citation (RSA 676:17-b)',
+                    court_summons: 'Court Summons',
+                  };
+                  return (
+                    <div key={n.id} className="flex items-start gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                      <Mail className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-800">{typeLabels[n.notice_type] || n.notice_type}</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          Issued {n.date_issued ? format(new Date(n.date_issued), 'MMMM d, yyyy') : '—'}
+                          {n.delivery_method ? ` · ${n.delivery_method.replace(/_/g, ' ')}` : ''}
+                        </p>
+                        {n.rsa_cited && <p className="text-xs text-amber-700">Citing: {n.rsa_cited}</p>}
+                        {n.abatement_deadline && <p className="text-xs text-amber-700">Abatement deadline: {format(new Date(n.abatement_deadline), 'MMMM d, yyyy')}</p>}
+                        {n.appeal_deadline && <p className="text-xs text-amber-700">Appeal deadline: {format(new Date(n.appeal_deadline), 'MMMM d, yyyy')}</p>}
+                        {n.notice_content && <p className="text-xs text-amber-800 mt-2 leading-relaxed border-t border-amber-200 pt-2">{n.notice_content}</p>}
+                        {n.document_url && (
+                          <a href={n.document_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1">
+                            <Download className="w-3 h-3" /> Download Notice Document
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Documents */}
           {documents.length > 0 && (
             <div className="bg-card rounded-xl border border-border p-5">
@@ -214,7 +257,15 @@ export default function PublicPortal() {
                 <form onSubmit={handleAbatementSubmit} className="mt-4 space-y-4">
                   <div className="space-y-1.5">
                     <Label>Description / Notes</Label>
-                    <Textarea value={abatementNotes} onChange={e => setAbatementNotes(e.target.value)} rows={3} placeholder="Describe what you've done to correct the violation..." />
+                    <div className="relative">
+                      <Textarea value={abatementNotes} onChange={e => setAbatementNotes(e.target.value)} rows={3} placeholder="Describe what you've done to correct the violation..." className="pr-8" />
+                      {abatementNotes && (
+                        <button type="button" onClick={() => setAbatementNotes('')}
+                          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                          <span className="text-xs">✕</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label>Upload Evidence (photos, documents)</Label>
