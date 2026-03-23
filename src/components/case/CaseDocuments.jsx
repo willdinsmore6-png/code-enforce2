@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Image, Download, Trash2 } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2, Eye } from 'lucide-react';
+import DocumentPreview from './DocumentPreview';
 import { format } from 'date-fns';
 
-export default function CaseDocuments({ caseId, documents, setDocuments }) {
+export default function CaseDocuments({ caseId, documents, setDocuments, readOnly = false }) {
   const [open, setOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
   const [form, setForm] = useState({
@@ -57,6 +59,7 @@ export default function CaseDocuments({ caseId, documents, setDocuments }) {
 
   return (
     <div className="space-y-4">
+      <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Document Vault</h3>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -124,15 +127,22 @@ export default function CaseDocuments({ caseId, documents, setDocuments }) {
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-              {doc.file_url && (
-                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-                  <Download className="w-4 h-4" />
-                </a>
-              )}
-              <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+                {doc.file_url && (
+                  <button onClick={() => setPreviewDoc(doc)} className="text-muted-foreground hover:text-primary transition-colors" title="Preview">
+                    <Eye className="w-4 h-4" />
+                  </button>
+                )}
+                {doc.file_url && (
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Download">
+                    <Download className="w-4 h-4" />
+                  </a>
+                )}
+                {!readOnly && (
+                  <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-red-500 transition-colors" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
