@@ -94,9 +94,12 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
+      
+      // Mark invitation as accepted on first login
+      if (currentUser && !currentUser.invitation_accepted) {
+        await base44.auth.updateMe({ invitation_accepted: true });
+      }
+      
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       
