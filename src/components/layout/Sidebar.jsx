@@ -2,8 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, FileText, Search, Bell, Scale, 
   FolderOpen, Wand2, BookOpen, Globe, ChevronLeft, 
-  ChevronRight, Shield, Plus
+  ChevronRight, Shield, Plus, LogOut
 } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -63,6 +64,16 @@ export default function Sidebar() {
         })}
       </nav>
 
+      <button
+        onClick={() => base44.auth.logout()}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150",
+          "text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent/50"
+        )}
+      >
+        <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
+        {!collapsed && <span className="truncate">Logout</span>}
+      </button>
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
