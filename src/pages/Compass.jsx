@@ -61,9 +61,13 @@ export default function CompassPage() {
             return;
           }
         } catch (e) {
-          // Conversation expired or belongs to another user — clear and create new
-          sessionStorage.removeItem('compass_conversation_id');
-          sessionStorage.removeItem('compass_messages');
+          // Conversation expired or belongs to another user (e.g., superadmin switched context) — clear and create new
+          if (e?.message?.includes('Access denied') || e?.message?.includes('belongs to another user')) {
+            sessionStorage.removeItem('compass_conversation_id');
+            sessionStorage.removeItem('compass_messages');
+          } else {
+            throw e;
+          }
         }
       }
       const conv = await base44.agents.createConversation({
