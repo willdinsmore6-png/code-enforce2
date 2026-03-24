@@ -86,7 +86,7 @@ export default function AdminTools() {
       setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
       setInviteEmail('');
       const r = await base44.functions.invoke('getUsers', {});
-      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === municipality?.id);
+      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === currentMunicipality?.id);
       setUsers(muniUsers);
     } catch (err) {
       setInviteResult({ success: false, message: err.message || 'Failed to send invitation' });
