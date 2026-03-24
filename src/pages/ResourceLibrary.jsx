@@ -160,13 +160,21 @@ function AICuratePanel({ onClose, municipality }) {
       .then(conv => {
         setConversation(conv);
         setMessages(conv.messages || []);
+      })
+      .catch(e => {
+        // If conversation error occurs (e.g., superadmin switched context), log and continue
+        console.warn('Failed to create resource curator conversation:', e.message);
       });
   }, []);
 
   useEffect(() => {
     if (!conversation) return;
-    const unsub = base44.agents.subscribeToConversation(conversation.id, data => setMessages(data.messages || []));
-    return unsub;
+    try {
+      const unsub = base44.agents.subscribeToConversation(conversation.id, data => setMessages(data.messages || []));
+      return unsub;
+    } catch (e) {
+      console.warn('Failed to subscribe to conversation:', e.message);
+    }
   }, [conversation?.id]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
