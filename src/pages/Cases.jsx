@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { useAuth } from '@/lib/AuthContext';
 import { Plus, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +16,6 @@ const violationLabels = {
 };
 
 export default function Cases() {
-  const { currentMunicipality } = useAuth();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,12 +23,12 @@ export default function Cases() {
 
   useEffect(() => {
     async function load() {
-      const data = await base44.entities.Case.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 100);
+      const data = await base44.entities.Case.list('-created_date', 100);
       setCases(data);
       setLoading(false);
     }
     load();
-  }, [currentMunicipality?.id]);
+  }, []);
 
   const filtered = cases.filter(c => {
     const matchesSearch = !searchTerm || 

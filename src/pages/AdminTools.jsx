@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user, currentMunicipality, reloadMunicipality } = useAuth();
+  const { user, municipality, reloadMunicipality } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -37,7 +37,7 @@ export default function AdminTools() {
 
   useEffect(() => {
     // Load municipality data into form
-    if (currentMunicipality) {
+    if (municipality) {
       setMuniForm(f => ({
         ...f,
         name: municipality.name || '',
@@ -49,16 +49,14 @@ export default function AdminTools() {
         contact_phone: municipality.contact_phone || '',
         website: municipality.website || '',
         tagline: municipality.tagline || '',
-        logo_url: currentMunicipality.logo_url || '',
+        logo_url: municipality.logo_url || '',
       }));
     }
-  }, [currentMunicipality]);
+  }, [municipality]);
 
   useEffect(() => {
     base44.functions.invoke('getUsers', {}).then(r => {
-      // Filter users to only show those in the current municipality
-      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === currentMunicipality?.id);
-      setUsers(muniUsers);
+      setUsers(r.data?.users || []);
       setLoadingUsers(false);
     });
     base44.entities.AuditLog.list('-timestamp', 500).then(logs => {
@@ -74,24 +72,15 @@ export default function AdminTools() {
 
   async function handleInvite(e) {
     e.preventDefault();
-    if (!currentMunicipality) return;
     setInviting(true);
     setInviteResult(null);
-    try {
-      await base44.functions.invoke('inviteMunicipalityUser', {
-        email: inviteEmail.trim(),
-        role: 'user',
-        municipality_id: currentMunicipality.id,
-      });
-      setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
-      setInviteEmail('');
-      const r = await base44.functions.invoke('getUsers', {});
-      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === currentMunicipality?.id);
-      setUsers(muniUsers);
-    } catch (err) {
-      setInviteResult({ success: false, message: err.message || 'Failed to send invitation' });
-    }
+    await base44.users.inviteUser(inviteEmail.trim(), 'user');
+    setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
+    setInviteEmail('');
     setInviting(false);
+    // Reload users
+    const r = await base44.functions.invoke('getUsers', {});
+    setUsers(r.data?.users || []);
   }
 
   async function handleReset(e) {
@@ -120,8 +109,8 @@ export default function AdminTools() {
   async function handleSaveMuni(e) {
     e.preventDefault();
     setSavingMuni(true);
-    if (currentMunicipality?.id) {
-      await base44.functions.invoke('updateMunicipality', { municipality_id: currentMunicipality.id, ...muniForm });
+    if (municipality?.id) {
+      await base44.functions.invoke('updateMunicipality', { municipality_id: municipality.id, ...muniForm });
       await reloadMunicipality();
     }
     setSavingMuni(false);

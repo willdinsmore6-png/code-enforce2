@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function CompassPage() {
-  const { user, currentMunicipality } = useAuth();
+  const { user } = useAuth();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -29,7 +29,7 @@ export default function CompassPage() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.TownConfig.filter({ municipality_id: currentMunicipality?.id, is_active: true }),
+      base44.entities.TownConfig.filter({ is_active: true }),
       base44.entities.Case.list('-created_date', 100),
     ]).then(([configs, c]) => {
       if (configs[0]) {
@@ -41,7 +41,7 @@ export default function CompassPage() {
       }
       setCases(c.filter(ca => !['resolved', 'closed'].includes(ca.status)));
     });
-  }, [currentMunicipality?.id]);
+  }, []);
 
   useEffect(() => {
     async function initConversation() {
@@ -61,14 +61,9 @@ export default function CompassPage() {
             return;
           }
         } catch (e) {
-          // Conversation expired or belongs to another user (e.g., superadmin switched context) — clear and create new
-          const errMsg = e?.message || '';
-          if (errMsg.includes('Access denied') || errMsg.includes('belongs to another user') || errMsg.includes('Unauthorized')) {
-            sessionStorage.removeItem('compass_conversation_id');
-            sessionStorage.removeItem('compass_messages');
-          } else {
-            throw e;
-          }
+          // Conversation expired or belongs to another user — clear and create new
+          sessionStorage.removeItem('compass_conversation_id');
+          sessionStorage.removeItem('compass_messages');
         }
       }
       const conv = await base44.agents.createConversation({
@@ -200,7 +195,7 @@ export default function CompassPage() {
               <h1 className="text-lg font-bold">Compass AI</h1>
               <p className="text-xs text-muted-foreground">
                 NH Land Use & Zoning Enforcement Advisor
-                {currentMunicipality && <span className="text-indigo-600 font-medium"> · {currentMunicipality.short_name || currentMunicipality.name}</span>}
+                {townConfig && <span className="text-indigo-600 font-medium"> · {townConfig.town_name}, {townConfig.state}</span>}
               </p>
             </div>
           </div>

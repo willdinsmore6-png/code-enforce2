@@ -8,7 +8,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [municipality, setMunicipality] = useState(null);
-  const [viewingMunicipality, setViewingMunicipality] = useState(null);
+  const [impersonatedMunicipality, setImpersonatedMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -112,8 +112,6 @@ export const AuthProvider = ({ children }) => {
 
       // Block access if user is not a superadmin and hasn't been assigned a municipality
       if (currentUser && !currentUser.municipality_id && currentUser.role !== 'superadmin') {
-        setUser(null);
-        setIsAuthenticated(false);
         setAuthError({
           type: 'pending_approval',
           message: 'Your access request is pending approval. A superadmin will assign you to a municipality shortly.'
@@ -141,9 +139,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const impersonateMunicipality = useCallback((muni) => {
+    setImpersonatedMunicipality(muni);
+  }, []);
+
+  const clearImpersonation = useCallback(() => {
+    setImpersonatedMunicipality(null);
+  }, []);
+
+  const effectiveMunicipality = impersonatedMunicipality || municipality;
+
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    setImpersonatedMunicipality(null);
     if (shouldRedirect) {
       base44.auth.logout(window.location.href);
     } else {
@@ -156,16 +165,13 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
-  // Return the municipality being viewed (for superadmins) or the user's assigned municipality
-  const currentMunicipality = viewingMunicipality || municipality;
-
   return (
     <AuthContext.Provider value={{ 
       user,
-      municipality,
-      currentMunicipality,
-      viewingMunicipality,
-      setViewingMunicipality,
+      municipality: effectiveMunicipality,
+      impersonatedMunicipality,
+      impersonateMunicipality,
+      clearImpersonation,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
