@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function CompassPage() {
-  const { user } = useAuth();
+  const { user, municipality } = useAuth();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -29,7 +29,7 @@ export default function CompassPage() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.TownConfig.filter({ is_active: true }),
+      base44.entities.TownConfig.filter({ municipality_id: municipality?.id, is_active: true }),
       base44.entities.Case.list('-created_date', 100),
     ]).then(([configs, c]) => {
       if (configs[0]) {
