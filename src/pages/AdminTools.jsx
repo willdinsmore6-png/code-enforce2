@@ -110,7 +110,7 @@ export default function AdminTools() {
     e.preventDefault();
     setSavingMuni(true);
     if (municipality?.id) {
-      await base44.entities.Municipality.update(municipality.id, muniForm);
+      await base44.functions.invoke('updateMunicipality', { municipality_id: municipality.id, ...muniForm });
       await reloadMunicipality();
     }
     setSavingMuni(false);
