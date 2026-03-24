@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Plus, ChevronDown, ChevronUp, Trash2, CheckCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -19,6 +19,8 @@ export default function CompassPage() {
   const [configForm, setConfigForm] = useState({ town_name: '', state: 'NH', compliance_days_zoning: 30, compliance_days_building: 30, zba_appeal_days: 30, penalty_first_offense: 275, penalty_subsequent: 550, specific_regulations: '', notes: '' });
   const [savingConfig, setSavingConfig] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadedDocNames, setUploadedDocNames] = useState([]);
+  const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
@@ -32,6 +34,8 @@ export default function CompassPage() {
       if (configs[0]) {
         setTownConfig(configs[0]);
         setConfigForm(f => ({ ...f, ...configs[0] }));
+        // Restore doc names from stored metadata
+        setUploadedDocNames(configs[0].ordinance_doc_names || []);
       } else {
         setShowConfig(isAdmin);
       }
@@ -96,9 +100,8 @@ export default function CompassPage() {
       return;
     }
     setUploadingDoc(true);
-    // Upload file
+    setLastUploadedDoc(null);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    // Extract text from the document for AI training
     let extractedText = '';
     try {
       const extracted = await base44.integrations.Core.InvokeLLM({
@@ -109,18 +112,46 @@ export default function CompassPage() {
     } catch (err) {
       console.error('Text extraction failed:', err);
     }
-    // Append extracted text to specific_regulations
     const existingRegs = townConfig.specific_regulations || '';
     const separator = existingRegs ? `\n\n--- Uploaded: ${file.name} ---\n` : `--- Uploaded: ${file.name} ---\n`;
     const newRegs = existingRegs + separator + extractedText;
     const existingDocs = townConfig.ordinance_docs || [];
+    const existingNames = townConfig.ordinance_doc_names || [];
+    const newDocEntry = { url: file_url, name: file.name, uploaded_at: new Date().toISOString() };
     const updated = await base44.entities.TownConfig.update(townConfig.id, {
       ordinance_docs: [...existingDocs, file_url],
+      ordinance_doc_names: [...existingNames, newDocEntry],
       specific_regulations: newRegs,
     });
     setTownConfig(updated);
     setConfigForm(f => ({ ...f, specific_regulations: newRegs }));
+    setUploadedDocNames([...existingNames, newDocEntry]);
+    setLastUploadedDoc(file.name);
+    setTimeout(() => setLastUploadedDoc(null), 4000);
     setUploadingDoc(false);
+  }
+
+  async function removeDocument(index) {
+    if (!townConfig?.id) return;
+    const docNames = townConfig.ordinance_doc_names || [];
+    const docs = townConfig.ordinance_docs || [];
+    const removedName = docNames[index]?.name || '';
+    const newDocNames = docNames.filter((_, i) => i !== index);
+    const newDocs = docs.filter((_, i) => i !== index);
+    // Remove the doc's extracted text block from specific_regulations
+    let newRegs = townConfig.specific_regulations || '';
+    if (removedName) {
+      const pattern = new RegExp(`\\n*---\\s*Uploaded:\\s*${removedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*---[\\s\\S]*?(?=\\n---\\s*Uploaded:|$)`, 'g');
+      newRegs = newRegs.replace(pattern, '').trim();
+    }
+    const updated = await base44.entities.TownConfig.update(townConfig.id, {
+      ordinance_docs: newDocs,
+      ordinance_doc_names: newDocNames,
+      specific_regulations: newRegs,
+    });
+    setTownConfig(updated);
+    setConfigForm(f => ({ ...f, specific_regulations: newRegs }));
+    setUploadedDocNames(newDocNames);
   }
 
   async function askWithCase() {
@@ -228,12 +259,38 @@ export default function CompassPage() {
                     </div>
                   </label>
                 )}
-                {townConfig?.ordinance_docs?.length > 0 && (
-                  <span className="text-xs text-muted-foreground">{townConfig.ordinance_docs.length} doc(s) uploaded</span>
-                )}
                 <Button type="button" variant="ghost" size="sm" onClick={() => setShowConfig(false)}>Done</Button>
               </div>
             </form>
+
+            {/* Learned Documents List */}
+            {uploadedDocNames.length > 0 && (
+              <div className="mt-4 border-t border-indigo-200 pt-4">
+                <p className="text-xs font-semibold text-indigo-800 mb-2 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Learned Documents ({uploadedDocNames.length})</p>
+                <div className="space-y-1.5">
+                  {uploadedDocNames.map((doc, i) => (
+                    <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-indigo-100">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                        <span className="text-xs font-medium truncate">{doc.name || doc}</span>
+                        {doc.uploaded_at && <span className="text-[10px] text-muted-foreground flex-shrink-0">{new Date(doc.uploaded_at).toLocaleDateString()}</span>}
+                      </div>
+                      <button onClick={() => removeDocument(i)} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 ml-2">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upload success toast */}
+        {lastUploadedDoc && (
+          <div className="mt-3 max-w-5xl mx-auto flex items-center gap-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2.5">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span><strong>{lastUploadedDoc}</strong> has been uploaded and Compass AI is now learning from it.</span>
           </div>
         )}
 
