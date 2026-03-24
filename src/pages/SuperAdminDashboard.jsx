@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Shield, Building2, Plus, Users, FileText, CheckCircle, XCircle, Search, Settings, LogIn } from 'lucide-react';
+import { Shield, Building2, Plus, Users, FileText, CheckCircle, XCircle, Search, Settings, LogIn, Bell } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
@@ -186,6 +186,41 @@ export default function SuperAdminDashboard() {
           </div>
         }
       />
+
+      {/* Pending Users Alert */}
+      {(() => {
+        const pendingUsers = allUsers.filter(u => !u.municipality_id && u.role !== 'superadmin');
+        if (pendingUsers.length === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                <Bell className="w-4 h-4 text-amber-600" />
+              </div>
+              <h3 className="font-semibold text-amber-800">Pending Access Requests ({pendingUsers.length})</h3>
+            </div>
+            <div className="space-y-2">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-amber-100">
+                  <div>
+                    <p className="text-sm font-medium">{u.full_name || '(No name yet)'}</p>
+                    <p className="text-xs text-muted-foreground">{u.email} · Signed up {u.created_date ? format(new Date(u.created_date), 'MMM d, yyyy h:mm a') : ''}</p>
+                  </div>
+                  <div className="w-52">
+                    <Select onValueChange={v => assignMunicipalityToUser(u.id, v)}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Assign & approve..." /></SelectTrigger>
+                      <SelectContent>
+                        {municipalities.map(m => <SelectItem key={m.id} value={m.id}>{m.short_name || m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-amber-600 mt-3">Assign a municipality to grant these users access to the app.</p>
+          </div>
+        );
+      })()}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
