@@ -83,7 +83,7 @@ export default function CaseDetail() {
 
   async function handleDeleteCase() {
     setDeleting(true);
-    await base44.entities.Case.delete(id);
+    await base44.functions.invoke('deleteCaseWithChildren', { case_id: id });
     navigate('/cases');
   }
 

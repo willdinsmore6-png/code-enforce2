@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Image, Download, Trash2, Eye } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2, Eye, Upload } from 'lucide-react';
 import DocumentPreview from './DocumentPreview';
 import { format } from 'date-fns';
 
@@ -14,11 +14,23 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   const [previewDoc, setPreviewDoc] = useState(null);
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const dropRef = useRef(null);
   const [form, setForm] = useState({
     title: '',
     document_type: 'complaint',
     description: '',
   });
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) {
+      setFile(dropped);
+      if (!form.title) setForm(p => ({ ...p, title: dropped.name.replace(/\.[^.]+$/, '') }));
+    }
+  }
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -100,7 +112,20 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
               </div>
               <div className="space-y-1.5">
                 <Label>File *</Label>
-                <Input type="file" onChange={e => setFile(e.target.files[0])} required />
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                  onClick={() => dropRef.current?.click()}
+                >
+                  <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">{file ? file.name : 'Drag & drop or click to browse'}</p>
+                  <input ref={dropRef} type="file" className="hidden" onChange={e => {
+                    const f = e.target.files[0];
+                    if (f) { setFile(f); if (!form.title) setForm(p => ({ ...p, title: f.name.replace(/\.[^.]+$/, '') })); }
+                  }} />
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

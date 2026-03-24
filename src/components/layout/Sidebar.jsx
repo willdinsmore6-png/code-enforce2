@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, FileText, Search, Bell, Scale, 
   FolderOpen, Wand2, BookOpen, Globe, ChevronLeft, 
-  ChevronRight, Shield, Plus, LogOut, Settings
+  ChevronRight, Shield, Plus, LogOut, Settings, Compass
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useState } from 'react';
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/court-actions', icon: Scale, label: 'Court Actions' },
   { path: '/documents', icon: FolderOpen, label: 'Document Vault' },
   { path: '/wizard', icon: Wand2, label: 'Action Wizard' },
+  { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
   { path: '/admin', icon: Settings, label: 'Admin Tools' },

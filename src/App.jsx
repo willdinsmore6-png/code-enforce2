@@ -14,6 +14,7 @@ import Investigations from './pages/Investigations';
 import Deadlines from './pages/Deadlines';
 import CourtActions from './pages/CourtActions';
 import ActionWizard from './pages/ActionWizard';
+import CompassPage from './pages/Compass';
 import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
 import DocumentVault from './pages/DocumentVault';
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/deadlines" element={<Deadlines />} />
         <Route path="/court-actions" element={<CourtActions />} />
         <Route path="/wizard" element={<ActionWizard />} />
+        <Route path="/compass" element={<CompassPage />} />
         <Route path="/resources" element={<ResourceLibrary />} />
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
