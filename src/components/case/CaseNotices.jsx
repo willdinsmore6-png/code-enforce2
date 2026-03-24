@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Mail, CheckCircle, Trash2, X } from 'lucide-react';
+import { Plus, Mail, CheckCircle, Trash2, X, Pencil } from 'lucide-react';
 import ClearableInput from '../shared/ClearableInput';
 import { format, addDays } from 'date-fns';
 
 export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
   const [open, setOpen] = useState(false);
+  const [editNotice, setEditNotice] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     notice_type: 'first_nov',
@@ -56,6 +57,34 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
     setNotices(prev => prev.filter(n => n.id !== noticeId));
   }
 
+  async function saveEditNotice(e) {
+    e.preventDefault();
+    setSaving(true);
+    const updated = await base44.entities.Notice.update(editNotice.id, {
+      notice_type: editNotice.notice_type,
+      delivery_method: editNotice.delivery_method,
+      date_issued: editNotice.date_issued,
+      abatement_deadline: editNotice.abatement_deadline,
+      appeal_deadline: editNotice.appeal_deadline,
+      rsa_cited: editNotice.rsa_cited,
+      tracking_number: editNotice.tracking_number,
+      recipient_name: editNotice.recipient_name,
+      recipient_address: editNotice.recipient_address,
+      notice_content: editNotice.notice_content,
+    });
+    setNotices(prev => prev.map(n => n.id === editNotice.id ? { ...n, ...updated } : n));
+    base44.functions.invoke('logAudit', {
+      case_id: caseId,
+      case_number: caseData.case_number,
+      entity_type: 'Notice',
+      entity_id: editNotice.id,
+      action: 'Updated notice',
+      changes: { notice_type: editNotice.notice_type, date_issued: editNotice.date_issued },
+    }).catch(() => {});
+    setEditNotice(null);
+    setSaving(false);
+  }
+
   const typeLabels = {
     first_nov: 'First Notice of Violation',
     second_nov: 'Second Notice of Violation',
@@ -66,6 +95,82 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
 
   return (
     <div className="space-y-4">
+      {/* Edit Notice Dialog */}
+      {editNotice && (
+        <Dialog open={!!editNotice} onOpenChange={() => setEditNotice(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Edit Notice</DialogTitle></DialogHeader>
+            <form onSubmit={saveEditNotice} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Notice Type</Label>
+                  <Select value={editNotice.notice_type} onValueChange={v => setEditNotice(p => ({ ...p, notice_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="first_nov">First NOV</SelectItem>
+                      <SelectItem value="second_nov">Second NOV</SelectItem>
+                      <SelectItem value="cease_desist_676_17a">Cease & Desist (676:17-a)</SelectItem>
+                      <SelectItem value="citation_676_17b">Citation (676:17-b)</SelectItem>
+                      <SelectItem value="court_summons">Court Summons</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Delivery Method</Label>
+                  <Select value={editNotice.delivery_method} onValueChange={v => setEditNotice(p => ({ ...p, delivery_method: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="certified_mail">Certified Mail</SelectItem>
+                      <SelectItem value="first_class_mail">First Class Mail</SelectItem>
+                      <SelectItem value="hand_delivered">Hand Delivered</SelectItem>
+                      <SelectItem value="posted_on_property">Posted on Property</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Date Issued</Label>
+                  <Input type="date" value={editNotice.date_issued || ''} onChange={e => setEditNotice(p => ({ ...p, date_issued: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tracking Number</Label>
+                  <Input value={editNotice.tracking_number || ''} onChange={e => setEditNotice(p => ({ ...p, tracking_number: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Abatement Deadline</Label>
+                  <Input type="date" value={editNotice.abatement_deadline || ''} onChange={e => setEditNotice(p => ({ ...p, abatement_deadline: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Appeal Deadline</Label>
+                  <Input type="date" value={editNotice.appeal_deadline || ''} onChange={e => setEditNotice(p => ({ ...p, appeal_deadline: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Recipient Name</Label>
+                  <Input value={editNotice.recipient_name || ''} onChange={e => setEditNotice(p => ({ ...p, recipient_name: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Recipient Address</Label>
+                  <Input value={editNotice.recipient_address || ''} onChange={e => setEditNotice(p => ({ ...p, recipient_address: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>RSA / Ordinance Cited</Label>
+                <Input value={editNotice.rsa_cited || ''} onChange={e => setEditNotice(p => ({ ...p, rsa_cited: e.target.value }))} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditNotice(null)}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Notices & Citations</h3>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -159,6 +264,13 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
                     Confirm Delivery
                   </Button>
                 )}
+                <button
+                  onClick={() => setEditNotice({ ...n })}
+                  className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-primary/10"
+                  title="Edit notice"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => deleteNotice(n.id)}
                   className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
