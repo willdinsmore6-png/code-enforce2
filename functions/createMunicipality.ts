@@ -1,0 +1,50 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Only superadmin or an admin/user without a municipality yet (onboarding) can create
+    if (user.role !== 'superadmin' && user.role !== 'admin' && user.role !== 'user') {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    // Non-superadmin users who already have a municipality cannot create another
+    if (user.role !== 'superadmin' && user.municipality_id) {
+      return Response.json({ error: 'Forbidden: already assigned to a municipality' }, { status: 403 });
+    }
+    // Only admin role (not plain user/staff) can self-onboard a new municipality
+    if (user.role === 'user' && user.role !== 'superadmin') {
+      return Response.json({ error: 'Forbidden: only admins can create municipalities' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { name, short_name, municipality_type, state, address, contact_email, contact_phone, website, logo_url, tagline, admin_email, notes } = body;
+
+    if (!name || !state) {
+      return Response.json({ error: 'name and state are required' }, { status: 400 });
+    }
+
+    const municipality = await base44.asServiceRole.entities.Municipality.create({
+      name,
+      short_name: short_name || name,
+      municipality_type: municipality_type || 'town',
+      state,
+      address: address || '',
+      contact_email: contact_email || '',
+      contact_phone: contact_phone || '',
+      website: website || '',
+      logo_url: logo_url || '',
+      tagline: tagline || '',
+      admin_email: admin_email || user.email,
+      notes: notes || '',
+      is_active: true,
+      onboarding_complete: true,
+    });
+
+    return Response.json({ municipality });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+});
