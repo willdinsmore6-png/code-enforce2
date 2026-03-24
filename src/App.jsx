@@ -24,7 +24,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import MunicipalitySetup from './pages/MunicipalitySetup';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -49,6 +49,11 @@ const AuthenticatedApp = () => {
       navigateToLogin();
       return null;
     }
+  }
+
+  // Block access if user is authenticated but not assigned to a municipality (and not superadmin)
+  if (user && !user.municipality_id && user.role !== 'superadmin') {
+    return <PendingApprovalScreen />;
   }
 
   // Render the main app
