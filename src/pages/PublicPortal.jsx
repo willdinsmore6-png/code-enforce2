@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download, Mail } from 'lucide-react';
 import DocumentPreview from '../components/case/DocumentPreview';
@@ -24,6 +24,17 @@ export default function PublicPortal() {
   const [abatementNotes, setAbatementNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [muni, setMuni] = useState({ name: 'Code Enforcement', logo_url: null });
+
+  useEffect(() => {
+    async function loadMuni() {
+      const configs = await base44.entities.TownConfig.filter({ town_name: 'Bow' });
+      if (configs[0]) {
+        setMuni({ name: configs[0].town_name, logo_url: null });
+      }
+    }
+    loadMuni();
+  }, []);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -76,15 +87,18 @@ export default function PublicPortal() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
-      <PageHeader
-        title="Public Portal"
-        description="Check your compliance status or submit proof of abatement"
-      />
+      <div className="flex items-center gap-3 mb-6">
+        {muni.logo_url && <img src={muni.logo_url} alt={muni.name} className="h-10 object-contain" />}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{muni.name}</h1>
+          <p className="text-sm text-muted-foreground">Municipal Code Enforcement</p>
+        </div>
+      </div>
 
       <div className="bg-card rounded-xl border border-border p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Globe className="w-5 h-5 text-primary" />
+            <Search className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h2 className="font-semibold">Look Up Your Case</h2>

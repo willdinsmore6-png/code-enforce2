@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PageHeader from '../components/shared/PageHeader';
-import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, Trash2 } from 'lucide-react';
+import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -93,6 +93,12 @@ export default function AdminTools() {
       setResetResult({ success: false, message: response.data?.error || 'Something went wrong.' });
     }
     setResetLoading(false);
+  }
+
+  async function handleRemoveUser(userId, userEmail) {
+    if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
+    await base44.entities.User.delete(userId);
+    setUsers(prev => prev.filter(u => u.id !== userId));
   }
 
   async function handleLogoUpload(e) {
@@ -292,6 +298,14 @@ export default function AdminTools() {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'admin' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
                       {u.role}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveUser(u.id, u.email)}
+                      className="text-muted-foreground hover:text-red-600 transition-colors flex-shrink-0"
+                      title="Remove user"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
                 {users.length === 0 && (
