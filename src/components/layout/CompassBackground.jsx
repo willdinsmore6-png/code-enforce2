@@ -11,11 +11,20 @@ export default function CompassBackground() {
       const conversationId = sessionStorage.getItem('compass_conversation_id');
       if (!conversationId) return;
 
-      unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
-        sessionStorage.setItem('compass_messages', JSON.stringify(data.messages || []));
-        // Dispatch a custom event so the Compass page can react if it's open
-        window.dispatchEvent(new CustomEvent('compass_update', { detail: { messages: data.messages } }));
-      });
+      try {
+        unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
+          sessionStorage.setItem('compass_messages', JSON.stringify(data.messages || []));
+          // Dispatch a custom event so the Compass page can react if it's open
+          window.dispatchEvent(new CustomEvent('compass_update', { detail: { messages: data.messages } }));
+        });
+      } catch (e) {
+        // Conversation belongs to another user context (e.g., superadmin switched municipalities)
+        // Clear stale conversation and let Compass page create a fresh one
+        if (e?.message?.includes('Access denied') || e?.message?.includes('belongs to another user')) {
+          sessionStorage.removeItem('compass_conversation_id');
+          sessionStorage.removeItem('compass_messages');
+        }
+      }
     }
 
     subscribe();
