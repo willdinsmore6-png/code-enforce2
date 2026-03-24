@@ -77,8 +77,7 @@ export default function SuperAdminDashboard() {
   }
 
   async function assignMunicipalityToUser(userId, municipalityId) {
-    const muni = municipalities.find(m => m.id === municipalityId);
-    await base44.functions.invoke('updateUserMunicipality', { user_id: userId, municipality_id: municipalityId, municipality_name: muni?.short_name || muni?.name });
+    await base44.functions.invoke('updateUserMunicipality', { user_id: userId, municipality_id: municipalityId });
     load();
   }
 
