@@ -6,9 +6,11 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Only superadmin or a user without a municipality yet (onboarding) can create
-    if (user.role !== 'superadmin' && user.municipality_id) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    // Only superadmin can create municipalities, OR an 'admin' role user during self-onboarding (no municipality yet)
+    const isSuperAdmin = user.role === 'superadmin';
+    const isSelfOnboardingAdmin = user.role === 'admin' && !user.municipality_id;
+    if (!isSuperAdmin && !isSelfOnboardingAdmin) {
+      return Response.json({ error: 'Forbidden: only superadmins or admins during onboarding can create municipalities' }, { status: 403 });
     }
 
     const body = await req.json();
