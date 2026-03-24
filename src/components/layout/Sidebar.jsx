@@ -73,7 +73,7 @@ export default function Sidebar() {
           );
         })}
 
-        {user?.role === 'superadmin' && (
+        {(user?.role === 'superadmin' || user?.role === 'admin') && (
           <>
             {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">System</p>}
             {superAdminItems.map((item) => {
