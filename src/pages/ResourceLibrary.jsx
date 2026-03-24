@@ -156,15 +156,39 @@ function AICuratePanel({ onClose, municipality }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { name: 'Resource Curation' } })
-      .then(conv => {
-        setConversation(conv);
-        setMessages(conv.messages || []);
-      })
-      .catch(e => {
-        // If conversation error occurs (e.g., superadmin switched context), log and continue
-        console.warn('Failed to create resource curator conversation:', e.message);
-      });
+    const savedId = sessionStorage.getItem('resource_curator_conversation_id');
+    if (savedId) {
+      base44.agents.getConversation(savedId)
+        .then(conv => {
+          if (conv?.id) {
+            setConversation(conv);
+            setMessages(conv.messages || []);
+            return;
+          }
+          throw new Error('No conversation found');
+        })
+        .catch(e => {
+          // Clear stale conversation and create new
+          sessionStorage.removeItem('resource_curator_conversation_id');
+          base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { name: 'Resource Curation' } })
+            .then(conv => {
+              sessionStorage.setItem('resource_curator_conversation_id', conv.id);
+              setConversation(conv);
+              setMessages(conv.messages || []);
+            })
+            .catch(err => console.warn('Failed to create resource curator conversation:', err.message));
+        });
+    } else {
+      base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { name: 'Resource Curation' } })
+        .then(conv => {
+          sessionStorage.setItem('resource_curator_conversation_id', conv.id);
+          setConversation(conv);
+          setMessages(conv.messages || []);
+        })
+        .catch(e => {
+          console.warn('Failed to create resource curator conversation:', e.message);
+        });
+    }
   }, []);
 
   useEffect(() => {

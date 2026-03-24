@@ -62,7 +62,8 @@ export default function CompassPage() {
           }
         } catch (e) {
           // Conversation expired or belongs to another user (e.g., superadmin switched context) — clear and create new
-          if (e?.message?.includes('Access denied') || e?.message?.includes('belongs to another user')) {
+          const errMsg = e?.message || '';
+          if (errMsg.includes('Access denied') || errMsg.includes('belongs to another user') || errMsg.includes('Unauthorized')) {
             sessionStorage.removeItem('compass_conversation_id');
             sessionStorage.removeItem('compass_messages');
           } else {
