@@ -74,7 +74,10 @@ export default function CompassPage() {
     setInput('');
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
-    await base44.agents.addMessage(conversation, { role: 'user', content: msg + caseContext });
+    const docUrls = (townConfig?.ordinance_docs || []);
+    const messagePayload = { role: 'user', content: msg + caseContext };
+    if (docUrls.length > 0) messagePayload.file_urls = docUrls;
+    await base44.agents.addMessage(conversation, messagePayload);
     setSending(false);
   }
 
@@ -102,30 +105,16 @@ export default function CompassPage() {
     setUploadingDoc(true);
     setLastUploadedDoc(null);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    let extractedText = '';
-    try {
-      const extracted = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract ALL text content from this document verbatim, preserving section numbers, article titles, and ordinance structure. This is a zoning/planning ordinance document that will be used to train an AI enforcement advisor.`,
-        file_urls: [file_url],
-      });
-      extractedText = extracted || '';
-    } catch (err) {
-      console.error('Text extraction failed:', err);
-    }
-    const existingRegs = townConfig.specific_regulations || '';
-    const separator = existingRegs ? `\n\n--- Uploaded: ${file.name} ---\n` : `--- Uploaded: ${file.name} ---\n`;
-    const newRegs = existingRegs + separator + extractedText;
     const existingDocs = townConfig.ordinance_docs || [];
     const existingNames = townConfig.ordinance_doc_names || [];
     const newDocEntry = { url: file_url, name: file.name, uploaded_at: new Date().toISOString() };
     const updated = await base44.entities.TownConfig.update(townConfig.id, {
       ordinance_docs: [...existingDocs, file_url],
       ordinance_doc_names: [...existingNames, newDocEntry],
-      specific_regulations: newRegs,
     });
     setTownConfig(updated);
-    setConfigForm(f => ({ ...f, specific_regulations: newRegs }));
-    setUploadedDocNames([...existingNames, newDocEntry]);
+    const newNames = [...existingNames, newDocEntry];
+    setUploadedDocNames(newNames);
     setLastUploadedDoc(file.name);
     setTimeout(() => setLastUploadedDoc(null), 4000);
     setUploadingDoc(false);
@@ -135,22 +124,13 @@ export default function CompassPage() {
     if (!townConfig?.id) return;
     const docNames = townConfig.ordinance_doc_names || [];
     const docs = townConfig.ordinance_docs || [];
-    const removedName = docNames[index]?.name || '';
     const newDocNames = docNames.filter((_, i) => i !== index);
     const newDocs = docs.filter((_, i) => i !== index);
-    // Remove the doc's extracted text block from specific_regulations
-    let newRegs = townConfig.specific_regulations || '';
-    if (removedName) {
-      const pattern = new RegExp(`\\n*---\\s*Uploaded:\\s*${removedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*---[\\s\\S]*?(?=\\n---\\s*Uploaded:|$)`, 'g');
-      newRegs = newRegs.replace(pattern, '').trim();
-    }
     const updated = await base44.entities.TownConfig.update(townConfig.id, {
       ordinance_docs: newDocs,
       ordinance_doc_names: newDocNames,
-      specific_regulations: newRegs,
     });
     setTownConfig(updated);
-    setConfigForm(f => ({ ...f, specific_regulations: newRegs }));
     setUploadedDocNames(newDocNames);
   }
 
