@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
@@ -8,6 +8,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [municipality, setMunicipality] = useState(null);
+  const [impersonatedMunicipality, setImpersonatedMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -106,44 +107,44 @@ export const AuthProvider = ({ children }) => {
 
   const checkUserAuth = async () => {
     try {
-      // Now check if the user is authenticated
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
       
-      // Mark invitation as accepted on first login
       if (currentUser && !currentUser.invitation_accepted) {
         await base44.auth.updateMe({ invitation_accepted: true });
       }
 
       await loadMunicipality(currentUser);
-      
       setIsLoadingAuth(false);
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
-      
-      // If user auth fails, it might be an expired token
       if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+        setAuthError({ type: 'auth_required', message: 'Authentication required' });
       }
     }
   };
 
+  const impersonateMunicipality = useCallback((muni) => {
+    setImpersonatedMunicipality(muni);
+  }, []);
+
+  const clearImpersonation = useCallback(() => {
+    setImpersonatedMunicipality(null);
+  }, []);
+
+  const effectiveMunicipality = impersonatedMunicipality || municipality;
+
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    
+    setImpersonatedMunicipality(null);
     if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
       base44.auth.logout(window.location.href);
     } else {
-      // Just remove the token without redirect
       base44.auth.logout();
     }
   };
@@ -155,8 +156,11 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      municipality,
+      user,
+      municipality: effectiveMunicipality,
+      impersonatedMunicipality,
+      impersonateMunicipality,
+      clearImpersonation,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
