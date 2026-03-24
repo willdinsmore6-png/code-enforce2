@@ -190,13 +190,24 @@ export default function CompassPage() {
             )}
             {isAdmin && (
               <div className="flex items-center gap-2">
-                <label className="cursor-pointer">
-                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
-                  <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
-                    {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    {uploadingDoc ? 'Extracting text...' : 'Upload Ordinance'}
-                  </div>
-                </label>
+                <div className="flex items-center gap-1.5">
+                  {uploadedDocNames.length > 0 ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium border border-green-200">
+                      ✓ {uploadedDocNames.length} doc{uploadedDocNames.length !== 1 ? 's' : ''} learned
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-medium border border-amber-200">
+                      Unlearned
+                    </span>
+                  )}
+                  <label className="cursor-pointer">
+                    <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
+                    <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
+                      {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      {uploadingDoc ? 'AI Learning...' : 'AI Learning'}
+                    </div>
+                  </label>
+                </div>
                 <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
                   <Settings className="w-3.5 h-3.5" />
                   {townConfig ? 'Town Settings' : 'Setup Town'}
