@@ -173,7 +173,7 @@ export default function SuperAdminHome() {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.is_active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                   {m.is_active ? 'Active' : 'Inactive'}
                 </span>
-                <Button variant="ghost" size="sm" onClick={() => handleEnterMuni(m)} disabled className="text-xs h-7 gap-1 text-muted-foreground cursor-not-allowed">
+                <Button variant="ghost" size="sm" onClick={() => handleEnterMuni(m)} className="text-xs h-7 gap-1">
                 <MessageCircle className="w-3.5 h-3.5" /> Manage
               </Button>
               </div>
