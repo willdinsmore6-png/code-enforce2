@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import SuperAdminHome from './pages/SuperAdminHome';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PendingApprovalScreen from '@/components/PendingApprovalScreen';
@@ -51,9 +52,15 @@ const AuthenticatedApp = () => {
     }
   }
 
+  // Redirect superadmin to their dashboard if not impersonating
+  if (user && user.role === 'superadmin' && !user.municipality_id && window.location.pathname !== '/superadmin' && !window.location.pathname.startsWith('/superadmin')) {
+    return <Routes><Route path="*" element={<SuperAdminHome />} /></Routes>;
+  }
+
   // Block access if user is authenticated but not assigned to a municipality (and not superadmin)
   if (user && !user.municipality_id && user.role !== 'superadmin') {
     return <PendingApprovalScreen />;
+  }
   }
 
   // Render the main app
@@ -73,7 +80,7 @@ const AuthenticatedApp = () => {
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
-        <Route path="/superadmin" element={<SuperAdminDashboard />} />
+        <Route path="/superadmin" element={<SuperAdminHome />} />
         <Route path="/setup" element={<MunicipalitySetup />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
