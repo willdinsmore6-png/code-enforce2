@@ -7,10 +7,6 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const isSuperAdmin = user.role === 'superadmin';
-    const isAdmin = user.role === 'admin';
-    if (!isSuperAdmin && !isAdmin) {
-      return Response.json({ error: 'Forbidden: admin access required' }, { status: 403 });
-    }
 
     const body = await req.json();
     const { municipality_id, ...updateData } = body;
@@ -19,8 +15,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'municipality_id is required' }, { status: 400 });
     }
 
-    // For admin users, verify they belong to this municipality
-    if (isAdmin && user.municipality_id !== municipality_id) {
+    // Superadmins can update any municipality; others can only update their own
+    if (!isSuperAdmin && user.municipality_id !== municipality_id) {
       return Response.json({ error: 'Forbidden: you can only update your own municipality' }, { status: 403 });
     }
 
