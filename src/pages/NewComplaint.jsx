@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { format, addDays } from 'date-fns';
 
 export default function NewComplaint() {
   const navigate = useNavigate();
+  const { municipality } = useAuth();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     complaint_date: format(new Date(), 'yyyy-MM-dd'),
@@ -40,6 +42,7 @@ export default function NewComplaint() {
     
     const newCase = await base44.entities.Case.create({
       ...form,
+      municipality_id: municipality?.id,
       case_number: caseNumber,
       status: 'intake',
       public_access_code: publicCode,
