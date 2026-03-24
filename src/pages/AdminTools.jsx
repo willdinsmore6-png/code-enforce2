@@ -179,9 +179,61 @@ export default function AdminTools() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>State</Label>
-                  <Input value={muniForm.state} onChange={e => setMuniForm(f => ({ ...f, state: e.target.value }))} />
+                  <Select value={muniForm.state} onValueChange={v => setMuniForm(f => ({ ...f, state: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NH">New Hampshire</SelectItem>
+                      <SelectItem value="ME">Maine</SelectItem>
+                      <SelectItem value="VT">Vermont</SelectItem>
+                      <SelectItem value="MA">Massachusetts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Contact Email</Label>
+                  <Input type="email" value={muniForm.contact_email} onChange={e => setMuniForm(f => ({ ...f, contact_email: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Contact Phone</Label>
+                  <Input value={muniForm.contact_phone} onChange={e => setMuniForm(f => ({ ...f, contact_phone: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Website</Label>
+                  <Input value={muniForm.website} onChange={e => setMuniForm(f => ({ ...f, website: e.target.value }))} />
+                </div>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Mailing Address</Label>
+                  <Input value={muniForm.address} onChange={e => setMuniForm(f => ({ ...f, address: e.target.value }))} />
+                </div>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Tagline (shown in app header)</Label>
+                  <Input value={muniForm.tagline} onChange={e => setMuniForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Code Enforcement Division" />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label>Logo</Label>
+                <div className="flex items-center gap-4">
+                  {muniForm.logo_url ? (
+                    <img src={muniForm.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded-lg border border-border bg-white p-1" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer">
+                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                    <div className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+                      {uploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploadingLogo ? 'Uploading...' : muniForm.logo_url ? 'Change Logo' : 'Upload Logo'}
+                    </div>
+                  </label>
+                  {muniForm.logo_url && (
+                    <button type="button" onClick={() => setMuniForm(f => ({ ...f, logo_url: '' }))} className="text-xs text-red-500 hover:underline">Remove</button>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-center gap-3">
                 <Button type="submit" disabled={savingMuni}>{savingMuni ? 'Saving...' : 'Save Changes'}</Button>
                 {muniSaved && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Saved!</span>}
