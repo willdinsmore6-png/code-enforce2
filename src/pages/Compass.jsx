@@ -90,14 +90,36 @@ export default function CompassPage() {
 
   async function handleDocUpload(e) {
     const file = e.target.files[0];
-    if (!file || !townConfig?.id) return;
+    if (!file) return;
+    if (!townConfig?.id) {
+      alert('Please save the town configuration first before uploading documents.');
+      return;
+    }
     setUploadingDoc(true);
+    // Upload file
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    // Extract text from the document for AI training
+    let extractedText = '';
+    try {
+      const extracted = await base44.integrations.Core.InvokeLLM({
+        prompt: `Extract ALL text content from this document verbatim, preserving section numbers, article titles, and ordinance structure. This is a zoning/planning ordinance document that will be used to train an AI enforcement advisor.`,
+        file_urls: [file_url],
+      });
+      extractedText = extracted || '';
+    } catch (err) {
+      console.error('Text extraction failed:', err);
+    }
+    // Append extracted text to specific_regulations
+    const existingRegs = townConfig.specific_regulations || '';
+    const separator = existingRegs ? `\n\n--- Uploaded: ${file.name} ---\n` : `--- Uploaded: ${file.name} ---\n`;
+    const newRegs = existingRegs + separator + extractedText;
     const existingDocs = townConfig.ordinance_docs || [];
     const updated = await base44.entities.TownConfig.update(townConfig.id, {
       ordinance_docs: [...existingDocs, file_url],
+      specific_regulations: newRegs,
     });
     setTownConfig(updated);
+    setConfigForm(f => ({ ...f, specific_regulations: newRegs }));
     setUploadingDoc(false);
   }
 
