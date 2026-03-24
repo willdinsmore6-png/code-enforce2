@@ -32,7 +32,7 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
   }, [caseData]);
 
   useEffect(() => {
-    base44.entities.User.list().then(u => setUsers(u.filter(user => user.email !== 'will@buildwithme.biz')));
+    base44.functions.invoke('getUsers', {}).then(res => setUsers(res.data?.users || []));
   }, []);
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
