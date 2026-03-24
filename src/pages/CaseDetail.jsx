@@ -9,6 +9,7 @@ import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
 import CaseDocuments from '../components/case/CaseDocuments';
 import EditCaseModal from '../components/case/EditCaseModal';
+import CaseNotes from '../components/case/CaseNotes';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
@@ -324,6 +325,9 @@ export default function CaseDetail() {
               </div>
             </div>
           )}
+
+          {/* Case Notes */}
+          <CaseNotes caseId={id} caseNumber={caseData.case_number} />
         </TabsContent>
 
         <TabsContent value="notices">
