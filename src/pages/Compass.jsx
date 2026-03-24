@@ -353,7 +353,7 @@ export default function CompassPage() {
         )}
 
         {messages.map((msg, i) => {
-          if (!msg.content && !msg.tool_calls?.length) return null;
+          if (!msg.content) return null;
           const isUser = msg.role === 'user';
           return (
             <div key={i} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
