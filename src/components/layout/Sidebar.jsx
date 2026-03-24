@@ -20,6 +20,9 @@ const navItems = [
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
+];
+
+const adminNavItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
@@ -38,10 +41,10 @@ export default function Sidebar() {
       collapsed ? "w-[68px]" : "w-[260px]"
     )}>
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary overflow-hidden flex-shrink-0">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-sidebar-border/30">
           {municipality?.logo_url 
             ? <img src={municipality.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
-            : <Shield className="w-5 h-5 text-sidebar-primary-foreground" />}
+            : <Shield className="w-5 h-5 text-sidebar-primary" />}
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
@@ -71,6 +74,30 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
+          <>
+            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>}
+            {adminNavItems.map((item) => {
+              const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    isActive 
+                      ? "bg-sidebar-accent text-sidebar-primary" 
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-sidebar-primary")} />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </>
+        )}
 
         {user?.role === 'superadmin' && (
           <>
