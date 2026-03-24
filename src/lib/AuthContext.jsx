@@ -112,6 +112,8 @@ export const AuthProvider = ({ children }) => {
 
       // Block access if user is not a superadmin and hasn't been assigned a municipality
       if (currentUser && !currentUser.municipality_id && currentUser.role !== 'superadmin') {
+        setUser(null);
+        setIsAuthenticated(false);
         setAuthError({
           type: 'pending_approval',
           message: 'Your access request is pending approval. A superadmin will assign you to a municipality shortly.'
