@@ -37,43 +37,55 @@ export default function NewComplaint() {
     e.preventDefault();
     setSaving(true);
     
-    const caseNumber = `CE-${format(new Date(), 'yyyy')}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    const publicCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    
-    const newCase = await base44.entities.Case.create({
-      ...form,
-      municipality_id: municipality?.id,
-      case_number: caseNumber,
-      status: 'intake',
-      public_access_code: publicCode,
-      abatement_deadline: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
-      zba_appeal_deadline: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
-      daily_penalty_rate: 275,
-      total_fines_accrued: 0,
-      is_first_offense: true,
-    });
-
-    // Create default deadlines
-    await base44.entities.Deadline.bulkCreate([
-      {
-        case_id: newCase.id,
-        municipality_id: municipality?.id,
-        deadline_type: 'abatement',
-        due_date: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
-        description: `Abatement deadline for ${form.property_address}`,
-        priority: 'high',
-      },
-      {
-        case_id: newCase.id,
-        municipality_id: municipality?.id,
-        deadline_type: 'zba_appeal',
-        due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
-        description: `ZBA appeal window closes for ${form.property_address}`,
-        priority: 'medium',
+    try {
+      if (!municipality?.id) {
+        alert('Municipality not loaded. Please refresh and try again.');
+        setSaving(false);
+        return;
       }
-    ]);
 
-    navigate(`/cases/${newCase.id}`);
+      const caseNumber = `CE-${format(new Date(), 'yyyy')}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+      const publicCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      const newCase = await base44.entities.Case.create({
+        ...form,
+        municipality_id: municipality.id,
+        case_number: caseNumber,
+        status: 'intake',
+        public_access_code: publicCode,
+        abatement_deadline: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
+        zba_appeal_deadline: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+        daily_penalty_rate: 275,
+        total_fines_accrued: 0,
+        is_first_offense: true,
+      });
+
+      // Create default deadlines
+      await base44.entities.Deadline.bulkCreate([
+        {
+          case_id: newCase.id,
+          municipality_id: municipality.id,
+          deadline_type: 'abatement',
+          due_date: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
+          description: `Abatement deadline for ${form.property_address}`,
+          priority: 'high',
+        },
+        {
+          case_id: newCase.id,
+          municipality_id: municipality.id,
+          deadline_type: 'zba_appeal',
+          due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+          description: `ZBA appeal window closes for ${form.property_address}`,
+          priority: 'medium',
+        }
+      ]);
+
+      navigate(`/cases/${newCase.id}`);
+    } catch (error) {
+      console.error('Failed to create complaint:', error);
+      alert(`Error creating complaint: ${error.message || 'Unknown error'}`);
+      setSaving(false);
+    }
   }
 
   return (
