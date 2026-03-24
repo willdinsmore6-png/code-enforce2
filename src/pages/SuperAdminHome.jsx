@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function SuperAdminHome() {
-  const { user } = useAuth();
+  const { user, setViewingMunicipality } = useAuth();
   const [municipalities, setMunicipalities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -58,7 +58,8 @@ export default function SuperAdminHome() {
   }
 
   function handleEnterMuni(muni) {
-    // Navigate to municipal dashboard — the auth context will show municipal app based on municipality_id
+    // Superadmin enters viewing mode for this municipality
+    setViewingMunicipality(muni);
     navigate('/');
   }
 
@@ -173,9 +174,9 @@ export default function SuperAdminHome() {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.is_active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                   {m.is_active ? 'Active' : 'Inactive'}
                 </span>
-                <Button variant="ghost" size="sm" onClick={() => handleEnterMuni(m)} className="text-xs h-7 gap-1">
-                <MessageCircle className="w-3.5 h-3.5" /> Manage
-              </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleEnterMuni(m)} className="text-xs h-7 gap-1 text-primary">
+                  <MessageCircle className="w-3.5 h-3.5" /> Manage
+                </Button>
               </div>
             </div>
           ))}

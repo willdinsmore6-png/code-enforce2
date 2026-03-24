@@ -25,7 +25,7 @@ import MunicipalitySetup from './pages/MunicipalitySetup';
 import SuperAdminUsers from './pages/SuperAdminUsers';
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, viewingMunicipality } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -52,13 +52,37 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Redirect superadmin to their home dashboard
-  if (user && user.role === 'superadmin') {
+  // Redirect superadmin to their home dashboard, unless viewing a municipality
+  if (user && user.role === 'superadmin' && !viewingMunicipality) {
     return (
       <Routes>
         <Route path="/superadmin" element={<SuperAdminHome />} />
         <Route path="/superadmin/users" element={<SuperAdminUsers />} />
         <Route path="*" element={<SuperAdminHome />} />
+      </Routes>
+    );
+  }
+
+  // If superadmin is viewing a municipality, show municipal console
+  if (user && user.role === 'superadmin' && viewingMunicipality) {
+    return (
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/cases" element={<Cases />} />
+          <Route path="/cases/:id" element={<CaseDetail />} />
+          <Route path="/new-complaint" element={<NewComplaint />} />
+          <Route path="/investigations" element={<Investigations />} />
+          <Route path="/deadlines" element={<Deadlines />} />
+          <Route path="/court-actions" element={<CourtActions />} />
+          <Route path="/wizard" element={<ActionWizard />} />
+          <Route path="/compass" element={<CompassPage />} />
+          <Route path="/resources" element={<ResourceLibrary />} />
+          <Route path="/documents" element={<DocumentVault />} />
+          <Route path="/admin" element={<AdminTools />} />
+          <Route path="/setup" element={<MunicipalitySetup />} />
+        </Route>
+        <Route path="*" element={<PageNotFound />} />
       </Routes>
     );
   }

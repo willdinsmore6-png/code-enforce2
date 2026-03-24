@@ -8,6 +8,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [municipality, setMunicipality] = useState(null);
+  const [viewingMunicipality, setViewingMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -159,6 +160,8 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user,
       municipality,
+      viewingMunicipality,
+      setViewingMunicipality,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
