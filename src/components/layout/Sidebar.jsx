@@ -26,9 +26,7 @@ const adminNavItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
-const superAdminItems = [
-  { path: '/superadmin', icon: Shield, label: 'Super Admin' },
-];
+
 
 export default function Sidebar() {
   const location = useLocation();
@@ -99,29 +97,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {user?.role === 'superadmin' && (
-          <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">System</p>}
-            {superAdminItems.map((item) => {
-              const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                    isActive
-                      ? "bg-purple-500/20 text-purple-300"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-purple-300")} />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
-          </>
-        )}
+
       </nav>
 
       <button
