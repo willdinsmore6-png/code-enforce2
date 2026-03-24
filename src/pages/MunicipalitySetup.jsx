@@ -12,8 +12,14 @@ import { Shield, Building2, Upload, CheckCircle, Loader2, ArrowRight } from 'luc
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function MunicipalitySetup() {
-  const { user, reloadMunicipality } = useAuth();
+  const { user, municipality, reloadMunicipality } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
+
+  // If already set up, redirect to dashboard
+  useEffect(() => {
+    if (municipality) navigate('/');
+  }, [municipality, navigate]);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [done, setDone] = useState(false);
