@@ -10,21 +10,12 @@ import { format, differenceInDays } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function Dashboard() {
-  const { user, municipality } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [cases, setCases] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Redirect new admins without a municipality to onboarding setup
   useEffect(() => {
-    if (user && !municipality && user.role !== 'superadmin') {
-      navigate('/setup');
-    }
-  }, [user, municipality, navigate]);
-
-  useEffect(() => {
-    if (!municipality && user?.role !== 'superadmin') return; // wait for redirect
     async function load() {
       const [casesData, deadlinesData] = await Promise.all([
         base44.entities.Case.list('-created_date', 50),
@@ -35,7 +26,7 @@ export default function Dashboard() {
       setLoading(false);
     }
     load();
-  }, [municipality, user]);
+  }, []);
 
   if (loading) {
     return (

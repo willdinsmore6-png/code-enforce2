@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user, municipality, reloadMunicipality } = useAuth();
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -36,23 +36,21 @@ export default function AdminTools() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
-    // Load municipality data into form
-    if (municipality) {
-      setMuniForm(f => ({
-        ...f,
-        name: municipality.name || '',
-        short_name: municipality.short_name || '',
-        municipality_type: municipality.municipality_type || 'town',
-        state: municipality.state || 'NH',
-        address: municipality.address || '',
-        contact_email: municipality.contact_email || '',
-        contact_phone: municipality.contact_phone || '',
-        website: municipality.website || '',
-        tagline: municipality.tagline || '',
-        logo_url: municipality.logo_url || '',
-      }));
+    // Note: In single-tenant mode, municipality settings are stored globally
+    // Load default town config for Bow
+    async function loadTownConfig() {
+      const configs = await base44.entities.TownConfig.filter({ town_name: 'Bow' });
+      if (configs[0]) {
+        setMuniForm(f => ({
+          ...f,
+          name: configs[0].town_name,
+          short_name: 'Bow',
+          state: configs[0].state || 'NH',
+        }));
+      }
     }
-  }, [municipality]);
+    loadTownConfig();
+  }, []);
 
   useEffect(() => {
     base44.functions.invoke('getUsers', {}).then(r => {
@@ -109,9 +107,10 @@ export default function AdminTools() {
   async function handleSaveMuni(e) {
     e.preventDefault();
     setSavingMuni(true);
-    if (municipality?.id) {
-      await base44.functions.invoke('updateMunicipality', { municipality_id: municipality.id, ...muniForm });
-      await reloadMunicipality();
+    // Update local TownConfig for Bow
+    const configs = await base44.entities.TownConfig.filter({ town_name: 'Bow' });
+    if (configs[0]) {
+      await base44.entities.TownConfig.update(configs[0].id, { ...muniForm });
     }
     setSavingMuni(false);
     setMuniSaved(true);
@@ -144,7 +143,7 @@ export default function AdminTools() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
       <PageHeader
         title="Admin Tools"
-        description={municipality ? `Managing ${municipality.name}` : 'Administrative utilities'}
+        description="Town of Bow Code Enforcement Administrative Utilities"
       />
 
       <Tabs defaultValue="municipality">
@@ -168,95 +167,7 @@ export default function AdminTools() {
               </div>
             </div>
 
-            {!municipality ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No municipality assigned</p>
-                <p className="text-sm mt-1">Contact your system administrator to be assigned to a municipality.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveMuni} className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <Label>Official Name</Label>
-                    <Input value={muniForm.name} onChange={e => setMuniForm(f => ({ ...f, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Short Name</Label>
-                    <Input value={muniForm.short_name} onChange={e => setMuniForm(f => ({ ...f, short_name: e.target.value }))} placeholder="e.g. Bow" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Type</Label>
-                    <Select value={muniForm.municipality_type} onValueChange={v => setMuniForm(f => ({ ...f, municipality_type: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="town">Town</SelectItem>
-                        <SelectItem value="city">City</SelectItem>
-                        <SelectItem value="village">Village</SelectItem>
-                        <SelectItem value="borough">Borough</SelectItem>
-                        <SelectItem value="township">Township</SelectItem>
-                        <SelectItem value="county">County</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>State</Label>
-                    <Select value={muniForm.state} onValueChange={v => setMuniForm(f => ({ ...f, state: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Contact Email</Label>
-                    <Input type="email" value={muniForm.contact_email} onChange={e => setMuniForm(f => ({ ...f, contact_email: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Contact Phone</Label>
-                    <Input value={muniForm.contact_phone} onChange={e => setMuniForm(f => ({ ...f, contact_phone: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Website</Label>
-                    <Input value={muniForm.website} onChange={e => setMuniForm(f => ({ ...f, website: e.target.value }))} />
-                  </div>
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <Label>Mailing Address</Label>
-                    <Input value={muniForm.address} onChange={e => setMuniForm(f => ({ ...f, address: e.target.value }))} />
-                  </div>
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <Label>Tagline (shown in app header)</Label>
-                    <Input value={muniForm.tagline} onChange={e => setMuniForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Code Enforcement Division" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Logo</Label>
-                  <div className="flex items-center gap-4">
-                    {muniForm.logo_url ? (
-                      <img src={muniForm.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded-lg border border-border bg-white p-1" />
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <label className="cursor-pointer">
-                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                      <div className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
-                        {uploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        {uploadingLogo ? 'Uploading...' : muniForm.logo_url ? 'Change Logo' : 'Upload Logo'}
-                      </div>
-                    </label>
-                    {muniForm.logo_url && (
-                      <button type="button" onClick={() => setMuniForm(f => ({ ...f, logo_url: '' }))} className="text-xs text-red-500 hover:underline">Remove</button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Button type="submit" disabled={savingMuni}>{savingMuni ? 'Saving...' : 'Save Changes'}</Button>
-                  {muniSaved && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Saved!</span>}
-                </div>
-              </form>
-            )}
+            <form onSubmit={handleSaveMuni} className="space-y-5">
           </div>
         </TabsContent>
 
