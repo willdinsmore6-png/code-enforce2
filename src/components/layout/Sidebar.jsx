@@ -4,7 +4,6 @@ import {
   FolderOpen, Wand2, BookOpen, Globe, ChevronLeft, 
   ChevronRight, Shield, Plus, LogOut, Settings, Compass
 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
