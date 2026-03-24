@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Plus, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -25,7 +25,7 @@ export default function CompassPage() {
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
     Promise.all([
@@ -35,7 +35,6 @@ export default function CompassPage() {
       if (configs[0]) {
         setTownConfig(configs[0]);
         setConfigForm(f => ({ ...f, ...configs[0] }));
-        // Restore doc names from stored metadata
         setUploadedDocNames(configs[0].ordinance_doc_names || []);
       } else {
         setShowConfig(isAdmin);
@@ -52,8 +51,13 @@ export default function CompassPage() {
           const existing = await base44.agents.getConversation(savedId);
           if (existing?.id) {
             setConversation(existing);
-            setMessages(existing.messages || []);
-            // If this conversation already has messages, docs were already shared
+            // Prefer cached messages (may include ones received while away)
+            const cached = sessionStorage.getItem('compass_messages');
+            if (cached) {
+              try { setMessages(JSON.parse(cached)); } catch (e) { setMessages(existing.messages || []); }
+            } else {
+              setMessages(existing.messages || []);
+            }
             if (existing.messages?.length > 0) setDocsSharedWithAgent(true);
             return;
           }
@@ -69,22 +73,13 @@ export default function CompassPage() {
       sessionStorage.removeItem('compass_messages');
       setConversation(conv);
       setMessages(conv.messages || []);
-      // Notify the background listener to re-subscribe
       window.dispatchEvent(new CustomEvent('compass_new_conversation'));
     }
     initConversation();
   }, []);
 
   useEffect(() => {
-    // Restore any messages received while away
-    const cached = sessionStorage.getItem('compass_messages');
-    if (cached) {
-      try { setMessages(JSON.parse(cached)); } catch (e) {}
-    }
-  }, [conversation?.id]);
-
-  useEffect(() => {
-    // Listen for updates from the background subscriber
+    // Listen for updates from the background subscriber (CompassBackground component)
     const handler = (e) => setMessages(e.detail.messages || []);
     window.addEventListener('compass_update', handler);
     return () => window.removeEventListener('compass_update', handler);
@@ -93,6 +88,18 @@ export default function CompassPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  async function startNewChat() {
+    sessionStorage.removeItem('compass_conversation_id');
+    sessionStorage.removeItem('compass_messages');
+    setConversation(null);
+    setMessages([]);
+    setDocsSharedWithAgent(false);
+    const conv = await base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } });
+    sessionStorage.setItem('compass_conversation_id', conv.id);
+    setConversation(conv);
+    window.dispatchEvent(new CustomEvent('compass_new_conversation'));
+  }
 
   async function sendMessage(e) {
     e?.preventDefault();
@@ -191,7 +198,7 @@ export default function CompassPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {townConfig && (
               <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-1.5">
                 <span>Zoning: {townConfig.compliance_days_zoning}d</span>
@@ -199,30 +206,33 @@ export default function CompassPage() {
                 <span>Penalty: ${townConfig.penalty_first_offense}/day</span>
               </div>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground hover:text-destructive"
-              onClick={() => {
-                sessionStorage.removeItem('compass_conversation_id');
-                sessionStorage.removeItem('compass_messages');
-                setConversation(null);
-                setMessages([]);
-                setDocsSharedWithAgent(false);
-                // Create a fresh conversation
-                base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } }).then(conv => {
-                  sessionStorage.setItem('compass_conversation_id', conv.id);
-                  setConversation(conv);
-                  window.dispatchEvent(new CustomEvent('compass_new_conversation'));
-                });
-              }}
-              title="Start a new chat"
-            >
+            <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5 text-muted-foreground hover:text-destructive" title="Start a new chat">
               <RotateCcw className="w-3.5 h-3.5" /> New Chat
             </Button>
             {isAdmin && (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
+                {uploadedDocNames.length > 0 ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium border border-green-200">
+                    ✓ {uploadedDocNames.length} doc{uploadedDocNames.length !== 1 ? 's' : ''} learned
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-medium border border-amber-200">
+                    Unlearned
+                  </span>
+                )}
+                <label className="cursor-pointer">
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
+                  <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
+                    {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {uploadingDoc ? 'AI Learning...' : 'AI Learning'}
+                  </div>
+                </label>
+                <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
+                  <Settings className="w-3.5 h-3.5" />
+                  {townConfig ? 'Town Settings' : 'Setup Town'}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -371,14 +381,12 @@ export default function CompassPage() {
                 </div>
               )}
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isUser ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}>
-                {msg.content && (
-                  isUser ? (
-                    <p className="text-sm leading-relaxed">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</p>
-                  ) : (
-                    <ReactMarkdown className="text-sm prose prose-sm prose-slate max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      {msg.content}
-                    </ReactMarkdown>
-                  )
+                {isUser ? (
+                  <p className="text-sm leading-relaxed">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</p>
+                ) : (
+                  <ReactMarkdown className="text-sm prose prose-sm prose-slate max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    {msg.content}
+                  </ReactMarkdown>
                 )}
               </div>
             </div>
