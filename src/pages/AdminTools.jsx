@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user, municipality, reloadMunicipality } = useAuth();
+  const { user, currentMunicipality, reloadMunicipality } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -37,7 +37,7 @@ export default function AdminTools() {
 
   useEffect(() => {
     // Load municipality data into form
-    if (municipality) {
+    if (currentMunicipality) {
       setMuniForm(f => ({
         ...f,
         name: municipality.name || '',
@@ -49,15 +49,15 @@ export default function AdminTools() {
         contact_phone: municipality.contact_phone || '',
         website: municipality.website || '',
         tagline: municipality.tagline || '',
-        logo_url: municipality.logo_url || '',
+        logo_url: currentMunicipality.logo_url || '',
       }));
     }
-  }, [municipality]);
+  }, [currentMunicipality]);
 
   useEffect(() => {
     base44.functions.invoke('getUsers', {}).then(r => {
       // Filter users to only show those in the current municipality
-      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === municipality?.id);
+      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === currentMunicipality?.id);
       setUsers(muniUsers);
       setLoadingUsers(false);
     });
@@ -74,14 +74,14 @@ export default function AdminTools() {
 
   async function handleInvite(e) {
     e.preventDefault();
-    if (!municipality) return;
+    if (!currentMunicipality) return;
     setInviting(true);
     setInviteResult(null);
     try {
       await base44.functions.invoke('inviteMunicipalityUser', {
         email: inviteEmail.trim(),
         role: 'user',
-        municipality_id: municipality.id,
+        municipality_id: currentMunicipality.id,
       });
       setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
       setInviteEmail('');
@@ -120,8 +120,8 @@ export default function AdminTools() {
   async function handleSaveMuni(e) {
     e.preventDefault();
     setSavingMuni(true);
-    if (municipality?.id) {
-      await base44.functions.invoke('updateMunicipality', { municipality_id: municipality.id, ...muniForm });
+    if (currentMunicipality?.id) {
+      await base44.functions.invoke('updateMunicipality', { municipality_id: currentMunicipality.id, ...muniForm });
       await reloadMunicipality();
     }
     setSavingMuni(false);

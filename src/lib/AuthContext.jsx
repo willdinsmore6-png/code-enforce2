@@ -156,10 +156,14 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  // Return the municipality being viewed (for superadmins) or the user's assigned municipality
+  const currentMunicipality = viewingMunicipality || municipality;
+
   return (
     <AuthContext.Provider value={{ 
       user,
       municipality,
+      currentMunicipality,
       viewingMunicipality,
       setViewingMunicipality,
       isAuthenticated, 

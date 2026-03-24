@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function CompassPage() {
-  const { user, municipality } = useAuth();
+  const { user, currentMunicipality } = useAuth();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -29,7 +29,7 @@ export default function CompassPage() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.TownConfig.filter({ municipality_id: municipality?.id, is_active: true }),
+      base44.entities.TownConfig.filter({ municipality_id: currentMunicipality?.id, is_active: true }),
       base44.entities.Case.list('-created_date', 100),
     ]).then(([configs, c]) => {
       if (configs[0]) {
@@ -41,7 +41,7 @@ export default function CompassPage() {
       }
       setCases(c.filter(ca => !['resolved', 'closed'].includes(ca.status)));
     });
-  }, []);
+  }, [currentMunicipality?.id]);
 
   useEffect(() => {
     async function initConversation() {
@@ -199,7 +199,7 @@ export default function CompassPage() {
               <h1 className="text-lg font-bold">Compass AI</h1>
               <p className="text-xs text-muted-foreground">
                 NH Land Use & Zoning Enforcement Advisor
-                {townConfig && <span className="text-indigo-600 font-medium"> · {townConfig.town_name}, {townConfig.state}</span>}
+                {currentMunicipality && <span className="text-indigo-600 font-medium"> · {currentMunicipality.short_name || currentMunicipality.name}</span>}
               </p>
             </div>
           </div>
