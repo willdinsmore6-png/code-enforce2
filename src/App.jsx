@@ -1,14 +1,14 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import SuperAdminHome from './pages/SuperAdminHome';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PendingApprovalScreen from '@/components/PendingApprovalScreen';
 import AppLayout from './components/layout/AppLayout';
-import MunicipalityDashboard from './pages/MunicipalityDashboard';
+import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
 import NewComplaint from './pages/NewComplaint';
@@ -52,20 +52,9 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Superadmins see hub at root
-  if (user && user.role === 'superadmin' && !user.municipality_id) {
-    return (
-      <Routes>
-        <Route path="/" element={<SuperAdminHome />} />
-        <Route path="/municipality/:municipalityId/*" element={<AppLayout />} />
-        <Route path="*" element={<PageNotFound />} />
-      </Routes>
-    );
-  }
-
-  // Regular users redirected to their municipality dashboard
-  if (user && user.municipality_id && window.location.pathname === '/' && user.role !== 'superadmin') {
-    return <Navigate to={`/municipality/${user.municipality_id}/dashboard`} />;
+  // Redirect superadmin to their dashboard if not impersonating
+  if (user && user.role === 'superadmin' && !user.municipality_id && window.location.pathname !== '/superadmin' && !window.location.pathname.startsWith('/superadmin')) {
+    return <Routes><Route path="*" element={<SuperAdminHome />} /></Routes>;
   }
 
   // Block access if user is authenticated but not assigned to a municipality (and not superadmin)
@@ -76,9 +65,8 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={<SuperAdminHome />} />
       <Route element={<AppLayout />}>
-        <Route path="/municipality/:municipalityId/dashboard" element={<MunicipalityDashboard />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
         <Route path="/new-complaint" element={<NewComplaint />} />
@@ -91,7 +79,7 @@ const AuthenticatedApp = () => {
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
-
+        <Route path="/superadmin" element={<SuperAdminHome />} />
         <Route path="/setup" element={<MunicipalitySetup />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

@@ -45,15 +45,13 @@ export default function CompassPage() {
 
   useEffect(() => {
     async function initConversation() {
-      const storageKey = `compass_conversation_id_${user?.id}`;
-      const savedId = sessionStorage.getItem(storageKey);
+      const savedId = sessionStorage.getItem('compass_conversation_id');
       if (savedId) {
         try {
           const existing = await base44.agents.getConversation(savedId);
           if (existing?.id) {
             setConversation(existing);
-            const cachedKey = `compass_messages_${user?.id}`;
-            const cached = sessionStorage.getItem(cachedKey);
+            const cached = sessionStorage.getItem('compass_messages');
             if (cached) {
               try { setMessages(JSON.parse(cached)); } catch (e) { setMessages(existing.messages || []); }
             } else {
@@ -64,16 +62,16 @@ export default function CompassPage() {
           }
         } catch (e) {
           // Conversation expired or belongs to another user — clear and create new
-          sessionStorage.removeItem(storageKey);
-          sessionStorage.removeItem(`compass_messages_${user?.id}`);
+          sessionStorage.removeItem('compass_conversation_id');
+          sessionStorage.removeItem('compass_messages');
         }
       }
       const conv = await base44.agents.createConversation({
         agent_name: 'compass',
         metadata: { name: 'Compass Session' },
       });
-      sessionStorage.setItem(storageKey, conv.id);
-      sessionStorage.removeItem(`compass_messages_${user?.id}`);
+      sessionStorage.setItem('compass_conversation_id', conv.id);
+      sessionStorage.removeItem('compass_messages');
       setConversation(conv);
       setMessages(conv.messages || []);
       window.dispatchEvent(new CustomEvent('compass_new_conversation'));
@@ -93,8 +91,8 @@ export default function CompassPage() {
   }, [messages]);
 
   async function startNewChat() {
-    sessionStorage.removeItem(`compass_conversation_id_${user?.id}`);
-    sessionStorage.removeItem(`compass_messages_${user?.id}`);
+    sessionStorage.removeItem('compass_conversation_id');
+    sessionStorage.removeItem('compass_messages');
     setConversation(null);
     setMessages([]);
     setDocsSharedWithAgent(false);
@@ -111,7 +109,6 @@ export default function CompassPage() {
     setInput('');
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
-    const cachedKey = `compass_messages_${user?.id}`;
     const messagePayload = { role: 'user', content: msg + caseContext };
     // Only attach ordinance docs on the first message so the agent learns them once
     const docUrls = townConfig?.ordinance_docs || [];
@@ -120,7 +117,6 @@ export default function CompassPage() {
       setDocsSharedWithAgent(true);
     }
     await base44.agents.addMessage(conversation, messagePayload);
-    sessionStorage.setItem(cachedKey, JSON.stringify([...messages, messagePayload]));
     setSending(false);
   }
 
