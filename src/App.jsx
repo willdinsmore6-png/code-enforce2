@@ -64,7 +64,7 @@ const AuthenticatedApp = () => {
   }
 
   // Regular users redirected to their municipality dashboard
-  if (user && user.municipality_id && window.location.pathname === '/') {
+  if (user && user.municipality_id && window.location.pathname === '/' && user.role !== 'superadmin') {
     return <Navigate to={`/municipality/${user.municipality_id}/dashboard`} />;
   }
 
@@ -76,8 +76,8 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      <Route path="/" element={<SuperAdminHome />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<SuperAdminHome />} />
         <Route path="/municipality/:municipalityId/dashboard" element={<MunicipalityDashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />

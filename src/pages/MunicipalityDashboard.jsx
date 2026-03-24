@@ -14,8 +14,8 @@ export default function MunicipalityDashboard() {
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Verify user belongs to this municipality
-  if (user && user.municipality_id !== municipalityId) {
+  // Verify user belongs to this municipality (unless superadmin)
+  if (user && user.role !== 'superadmin' && user.municipality_id !== municipalityId) {
     return <Navigate to="/" />;
   }
 
