@@ -168,6 +168,25 @@ export default function AdminTools() {
             </div>
 
             <form onSubmit={handleSaveMuni} className="space-y-5">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Official Name</Label>
+                  <Input value={muniForm.name} onChange={e => setMuniForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Short Name</Label>
+                  <Input value={muniForm.short_name} onChange={e => setMuniForm(f => ({ ...f, short_name: e.target.value }))} placeholder="e.g. Bow" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>State</Label>
+                  <Input value={muniForm.state} onChange={e => setMuniForm(f => ({ ...f, state: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button type="submit" disabled={savingMuni}>{savingMuni ? 'Saving...' : 'Save Changes'}</Button>
+                {muniSaved && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Saved!</span>}
+              </div>
+            </form>
           </div>
         </TabsContent>
 
