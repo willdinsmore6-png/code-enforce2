@@ -51,7 +51,6 @@ export default function CompassPage() {
           const existing = await base44.agents.getConversation(savedId);
           if (existing?.id) {
             setConversation(existing);
-            // Prefer cached messages (may include ones received while away)
             const cached = sessionStorage.getItem('compass_messages');
             if (cached) {
               try { setMessages(JSON.parse(cached)); } catch (e) { setMessages(existing.messages || []); }
@@ -62,7 +61,9 @@ export default function CompassPage() {
             return;
           }
         } catch (e) {
-          // Conversation expired, create new one
+          // Conversation expired or belongs to another user — clear and create new
+          sessionStorage.removeItem('compass_conversation_id');
+          sessionStorage.removeItem('compass_messages');
         }
       }
       const conv = await base44.agents.createConversation({
