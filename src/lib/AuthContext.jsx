@@ -7,8 +7,6 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [municipality, setMunicipality] = useState(null);
-  const [impersonatedMunicipality, setImpersonatedMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -89,37 +87,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loadMunicipality = async (currentUser) => {
-    if (!currentUser?.municipality_id) return;
-    try {
-      const munis = await base44.entities.Municipality.filter({ id: currentUser.municipality_id });
-      if (munis[0]) setMunicipality(munis[0]);
-    } catch (e) {
-      console.error('Failed to load municipality:', e);
-    }
-  };
 
-  const reloadMunicipality = async () => {
-    const currentUser = await base44.auth.me();
-    setUser(currentUser);
-    await loadMunicipality(currentUser);
-  };
 
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
-
-      // Block access if user is not a superadmin and hasn't been assigned a municipality
-      if (currentUser && !currentUser.municipality_id && currentUser.role !== 'superadmin') {
-        setAuthError({
-          type: 'pending_approval',
-          message: 'Your access request is pending approval. A superadmin will assign you to a municipality shortly.'
-        });
-        setIsLoadingAuth(false);
-        return;
-      }
-
       setUser(currentUser);
       setIsAuthenticated(true);
 
@@ -127,7 +100,6 @@ export const AuthProvider = ({ children }) => {
         await base44.auth.updateMe({ invitation_accepted: true });
       }
 
-      await loadMunicipality(currentUser);
       setIsLoadingAuth(false);
     } catch (error) {
       console.error('User auth check failed:', error);
@@ -139,20 +111,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const impersonateMunicipality = useCallback((muni) => {
-    setImpersonatedMunicipality(muni);
-  }, []);
 
-  const clearImpersonation = useCallback(() => {
-    setImpersonatedMunicipality(null);
-  }, []);
-
-  const effectiveMunicipality = impersonatedMunicipality || municipality;
 
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    setImpersonatedMunicipality(null);
     if (shouldRedirect) {
       base44.auth.logout(window.location.href);
     } else {
@@ -168,10 +131,6 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user,
-      municipality: effectiveMunicipality,
-      impersonatedMunicipality,
-      impersonateMunicipality,
-      clearImpersonation,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
@@ -180,7 +139,6 @@ export const AuthProvider = ({ children }) => {
       logout,
       navigateToLogin,
       checkAppState,
-      reloadMunicipality,
     }}>
       {children}
     </AuthContext.Provider>
