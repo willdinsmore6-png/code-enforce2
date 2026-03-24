@@ -7,6 +7,7 @@ import {
 import { base44 } from '@/api/base44Client';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -23,9 +24,14 @@ const navItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
+const superAdminItems = [
+  { path: '/superadmin', icon: Shield, label: 'Super Admin' },
+];
+
 export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { municipality } = useAuth();
 
   return (
     <aside className={cn(
@@ -33,13 +39,15 @@ export default function Sidebar() {
       collapsed ? "w-[68px]" : "w-[260px]"
     )}>
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary">
-          <Shield className="w-5 h-5 text-sidebar-primary-foreground" />
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary overflow-hidden flex-shrink-0">
+          {municipality?.logo_url 
+            ? <img src={municipality.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
+            : <Shield className="w-5 h-5 text-sidebar-primary-foreground" />}
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">Bow Code Enforcement</span>
-            <span className="text-[11px] text-sidebar-foreground/60 truncate">Bow, NH Compliance System</span>
+            <span className="text-sm font-semibold truncate">{municipality?.short_name || municipality?.name || 'CodeEnforce'}</span>
+            <span className="text-[11px] text-sidebar-foreground/60 truncate">{municipality?.tagline || (municipality ? `${municipality.state} Code Enforcement` : 'Municipal Compliance System')}</span>
           </div>
         )}
       </div>

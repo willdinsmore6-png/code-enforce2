@@ -19,6 +19,8 @@ import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
 import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import MunicipalitySetup from './pages/MunicipalitySetup';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -63,6 +65,8 @@ const AuthenticatedApp = () => {
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
+        <Route path="/superadmin" element={<SuperAdminDashboard />} />
+        <Route path="/setup" element={<MunicipalitySetup />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

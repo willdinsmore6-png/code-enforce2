@@ -7,6 +7,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [municipality, setMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -87,6 +88,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loadMunicipality = async (currentUser) => {
+    if (!currentUser?.municipality_id) return;
+    try {
+      const munis = await base44.entities.Municipality.filter({ id: currentUser.municipality_id });
+      if (munis[0]) setMunicipality(munis[0]);
+    } catch (e) {
+      console.error('Failed to load municipality:', e);
+    }
+  };
+
+  const reloadMunicipality = async () => {
+    const currentUser = await base44.auth.me();
+    setUser(currentUser);
+    await loadMunicipality(currentUser);
+  };
+
   const checkUserAuth = async () => {
     try {
       // Now check if the user is authenticated
@@ -99,6 +116,8 @@ export const AuthProvider = ({ children }) => {
       if (currentUser && !currentUser.invitation_accepted) {
         await base44.auth.updateMe({ invitation_accepted: true });
       }
+
+      await loadMunicipality(currentUser);
       
       setIsLoadingAuth(false);
     } catch (error) {
@@ -137,6 +156,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
+      municipality,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
@@ -144,7 +164,8 @@ export const AuthProvider = ({ children }) => {
       appPublicSettings,
       logout,
       navigateToLogin,
-      checkAppState
+      checkAppState,
+      reloadMunicipality,
     }}>
       {children}
     </AuthContext.Provider>
