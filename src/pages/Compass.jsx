@@ -158,10 +158,19 @@ export default function CompassPage() {
               </div>
             )}
             {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
-                <Settings className="w-3.5 h-3.5" />
-                {townConfig ? 'Town Settings' : 'Setup Town'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer">
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
+                  <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
+                    {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {uploadingDoc ? 'Extracting text...' : 'Upload Ordinance'}
+                  </div>
+                </label>
+                <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
+                  <Settings className="w-3.5 h-3.5" />
+                  {townConfig ? 'Town Settings' : 'Setup Town'}
+                </Button>
+              </div>
             )}
           </div>
         </div>
