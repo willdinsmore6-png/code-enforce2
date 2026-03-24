@@ -14,10 +14,23 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
 
   useEffect(() => {
+    // Skip auth checks for public portal
+    if (window.location.pathname === '/public-portal') {
+      setIsLoadingAuth(false);
+      setIsLoadingPublicSettings(false);
+      return;
+    }
     checkAppState();
   }, []);
 
   const checkAppState = async () => {
+    // Skip for public portal
+    if (window.location.pathname === '/public-portal') {
+      setIsLoadingPublicSettings(false);
+      setIsLoadingAuth(false);
+      return;
+    }
+    
     try {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
