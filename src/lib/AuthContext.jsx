@@ -8,7 +8,6 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [municipality, setMunicipality] = useState(null);
-  const [impersonatedMunicipality, setImpersonatedMunicipality] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -141,20 +140,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const impersonateMunicipality = useCallback((muni) => {
-    setImpersonatedMunicipality(muni);
-  }, []);
-
-  const clearImpersonation = useCallback(() => {
-    setImpersonatedMunicipality(null);
-  }, []);
-
-  const effectiveMunicipality = impersonatedMunicipality || municipality;
-
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    setImpersonatedMunicipality(null);
     if (shouldRedirect) {
       base44.auth.logout(window.location.href);
     } else {
@@ -170,10 +158,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user,
-      municipality: effectiveMunicipality,
-      impersonatedMunicipality,
-      impersonateMunicipality,
-      clearImpersonation,
+      municipality,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,

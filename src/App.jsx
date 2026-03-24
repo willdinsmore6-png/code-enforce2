@@ -21,8 +21,8 @@ import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
 import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import MunicipalitySetup from './pages/MunicipalitySetup';
+import SuperAdminUsers from './pages/SuperAdminUsers';
 
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -52,9 +52,15 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Redirect superadmin to their dashboard if not impersonating
-  if (user && user.role === 'superadmin' && !user.municipality_id && window.location.pathname !== '/superadmin' && !window.location.pathname.startsWith('/superadmin')) {
-    return <Routes><Route path="*" element={<SuperAdminHome />} /></Routes>;
+  // Redirect superadmin to their home dashboard
+  if (user && user.role === 'superadmin') {
+    return (
+      <Routes>
+        <Route path="/superadmin" element={<SuperAdminHome />} />
+        <Route path="/superadmin/users" element={<SuperAdminUsers />} />
+        <Route path="*" element={<SuperAdminHome />} />
+      </Routes>
+    );
   }
 
   // Block access if user is authenticated but not assigned to a municipality (and not superadmin)
@@ -62,7 +68,7 @@ const AuthenticatedApp = () => {
     return <PendingApprovalScreen />;
   }
 
-  // Render the main app
+  // Municipal users: render municipal app
   return (
     <Routes>
       <Route element={<AppLayout />}>
@@ -79,7 +85,6 @@ const AuthenticatedApp = () => {
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
-        <Route path="/superadmin" element={<SuperAdminHome />} />
         <Route path="/setup" element={<MunicipalitySetup />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

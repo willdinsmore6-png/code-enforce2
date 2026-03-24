@@ -56,7 +56,9 @@ export default function AdminTools() {
 
   useEffect(() => {
     base44.functions.invoke('getUsers', {}).then(r => {
-      setUsers(r.data?.users || []);
+      // Filter users to only show those in the current municipality
+      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === municipality?.id);
+      setUsers(muniUsers);
       setLoadingUsers(false);
     });
     base44.entities.AuditLog.list('-timestamp', 500).then(logs => {
@@ -72,15 +74,24 @@ export default function AdminTools() {
 
   async function handleInvite(e) {
     e.preventDefault();
+    if (!municipality) return;
     setInviting(true);
     setInviteResult(null);
-    await base44.users.inviteUser(inviteEmail.trim(), 'user');
-    setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
-    setInviteEmail('');
+    try {
+      await base44.functions.invoke('inviteMunicipalityUser', {
+        email: inviteEmail.trim(),
+        role: 'user',
+        municipality_id: municipality.id,
+      });
+      setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
+      setInviteEmail('');
+      const r = await base44.functions.invoke('getUsers', {});
+      const muniUsers = (r.data?.users || []).filter(u => u.municipality_id === municipality?.id);
+      setUsers(muniUsers);
+    } catch (err) {
+      setInviteResult({ success: false, message: err.message || 'Failed to send invitation' });
+    }
     setInviting(false);
-    // Reload users
-    const r = await base44.functions.invoke('getUsers', {});
-    setUsers(r.data?.users || []);
   }
 
   async function handleReset(e) {
