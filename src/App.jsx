@@ -61,7 +61,6 @@ const AuthenticatedApp = () => {
   if (user && !user.municipality_id && user.role !== 'superadmin') {
     return <PendingApprovalScreen />;
   }
-  }
 
   // Render the main app
   return (
