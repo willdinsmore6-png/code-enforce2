@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Shield, Building2, Plus, Users, FileText, CheckCircle, XCircle, Search, Settings } from 'lucide-react';
+import { Shield, Building2, Plus, Users, FileText, CheckCircle, XCircle, Search, Settings, LogIn } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function SuperAdminDashboard() {
-  const { user } = useAuth();
+  const { user, impersonateMunicipality } = useAuth();
   const navigate = useNavigate();
   const [municipalities, setMunicipalities] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -69,6 +69,11 @@ export default function SuperAdminDashboard() {
   async function toggleActive(muni) {
     await base44.entities.Municipality.update(muni.id, { is_active: !muni.is_active });
     setMunicipalities(prev => prev.map(m => m.id === muni.id ? { ...m, is_active: !m.is_active } : m));
+  }
+
+  function handleEnterMuni(muni) {
+    impersonateMunicipality(muni);
+    navigate('/');
   }
 
   async function assignMunicipalityToUser(userId, municipalityId) {
@@ -223,6 +228,9 @@ export default function SuperAdminDashboard() {
                   </span>
                   <Button variant="ghost" size="sm" onClick={() => toggleActive(m)} className="text-xs h-7">
                     {m.is_active ? 'Deactivate' : 'Activate'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleEnterMuni(m)} className="text-xs h-7 gap-1 text-purple-700 hover:text-purple-800 hover:bg-purple-50">
+                    <LogIn className="w-3.5 h-3.5" /> Enter
                   </Button>
                 </div>
               </div>
