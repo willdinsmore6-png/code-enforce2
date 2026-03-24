@@ -33,17 +33,18 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
+  // Allow public portal without auth—skip auth checks for that route
+  if (window.location.pathname === '/public-portal') {
+    return <Routes><Route path="/public-portal" element={<PublicPortal />} /></Routes>;
+  }
+
+  // Handle authentication errors for other routes
   if (authError) {
     if (authError.type === 'pending_approval') {
       return <PendingApprovalScreen />;
     } else if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Allow public portal without login
-      if (window.location.pathname === '/public-portal') {
-        return <Routes><Route path="/public-portal" element={<PublicPortal />} /></Routes>;
-      }
       navigateToLogin();
       return null;
     }
@@ -52,6 +53,10 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      {/* Public routes */}
+      <Route path="/public-portal" element={<PublicPortal />} />
+      
+      {/* Protected routes */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
@@ -63,7 +68,6 @@ const AuthenticatedApp = () => {
         <Route path="/wizard" element={<ActionWizard />} />
         <Route path="/compass" element={<CompassPage />} />
         <Route path="/resources" element={<ResourceLibrary />} />
-        <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
       </Route>
