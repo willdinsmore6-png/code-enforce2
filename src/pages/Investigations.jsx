@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Camera, Upload, Pencil, X, ImageIcon } from 'lucide-react';
+import { Plus, Camera, Upload, Pencil, X, ImageIcon, Trash2 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
@@ -58,10 +58,18 @@ function PhotoDropZone({ photos, setPhotos }) {
   );
 }
 
-function EditInvestigationModal({ inv, onClose, onSave }) {
+function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({ ...inv });
   const [newPhotos, setNewPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    await base44.entities.Investigation.delete(inv.id);
+    onDelete(inv.id);
+  }
   const update = (field, val) => setForm(p => ({ ...p, [field]: val }));
 
   async function handleSave(e) {
@@ -161,10 +169,27 @@ function EditInvestigationModal({ inv, onClose, onSave }) {
             <Label>Add More Photos</Label>
             <PhotoDropZone photos={newPhotos} setPhotos={setNewPhotos} />
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-          </div>
+          {confirmDelete ? (
+            <div className="flex items-center justify-between gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700 font-medium">Delete this investigation permanently?</p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>No, keep it</Button>
+                <Button type="button" variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                  {deleting ? 'Deleting...' : 'Yes, delete'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Investigation
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
+            </div>
+          )}
         </form>
       </DialogContent>
     </Dialog>
