@@ -30,7 +30,7 @@ const superAdminItems = [
 export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { municipality, user } = useAuth();
+  const { municipality, user, logout } = useAuth();
 
   return (
     <aside className={cn(
