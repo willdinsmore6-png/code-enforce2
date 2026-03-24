@@ -15,9 +15,10 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Skip auth checks for public portal
-    if (window.location.pathname === '/public-portal') {
+    if (window.location.pathname.includes('public-portal')) {
       setIsLoadingAuth(false);
       setIsLoadingPublicSettings(false);
+      setAuthError(null);
       return;
     }
     checkAppState();
@@ -25,9 +26,10 @@ export const AuthProvider = ({ children }) => {
 
   const checkAppState = async () => {
     // Skip for public portal
-    if (window.location.pathname === '/public-portal') {
+    if (window.location.pathname.includes('public-portal')) {
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
+      setAuthError(null);
       return;
     }
     
