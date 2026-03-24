@@ -1,15 +1,19 @@
 import { Outlet } from 'react-router-dom';
+import SuperAdminBanner from './SuperAdminBanner';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 
 export default function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <Outlet />
-      </main>
-      <MobileNav />
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      <SuperAdminBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <Outlet />
+        </main>
+        <MobileNav />
+      </div>
     </div>
   );
 }
