@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PendingApprovalScreen from '@/components/PendingApprovalScreen';
 import AppLayout from './components/layout/AppLayout';
-import Dashboard from './pages/Dashboard';
+import MunicipalityDashboard from './pages/MunicipalityDashboard';
 import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
 import NewComplaint from './pages/NewComplaint';
@@ -52,9 +52,20 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Redirect superadmin to their dashboard if not impersonating
-  if (user && user.role === 'superadmin' && !user.municipality_id && window.location.pathname !== '/superadmin' && !window.location.pathname.startsWith('/superadmin')) {
-    return <Routes><Route path="*" element={<SuperAdminHome />} /></Routes>;
+  // Superadmins see hub at root
+  if (user && user.role === 'superadmin' && !user.municipality_id) {
+    return (
+      <Routes>
+        <Route path="/" element={<SuperAdminHome />} />
+        <Route path="/municipality/:municipalityId/*" element={<AppLayout />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    );
+  }
+
+  // Regular users redirected to their municipality dashboard
+  if (user && user.municipality_id && window.location.pathname === '/') {
+    return <Navigate to={`/municipality/${user.municipality_id}/dashboard`} />;
   }
 
   // Block access if user is authenticated but not assigned to a municipality (and not superadmin)
@@ -66,7 +77,8 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<SuperAdminHome />} />
+        <Route path="/municipality/:municipalityId/dashboard" element={<MunicipalityDashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
         <Route path="/new-complaint" element={<NewComplaint />} />
@@ -79,7 +91,7 @@ const AuthenticatedApp = () => {
         <Route path="/public-portal" element={<PublicPortal />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
-        <Route path="/superadmin" element={<SuperAdminHome />} />
+
         <Route path="/setup" element={<MunicipalitySetup />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
