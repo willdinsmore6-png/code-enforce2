@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,6 +107,7 @@ function CourtActionForm({ form, update, saving, onCancel, submitLabel }) {
 }
 
 export default function CourtActions() {
+  const { currentMunicipality } = useAuth();
   const [courtActions, setCourtActions] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,26 +123,27 @@ export default function CourtActions() {
   useEffect(() => {
     async function load() {
       const [ca, c] = await Promise.all([
-        base44.entities.CourtAction.list('-created_date', 50),
-        base44.entities.Case.list('-created_date', 100),
+        base44.entities.CourtAction.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 50),
+        base44.entities.Case.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 100),
       ]);
       setCourtActions(ca);
       setCases(c);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [currentMunicipality?.id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
-    const ca = await base44.entities.CourtAction.create(form);
+    const ca = await base44.entities.CourtAction.create({ ...form, municipality_id: currentMunicipality?.id });
     setCourtActions(prev => [ca, ...prev]);
     if (form.case_id) {
       await base44.entities.Case.update(form.case_id, { status: 'court_action' });
     }
     if (form.hearing_date && form.case_id) {
       await base44.entities.Deadline.create({
+        municipality_id: currentMunicipality?.id,
         case_id: form.case_id,
         deadline_type: 'court_appearance',
         due_date: form.hearing_date.split('T')[0],

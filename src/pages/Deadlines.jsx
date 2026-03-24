@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { Bell, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { format, differenceInDays } from 'date-fns';
 
 export default function Deadlines() {
+  const { currentMunicipality } = useAuth();
   const [deadlines, setDeadlines] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,15 +18,15 @@ export default function Deadlines() {
   useEffect(() => {
     async function load() {
       const [dl, c] = await Promise.all([
-        base44.entities.Deadline.list('due_date', 100),
-        base44.entities.Case.list('-created_date', 100),
+        base44.entities.Deadline.filter({ municipality_id: currentMunicipality?.id }, 'due_date', 100),
+        base44.entities.Case.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 100),
       ]);
       setDeadlines(dl);
       setCases(c);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [currentMunicipality?.id]);
 
   async function markComplete(deadlineId) {
     await base44.entities.Deadline.update(deadlineId, {

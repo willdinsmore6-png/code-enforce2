@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -197,6 +198,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
 }
 
 export default function Investigations() {
+  const { currentMunicipality } = useAuth();
   const [investigations, setInvestigations] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,15 +225,15 @@ export default function Investigations() {
   useEffect(() => {
     async function load() {
       const [inv, c] = await Promise.all([
-        base44.entities.Investigation.list('-created_date', 50),
-        base44.entities.Case.list('-created_date', 100),
+        base44.entities.Investigation.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 50),
+        base44.entities.Case.filter({ municipality_id: currentMunicipality?.id }, '-created_date', 100),
       ]);
       setInvestigations(inv);
       setCases(c);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [currentMunicipality?.id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -241,7 +243,7 @@ export default function Investigations() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: photo });
       photoUrls.push(file_url);
     }
-    const inv = await base44.entities.Investigation.create({ ...form, photos: photoUrls });
+    const inv = await base44.entities.Investigation.create({ ...form, municipality_id: currentMunicipality?.id, photos: photoUrls });
     setInvestigations(prev => [inv, ...prev]);
     if (form.case_id) {
       await base44.entities.Case.update(form.case_id, {
