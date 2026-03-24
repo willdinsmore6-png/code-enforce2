@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Plus, ChevronDown, ChevronUp, Trash2, CheckCircle } from 'lucide-react';
+import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Plus, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -199,32 +199,30 @@ export default function CompassPage() {
                 <span>Penalty: ${townConfig.penalty_first_offense}/day</span>
               </div>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-destructive"
+              onClick={() => {
+                sessionStorage.removeItem('compass_conversation_id');
+                sessionStorage.removeItem('compass_messages');
+                setConversation(null);
+                setMessages([]);
+                setDocsSharedWithAgent(false);
+                // Create a fresh conversation
+                base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } }).then(conv => {
+                  sessionStorage.setItem('compass_conversation_id', conv.id);
+                  setConversation(conv);
+                  window.dispatchEvent(new CustomEvent('compass_new_conversation'));
+                });
+              }}
+              title="Start a new chat"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> New Chat
+            </Button>
             {isAdmin && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  {uploadedDocNames.length > 0 ? (
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium border border-green-200">
-                      ✓ {uploadedDocNames.length} doc{uploadedDocNames.length !== 1 ? 's' : ''} learned
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-medium border border-amber-200">
-                      Unlearned
-                    </span>
-                  )}
-                  <label className="cursor-pointer">
-                    <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
-                    <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
-                      {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      {uploadingDoc ? 'AI Learning...' : 'AI Learning'}
-                    </div>
-                  </label>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
-                  <Settings className="w-3.5 h-3.5" />
-                  {townConfig ? 'Town Settings' : 'Setup Town'}
-                </Button>
-              </div>
-            )}
           </div>
         </div>
 
