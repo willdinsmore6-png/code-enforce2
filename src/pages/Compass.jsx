@@ -21,6 +21,7 @@ export default function CompassPage() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadedDocNames, setUploadedDocNames] = useState([]);
   const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
+  const [docsSharedWithAgent, setDocsSharedWithAgent] = useState(false);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
@@ -45,10 +46,26 @@ export default function CompassPage() {
 
   useEffect(() => {
     async function initConversation() {
+      const savedId = sessionStorage.getItem('compass_conversation_id');
+      if (savedId) {
+        try {
+          const existing = await base44.agents.getConversation(savedId);
+          if (existing?.id) {
+            setConversation(existing);
+            setMessages(existing.messages || []);
+            // If this conversation already has messages, docs were already shared
+            if (existing.messages?.length > 0) setDocsSharedWithAgent(true);
+            return;
+          }
+        } catch (e) {
+          // Conversation expired, create new one
+        }
+      }
       const conv = await base44.agents.createConversation({
         agent_name: 'compass',
         metadata: { name: 'Compass Session' },
       });
+      sessionStorage.setItem('compass_conversation_id', conv.id);
       setConversation(conv);
       setMessages(conv.messages || []);
     }
@@ -74,9 +91,13 @@ export default function CompassPage() {
     setInput('');
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
-    const docUrls = (townConfig?.ordinance_docs || []);
     const messagePayload = { role: 'user', content: msg + caseContext };
-    if (docUrls.length > 0) messagePayload.file_urls = docUrls;
+    // Only attach ordinance docs on the first message so the agent learns them once
+    const docUrls = townConfig?.ordinance_docs || [];
+    if (docUrls.length > 0 && !docsSharedWithAgent) {
+      messagePayload.file_urls = docUrls;
+      setDocsSharedWithAgent(true);
+    }
     await base44.agents.addMessage(conversation, messagePayload);
     setSending(false);
   }
