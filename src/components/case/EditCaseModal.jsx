@@ -40,7 +40,22 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
+    // Compute changed fields for audit log
+    const changes = {};
+    Object.keys(form).forEach(key => {
+      if (form[key] !== (caseData[key] || '')) changes[key] = { from: caseData[key], to: form[key] };
+    });
     await base44.entities.Case.update(caseData.id, form);
+    if (Object.keys(changes).length > 0) {
+      base44.functions.invoke('logAudit', {
+        case_id: caseData.id,
+        case_number: caseData.case_number,
+        entity_type: 'Case',
+        entity_id: caseData.id,
+        action: 'Updated case',
+        changes,
+      }).catch(() => {});
+    }
     onSave({ ...caseData, ...form });
     setSaving(false);
     onClose();
