@@ -66,19 +66,29 @@ export default function CompassPage() {
         metadata: { name: 'Compass Session' },
       });
       sessionStorage.setItem('compass_conversation_id', conv.id);
+      sessionStorage.removeItem('compass_messages');
       setConversation(conv);
       setMessages(conv.messages || []);
+      // Notify the background listener to re-subscribe
+      window.dispatchEvent(new CustomEvent('compass_new_conversation'));
     }
     initConversation();
   }, []);
 
   useEffect(() => {
-    if (!conversation?.id) return;
-    const unsub = base44.agents.subscribeToConversation(conversation.id, (data) => {
-      setMessages(data.messages || []);
-    });
-    return unsub;
+    // Restore any messages received while away
+    const cached = sessionStorage.getItem('compass_messages');
+    if (cached) {
+      try { setMessages(JSON.parse(cached)); } catch (e) {}
+    }
   }, [conversation?.id]);
+
+  useEffect(() => {
+    // Listen for updates from the background subscriber
+    const handler = (e) => setMessages(e.detail.messages || []);
+    window.addEventListener('compass_update', handler);
+    return () => window.removeEventListener('compass_update', handler);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
