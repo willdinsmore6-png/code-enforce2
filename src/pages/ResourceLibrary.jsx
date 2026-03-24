@@ -45,10 +45,15 @@ export default function ResourceLibrary() {
     let existing = await base44.entities.Resource.filter({ is_active: true });
     if (existing.length === 0 && user?.municipality_id) {
       // Seed with defaults
-      const seeded = await base44.entities.Resource.bulkCreate(
-        DEFAULT_RESOURCES.map(r => ({ ...r, municipality_id: user.municipality_id, state: 'NH', is_active: true }))
-      );
-      existing = seeded;
+      try {
+        const seeded = await base44.entities.Resource.bulkCreate(
+          DEFAULT_RESOURCES.map(r => ({ ...r, municipality_id: user.municipality_id, state: 'NH', is_active: true }))
+        );
+        existing = seeded;
+      } catch (e) {
+        // If superadmin is viewing another municipality, they may lack permission to create — skip seeding
+        console.warn('Could not seed resources:', e.message);
+      }
     }
     setResources(existing);
     setLoading(false);
