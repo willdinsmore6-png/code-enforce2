@@ -277,6 +277,10 @@ export default function Investigations() {
             setInvestigations(prev => prev.map(i => i.id === updated.id ? updated : i));
             setEditInv(null);
           }}
+          onDelete={id => {
+            setInvestigations(prev => prev.filter(i => i.id !== id));
+            setEditInv(null);
+          }}
         />
       )}
 
