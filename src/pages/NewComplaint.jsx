@@ -57,6 +57,7 @@ export default function NewComplaint() {
     await base44.entities.Deadline.bulkCreate([
       {
         case_id: newCase.id,
+        municipality_id: municipality?.id,
         deadline_type: 'abatement',
         due_date: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
         description: `Abatement deadline for ${form.property_address}`,
@@ -64,6 +65,7 @@ export default function NewComplaint() {
       },
       {
         case_id: newCase.id,
+        municipality_id: municipality?.id,
         deadline_type: 'zba_appeal',
         due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
         description: `ZBA appeal window closes for ${form.property_address}`,
