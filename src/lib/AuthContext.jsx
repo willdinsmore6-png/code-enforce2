@@ -11,7 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  const [appPublicSettings, setAppPublicSettings] = useState(null);
+  const [municipality, setMunicipality] = useState(null); // Contains only { id, public_settings }
 
   useEffect(() => {
     // Skip auth checks for public portal
@@ -104,12 +105,20 @@ export const AuthProvider = ({ children }) => {
 
 
 
+  const loadMunicipality = async () => {
+    try {
+      const configs = await base44.entities.TownConfig.list('-created_date', 1);
+      if (configs[0]) setMunicipality(configs[0]);
+    } catch (e) { /* silent */ }
+  };
+
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
+      loadMunicipality();
 
       if (currentUser && !currentUser.invitation_accepted) {
         await base44.auth.updateMe({ invitation_accepted: true });
@@ -151,6 +160,7 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
+      municipality,
       logout,
       navigateToLogin,
       checkAppState,

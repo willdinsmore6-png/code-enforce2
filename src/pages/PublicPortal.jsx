@@ -28,9 +28,9 @@ export default function PublicPortal() {
 
   useEffect(() => {
     async function loadMuni() {
-      const configs = await base44.entities.TownConfig.filter({ town_name: 'Bow' });
+      const configs = await base44.entities.TownConfig.list('-created_date', 1);
       if (configs[0]) {
-        setMuni({ name: configs[0].town_name, logo_url: null });
+        setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null });
       }
     }
     loadMuni();

@@ -40,13 +40,13 @@ export default function Sidebar() {
     )}>
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-sidebar-border/30">
-          {municipality?.logo_url 
+          {municipality?.logo_url
             ? <img src={municipality.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
             : <Shield className="w-5 h-5 text-sidebar-primary" />}
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">{municipality?.short_name || municipality?.name || 'CodeEnforce'}</span>
+            <span className="text-sm font-semibold truncate">{municipality?.short_name || municipality?.town_name || 'CodeEnforce'}</span>
             <span className="text-[11px] text-sidebar-foreground/60 truncate">{municipality?.tagline || (municipality ? `${municipality.state} Code Enforcement` : 'Municipal Compliance System')}</span>
           </div>
         )}
