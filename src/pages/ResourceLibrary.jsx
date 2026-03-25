@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import BuildingCodeLookup from '../components/BuildingCodeLookup';
 import { base44 } from '@/api/base44Client';
 import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, Send, Loader2, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -31,14 +32,14 @@ const DEFAULT_RESOURCES = [
 
 export default function ResourceLibrary() {
   const { user, municipality } = useAuth();
-  const [resources, setResources] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedItems, setExpandedItems] = useState({});
-  const [showAI, setShowAI] = useState(false);
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const [townConfig, setTownConfig] = useState(null);
 
-  useEffect(() => { loadResources(); }, []);
+  useEffect(() => {
+    loadResources();
+    base44.entities.TownConfig.list('-created_date', 1).then(configs => {
+      if (configs[0]) setTownConfig(configs[0]);
+    });
+  }, []);
 
   async function loadResources() {
     setLoading(true);
@@ -83,6 +84,8 @@ export default function ResourceLibrary() {
       {showAI && (
         <AICuratePanel onClose={() => { setShowAI(false); loadResources(); }} municipality={municipality} />
       )}
+
+      <BuildingCodeLookup townName={townConfig?.town_name || municipality?.name} state={townConfig?.state || municipality?.state} />
 
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
