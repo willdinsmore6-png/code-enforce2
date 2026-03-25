@@ -24,7 +24,7 @@ function PhotoDropZone({ photos, setPhotos }) {
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
+        onDrop={e => { e.preventDefault(); setDragging(false); const files = Array.from(e.dataTransfer.files); if (files.length) setPhotos(prev => [...prev, ...files]); }}
         className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}
       >
         <Camera className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
