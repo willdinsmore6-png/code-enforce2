@@ -9,12 +9,12 @@ export default function AppLayout() {
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       <CompassBackground />
       <SuperAdminBanner />
+      <MobileNav />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
-        <MobileNav />
       </div>
     </div>
   );
