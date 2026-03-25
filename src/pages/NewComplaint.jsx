@@ -37,14 +37,7 @@ export default function NewComplaint() {
     setSaving(true);
     
     try {
-      if (!municipality?.id) {
-        alert('Municipality not loaded. Please refresh and try again.');
-        setSaving(false);
-        return;
-      }
-
-      const caseNumber = `CE-${format(new Date(), 'yyyy')}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-      const publicCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const caseNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
       
       const newCase = await base44.entities.Case.create({
         ...form,
