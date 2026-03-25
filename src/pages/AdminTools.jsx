@@ -107,7 +107,8 @@ export default function AdminTools() {
   async function handleRemoveUser(userId, userEmail) {
     if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
     try {
-      await base44.entities.User.delete(userId);
+      const r = await base44.functions.invoke('deleteUser', { userId });
+      if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
       alert(`Failed to remove user: ${err?.message || 'Unknown error'}`);
@@ -116,7 +117,8 @@ export default function AdminTools() {
 
   async function handleRoleChange(userId, newRole) {
     try {
-      await base44.entities.User.update(userId, { role: newRole });
+      const r = await base44.functions.invoke('updateUserRole', { userId, role: newRole });
+      if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
       alert(`Failed to update role: ${err?.message || 'Unknown error'}`);
