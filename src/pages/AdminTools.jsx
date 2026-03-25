@@ -104,6 +104,17 @@ export default function AdminTools() {
     setResetLoading(false);
   }
 
+  async function handleCancelInvite(userId, userEmail) {
+    if (!window.confirm(`Cancel the invite for ${userEmail}?`)) return;
+    try {
+      const r = await base44.functions.invoke('deleteUser', { userId });
+      if (r.data?.error) throw new Error(r.data.error);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch (err) {
+      alert(`Unable to cancel this invite directly.\n\nPlease contact the app developer to make this change.`);
+    }
+  }
+
   async function handleRemoveUser(userId, userEmail) {
     if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
     try {
@@ -347,24 +358,36 @@ export default function AdminTools() {
                       <p className="text-sm font-medium">{u.full_name || '—'}</p>
                       <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
-                    <Select value={u.role || 'user'} onValueChange={val => handleRoleChange(u.id, val)}>
-                      <SelectTrigger className={`h-7 text-xs px-2 w-24 border-0 font-medium ${u.role === 'admin' ? 'bg-blue-50 text-blue-700' : u.role === 'viewer' ? 'bg-slate-50 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="viewer">Viewer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveUser(u.id, u.email)}
-                      className="text-muted-foreground hover:text-red-600 transition-colors flex-shrink-0"
-                      title="Remove user"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {!u.full_name ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelInvite(u.id, u.email)}
+                        className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 bg-amber-50 px-2 py-1 rounded-md transition-colors flex-shrink-0"
+                        title="Cancel invite"
+                      >
+                        Cancel Invite
+                      </button>
+                    ) : (
+                      <>
+                        <Select value={u.role || 'user'} onValueChange={val => handleRoleChange(u.id, val)}>
+                          <SelectTrigger className={`h-7 text-xs px-2 w-24 border-0 font-medium ${u.role === 'admin' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveUser(u.id, u.email)}
+                          className="text-muted-foreground hover:text-red-600 transition-colors flex-shrink-0"
+                          title="Remove user"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
                 {users.length === 0 && (
