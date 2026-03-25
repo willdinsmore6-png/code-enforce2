@@ -28,12 +28,12 @@ function PhotoDropZone({ photos, setPhotos }) {
         className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}
       >
         <Camera className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm font-medium">Drag & drop photos or files here</p>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images, PDFs, and other documents accepted</p>
+        <p className="text-sm font-medium">Drag & drop photos or documents here</p>
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images (JPG, PNG, HEIC), PDFs, Word docs, and more</p>
         <div className="flex justify-center gap-2">
           <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-            <Upload className="w-3.5 h-3.5" /> Browse Files
-            <input type="file" multiple accept="image/*,application/pdf,.doc,.docx,.heic,.heif" className="hidden" onChange={onFileChange} />
+          <Upload className="w-3.5 h-3.5" /> Browse Files
+          <input type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.heic,.heif" className="hidden" onChange={onFileChange} />
           </label>
           <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
             <Camera className="w-3.5 h-3.5" /> Take Photo
@@ -153,10 +153,10 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
               <Label htmlFor="ew" className="text-sm cursor-pointer">Warrant required</Label>
             </div>
           </div>
-          {/* Existing photos */}
+          {/* Existing photos/docs */}
           {form.photos?.length > 0 && (
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos</Label>
+          <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos & Documents</Label>
               <div className="flex flex-wrap gap-2">
                 {form.photos.map((url, i) => (
                   <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
@@ -173,7 +173,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Add More Photos</Label>
+            <Label>Add Photos & Documents</Label>
             <PhotoDropZone photos={newPhotos} setPhotos={setNewPhotos} />
           </div>
           {confirmDelete ? (
@@ -366,7 +366,7 @@ export default function Investigations() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Photos</Label>
+                  <Label>Photos & Documents</Label>
                   <PhotoDropZone photos={photos} setPhotos={setPhotos} />
                 </div>
                 <div className="flex justify-end gap-2">
