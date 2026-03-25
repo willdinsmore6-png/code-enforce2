@@ -38,6 +38,7 @@ export default function NewComplaint() {
     
     try {
       const caseNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const publicCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       
       const newCase = await base44.entities.Case.create({
         ...form,
