@@ -111,7 +111,7 @@ export default function AdminTools() {
       if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
-      alert(`Failed to remove user: ${err?.message || 'Unknown error'}`);
+      alert(`Unable to remove this user directly.\n\nPlease contact the app developer to make this change.`);
     }
   }
 
@@ -121,7 +121,7 @@ export default function AdminTools() {
       if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
-      alert(`Failed to update role: ${err?.message || 'Unknown error'}`);
+      alert(`Unable to change this user's role directly.\n\nPlease contact the app developer to make this change.`);
     }
   }
 
