@@ -158,17 +158,27 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
           <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos & Documents</Label>
               <div className="flex flex-wrap gap-2">
-                {form.photos.map((url, i) => (
+                {form.photos.map((url, i) => {
+                const isImage = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(url);
+                return (
                   <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-                    <a href={url} target="_blank" rel="noopener noreferrer">
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="w-full h-full block">
+                      {isImage ? (
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-0.5 p-1">
+                          <FileText className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-[9px] text-muted-foreground truncate w-14 text-center">{url.split('/').pop()?.slice(0,15)}</span>
+                        </div>
+                      )}
                     </a>
                     <button type="button" onClick={() => removeExistingPhoto(url)}
                       className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white">
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           )}
@@ -407,12 +417,22 @@ export default function Investigations() {
                   )}
                   <p className="text-sm text-muted-foreground mt-2">{inv.field_notes}</p>
                   {inv.photos?.length > 0 && (
-                    <div className="flex gap-2 mt-3 overflow-x-auto">
-                      {inv.photos.map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                          <img src={url} alt={`Photo ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
-                        </a>
-                      ))}
+                    <div className="flex gap-2 mt-3 overflow-x-auto flex-wrap">
+                      {inv.photos.map((url, i) => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(url);
+                        return (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" title={url.split('/').pop()}>
+                            {isImage ? (
+                              <img src={url} alt={`Photo ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
+                            ) : (
+                              <div className="w-20 h-20 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-1 hover:bg-accent transition-colors">
+                                <FileText className="w-6 h-6 text-muted-foreground" />
+                                <span className="text-[9px] text-muted-foreground truncate w-16 text-center px-1">{url.split('/').pop()?.slice(0,20)}</span>
+                              </div>
+                            )}
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
