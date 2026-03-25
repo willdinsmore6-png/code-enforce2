@@ -179,6 +179,8 @@ export default function NewComplaint() {
                   <SelectItem value="junkyard">Junkyard / Unregistered Vehicles</SelectItem>
                   <SelectItem value="septic">Septic</SelectItem>
                   <SelectItem value="wetlands">Wetlands</SelectItem>
+                  <SelectItem value="site_plan">Site Plan Violation</SelectItem>
+                  <SelectItem value="subdivision">Subdivision Violation</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
