@@ -161,6 +161,7 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       municipality,
+      refreshMunicipality: loadMunicipality,
       logout,
       navigateToLogin,
       checkAppState,

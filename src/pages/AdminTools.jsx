@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user } = useAuth();
+  const { user, refreshMunicipality } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -133,6 +133,7 @@ export default function AdminTools() {
     }
     setSavingMuni(false);
     setMuniSaved(true);
+    if (refreshMunicipality) refreshMunicipality();
     setTimeout(() => setMuniSaved(false), 3000);
   }
 
