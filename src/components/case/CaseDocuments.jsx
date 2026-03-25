@@ -5,17 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Image, Download, Trash2, Eye, Upload } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2, Eye, Upload, Camera, X } from 'lucide-react';
 import DocumentPreview from './DocumentPreview';
 import { format } from 'date-fns';
+
+const ACCEPT = 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif';
 
 export default function CaseDocuments({ caseId, documents, setDocuments, readOnly = false }) {
   const [open, setOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
-  const dropRef = useRef(null);
+  const browseRef = useRef(null);
+  const cameraRef = useRef(null);
   const [form, setForm] = useState({
     title: '',
     document_type: 'complaint',
@@ -25,11 +28,22 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   function handleDrop(e) {
     e.preventDefault();
     setDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) {
-      setFile(dropped);
-      if (!form.title) setForm(p => ({ ...p, title: dropped.name.replace(/\.[^.]+$/, '') }));
+    const dropped = Array.from(e.dataTransfer.files);
+    if (dropped.length) {
+      setFiles(prev => [...prev, ...dropped]);
+      if (!form.title && dropped[0]) setForm(p => ({ ...p, title: dropped[0].name.replace(/\.[^.]+$/, '') }));
     }
+  }
+  }
+
+  function addFiles(newFiles) {
+    const arr = Array.from(newFiles);
+    setFiles(prev => [...prev, ...arr]);
+    if (!form.title && arr[0]) setForm(p => ({ ...p, title: arr[0].name.replace(/\.[^.]+$/, '') }));
+  }
+
+  function removeFile(i) {
+    setFiles(prev => prev.filter((_, j) => j !== i));
   }
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -42,19 +56,23 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
 
   async function handleUpload(e) {
     e.preventDefault();
-    if (!file) return;
+    if (!files.length) return;
     setSaving(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const doc = await base44.entities.Document.create({
-      ...form,
-      case_id: caseId,
-      file_url,
-      version: 1,
-    });
-    setDocuments(prev => [...prev, doc]);
+    for (const f of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: f });
+      const title = form.title || f.name.replace(/\.[^.]+$/, '');
+      const doc = await base44.entities.Document.create({
+        ...form,
+        title,
+        case_id: caseId,
+        file_url,
+        version: 1,
+      });
+      setDocuments(prev => [...prev, doc]);
+    }
     setOpen(false);
     setSaving(false);
-    setFile(null);
+    setFiles([]);
     setForm({ title: '', document_type: 'complaint', description: '' });
   }
 
@@ -111,21 +129,53 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                 <Input value={form.description} onChange={e => update('description', e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>File *</Label>
+                <Label>File(s) *</Label>
+                {/* Drop zone */}
                 <div
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-                  onClick={() => dropRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border'}`}
                 >
-                  <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">{file ? file.name : 'Drag & drop or click to browse'}</p>
-                  <input ref={dropRef} type="file" className="hidden" onChange={e => {
-                    const f = e.target.files[0];
-                    if (f) { setFile(f); if (!form.title) setForm(p => ({ ...p, title: f.name.replace(/\.[^.]+$/, '') })); }
-                  }} />
+                  <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm font-medium text-muted-foreground">Drag & drop files here</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images, PDFs, Word, Excel and more</p>
+                  <div className="flex justify-center gap-2">
+                    <button type="button" onClick={() => browseRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+                      <Upload className="w-3.5 h-3.5" /> Browse Files
+                    </button>
+                    <button type="button" onClick={() => cameraRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+                      <Camera className="w-3.5 h-3.5" /> Take Photo
+                    </button>
+                  </div>
+                  <input ref={browseRef} type="file" multiple accept={ACCEPT} className="hidden"
+                    onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                 </div>
+                {/* File previews */}
+                {files.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {files.map((f, i) => (
+                      <div key={i} className="relative group">
+                        {f.type.startsWith('image/') ? (
+                          <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-1">
+                            <FileText className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-[9px] text-muted-foreground truncate w-14 text-center px-1">{f.name}</span>
+                          </div>
+                        )}
+                        <button type="button" onClick={() => removeFile(i)}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

@@ -7,18 +7,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Camera, Upload, Pencil, X, ImageIcon, Trash2 } from 'lucide-react';
+import { Plus, Camera, Upload, Pencil, X, FileText, Trash2 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
 function PhotoDropZone({ photos, setPhotos }) {
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef(null);
+  const browseRef = useRef(null);
+  const cameraRef = useRef(null);
 
   function onDrop(e) {
     e.preventDefault();
     setDragging(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files);
     setPhotos(prev => [...prev, ...files]);
   }
 
@@ -33,20 +34,37 @@ function PhotoDropZone({ photos, setPhotos }) {
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}
+        className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}
       >
         <Camera className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm font-medium">Drag & drop photos here</p>
-        <p className="text-xs text-muted-foreground mt-0.5">or tap to browse / open camera</p>
-        <input ref={inputRef} type="file" multiple accept="image/*" capture="environment" onChange={onFileChange} className="hidden" />
+        <p className="text-sm font-medium">Drag & drop photos or files here</p>
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images, PDFs, and other documents accepted</p>
+        <div className="flex justify-center gap-2">
+          <button type="button" onClick={() => browseRef.current?.click()}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+            <Upload className="w-3.5 h-3.5" /> Browse Files
+          </button>
+          <button type="button" onClick={() => cameraRef.current?.click()}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+            <Camera className="w-3.5 h-3.5" /> Take Photo
+          </button>
+        </div>
+        <input ref={browseRef} type="file" multiple accept="image/*,application/pdf,.doc,.docx,.heic,.heif" className="hidden" onChange={onFileChange} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
       </div>
       {photos.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {photos.map((f, i) => (
             <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-              <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
-              <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+              {f.type.startsWith('image/') ? (
+                <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-0.5">
+                  <FileText className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-[9px] text-muted-foreground truncate w-14 text-center px-1">{f.name}</span>
+                </div>
+              )}
+              <button type="button" onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
                 className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white">
                 <X className="w-2.5 h-2.5" />
               </button>
