@@ -32,7 +32,13 @@ const DEFAULT_RESOURCES = [
 
 export default function ResourceLibrary() {
   const { user, municipality } = useAuth();
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedItems, setExpandedItems] = useState({});
+  const [showAI, setShowAI] = useState(false);
   const [townConfig, setTownConfig] = useState(null);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
     loadResources();
