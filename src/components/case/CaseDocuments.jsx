@@ -11,30 +11,29 @@ import { format } from 'date-fns';
 
 const ACCEPT = 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif';
 
+const typeIcons = {
+  complaint: FileText, nov: FileText, photo: Image, court_filing: FileText,
+  correspondence: FileText, warrant: FileText, abatement_proof: FileText,
+  citation: FileText, attorney_notes: FileText, other: FileText,
+};
+
+const typeLabels = {
+  complaint: 'Complaint', nov: 'NOV', photo: 'Photo', court_filing: 'Court Filing',
+  correspondence: 'Correspondence', warrant: 'Warrant', abatement_proof: 'Abatement Proof',
+  citation: 'Citation', attorney_notes: 'Attorney Notes', other: 'Other',
+};
+
 export default function CaseDocuments({ caseId, documents, setDocuments, readOnly = false }) {
   const [open, setOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
+  const [form, setForm] = useState({ title: '', document_type: 'complaint', description: '' });
   const browseRef = useRef(null);
   const cameraRef = useRef(null);
-  const [form, setForm] = useState({
-    title: '',
-    document_type: 'complaint',
-    description: '',
-  });
 
-  function handleDrop(e) {
-    e.preventDefault();
-    setDragging(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    if (dropped.length) {
-      setFiles(prev => [...prev, ...dropped]);
-      if (!form.title && dropped[0]) setForm(p => ({ ...p, title: dropped[0].name.replace(/\.[^.]+$/, '') }));
-    }
-  }
-  }
+  const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   function addFiles(newFiles) {
     const arr = Array.from(newFiles);
@@ -42,11 +41,16 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
     if (!form.title && arr[0]) setForm(p => ({ ...p, title: arr[0].name.replace(/\.[^.]+$/, '') }));
   }
 
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (dropped.length) addFiles(dropped);
+  }
+
   function removeFile(i) {
     setFiles(prev => prev.filter((_, j) => j !== i));
   }
-
-  const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   async function handleDelete(docId) {
     if (!window.confirm('Are you sure you want to delete this document? This cannot be undone.')) return;
@@ -76,18 +80,6 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
     setForm({ title: '', document_type: 'complaint', description: '' });
   }
 
-  const typeIcons = {
-    complaint: FileText, nov: FileText, photo: Image, court_filing: FileText,
-    correspondence: FileText, warrant: FileText, abatement_proof: FileText,
-    citation: FileText, attorney_notes: FileText, other: FileText,
-  };
-
-  const typeLabels = {
-    complaint: 'Complaint', nov: 'NOV', photo: 'Photo', court_filing: 'Court Filing',
-    correspondence: 'Correspondence', warrant: 'Warrant', abatement_proof: 'Abatement Proof',
-    citation: 'Citation', attorney_notes: 'Attorney Notes', other: 'Other',
-  };
-
   return (
     <div className="space-y-4">
       <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
@@ -103,8 +95,8 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
             </DialogHeader>
             <form onSubmit={handleUpload} className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Title *</Label>
-                <Input value={form.title} onChange={e => update('title', e.target.value)} required />
+                <Label>Title</Label>
+                <Input value={form.title} onChange={e => update('title', e.target.value)} placeholder="Auto-filled from filename" />
               </div>
               <div className="space-y-1.5">
                 <Label>Document Type</Label>
@@ -130,7 +122,6 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
               </div>
               <div className="space-y-1.5">
                 <Label>File(s) *</Label>
-                {/* Drop zone */}
                 <div
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
@@ -155,11 +146,10 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                   <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
                     onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                 </div>
-                {/* File previews */}
                 {files.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {files.map((f, i) => (
-                      <div key={i} className="relative group">
+                      <div key={i} className="relative">
                         {f.type.startsWith('image/') ? (
                           <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 object-cover rounded-lg border border-border" />
                         ) : (
@@ -179,7 +169,9 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={saving}>{saving ? 'Uploading...' : 'Upload'}</Button>
+                <Button type="submit" disabled={saving || !files.length}>
+                  {saving ? 'Uploading...' : `Upload${files.length > 1 ? ` (${files.length})` : ''}`}
+                </Button>
               </div>
             </form>
           </DialogContent>
