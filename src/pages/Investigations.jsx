@@ -37,7 +37,7 @@ function PhotoDropZone({ photos, setPhotos }) {
           </label>
           <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
             <Camera className="w-3.5 h-3.5" /> Take Photo
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
+            <input type="file" accept="image/*" className="hidden" onChange={onFileChange} />
           </label>
         </div>
       </div>
