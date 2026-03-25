@@ -18,6 +18,7 @@ export default function AdminTools() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -76,9 +77,10 @@ export default function AdminTools() {
     e.preventDefault();
     setInviting(true);
     setInviteResult(null);
-    await base44.users.inviteUser(inviteEmail.trim(), 'user');
-    setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
+    await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
+    setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail} as ${inviteRole}` });
     setInviteEmail('');
+    setInviteRole('user');
     setInviting(false);
     // Reload users
     const r = await base44.functions.invoke('getUsers', {});
@@ -103,6 +105,11 @@ export default function AdminTools() {
     if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
     await base44.entities.User.delete(userId);
     setUsers(prev => prev.filter(u => u.id !== userId));
+  }
+
+  async function handleRoleChange(userId, newRole) {
+    await base44.entities.User.update(userId, { role: newRole });
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
   }
 
   async function handleLogoUpload(e) {
@@ -274,10 +281,21 @@ export default function AdminTools() {
                 <p className="text-sm text-muted-foreground">Invite someone to join your municipality's enforcement team</p>
               </div>
             </div>
-            <form onSubmit={handleInvite} className="flex gap-3 items-end">
-              <div className="flex-1 space-y-1.5">
+            <form onSubmit={handleInvite} className="flex gap-3 items-end flex-wrap">
+              <div className="flex-1 min-w-[200px] space-y-1.5">
                 <Label>Email Address</Label>
                 <Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="officer@yourtown.gov" required />
+              </div>
+              <div className="space-y-1.5 min-w-[130px]">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button type="submit" disabled={inviting} className="gap-1.5">
                 {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -309,9 +327,16 @@ export default function AdminTools() {
                       <p className="text-sm font-medium">{u.full_name || '—'}</p>
                       <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'admin' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {u.role}
-                    </span>
+                    <Select value={u.role || 'user'} onValueChange={val => handleRoleChange(u.id, val)}>
+                      <SelectTrigger className={`h-7 text-xs px-2 w-24 border-0 font-medium ${u.role === 'admin' ? 'bg-blue-50 text-blue-700' : u.role === 'viewer' ? 'bg-slate-50 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <button
                       type="button"
                       onClick={() => handleRemoveUser(u.id, u.email)}
