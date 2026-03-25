@@ -312,10 +312,9 @@ export default function AdminTools() {
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
-                  </SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                      </SelectContent>
                 </Select>
               </div>
               <Button type="submit" disabled={inviting} className="gap-1.5">
