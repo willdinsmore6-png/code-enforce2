@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,15 +13,6 @@ import { format } from 'date-fns';
 
 function PhotoDropZone({ photos, setPhotos }) {
   const [dragging, setDragging] = useState(false);
-  const browseRef = useRef(null);
-  const cameraRef = useRef(null);
-
-  function onDrop(e) {
-    e.preventDefault();
-    setDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    setPhotos(prev => [...prev, ...files]);
-  }
 
   function onFileChange(e) {
     setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
@@ -40,17 +31,15 @@ function PhotoDropZone({ photos, setPhotos }) {
         <p className="text-sm font-medium">Drag & drop photos or files here</p>
         <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images, PDFs, and other documents accepted</p>
         <div className="flex justify-center gap-2">
-          <button type="button" onClick={() => browseRef.current?.click()}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+          <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
             <Upload className="w-3.5 h-3.5" /> Browse Files
-          </button>
-          <button type="button" onClick={() => cameraRef.current?.click()}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+            <input type="file" multiple accept="image/*,application/pdf,.doc,.docx,.heic,.heif" className="hidden" onChange={onFileChange} />
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
             <Camera className="w-3.5 h-3.5" /> Take Photo
-          </button>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
+          </label>
         </div>
-        <input ref={browseRef} type="file" multiple accept="image/*,application/pdf,.doc,.docx,.heic,.heif" className="hidden" onChange={onFileChange} />
-        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
       </div>
       {photos.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">

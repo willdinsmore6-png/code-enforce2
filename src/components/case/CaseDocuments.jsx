@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +30,6 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [form, setForm] = useState({ title: '', document_type: 'complaint', description: '' });
-  const browseRef = useRef(null);
-  const cameraRef = useRef(null);
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -132,19 +130,17 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                   <p className="text-sm font-medium text-muted-foreground">Drag & drop files here</p>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images, PDFs, Word, Excel and more</p>
                   <div className="flex justify-center gap-2">
-                    <button type="button" onClick={() => browseRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+                    <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
                       <Upload className="w-3.5 h-3.5" /> Browse Files
-                    </button>
-                    <button type="button" onClick={() => cameraRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors">
+                      <input type="file" multiple accept={ACCEPT} className="hidden"
+                        onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+                    </label>
+                    <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
                       <Camera className="w-3.5 h-3.5" /> Take Photo
-                    </button>
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+                    </label>
                   </div>
-                  <input ref={browseRef} type="file" multiple accept={ACCEPT} className="hidden"
-                    onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-                    onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                 </div>
                 {files.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
