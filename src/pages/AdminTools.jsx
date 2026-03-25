@@ -77,14 +77,17 @@ export default function AdminTools() {
     e.preventDefault();
     setInviting(true);
     setInviteResult(null);
-    await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
-    setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail} as ${inviteRole}` });
-    setInviteEmail('');
-    setInviteRole('user');
+    try {
+      await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
+      setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail} as ${inviteRole}` });
+      setInviteEmail('');
+      setInviteRole('user');
+      const r = await base44.functions.invoke('getUsers', {});
+      setUsers(r.data?.users || []);
+    } catch (err) {
+      setInviteResult({ success: false, message: err?.message || 'Failed to send invite. Please try again.' });
+    }
     setInviting(false);
-    // Reload users
-    const r = await base44.functions.invoke('getUsers', {});
-    setUsers(r.data?.users || []);
   }
 
   async function handleReset(e) {
@@ -103,13 +106,21 @@ export default function AdminTools() {
 
   async function handleRemoveUser(userId, userEmail) {
     if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
-    await base44.entities.User.delete(userId);
-    setUsers(prev => prev.filter(u => u.id !== userId));
+    try {
+      await base44.entities.User.delete(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch (err) {
+      alert(`Failed to remove user: ${err?.message || 'Unknown error'}`);
+    }
   }
 
   async function handleRoleChange(userId, newRole) {
-    await base44.entities.User.update(userId, { role: newRole });
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    try {
+      await base44.entities.User.update(userId, { role: newRole });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (err) {
+      alert(`Failed to update role: ${err?.message || 'Unknown error'}`);
+    }
   }
 
   async function handleLogoUpload(e) {
@@ -164,6 +175,14 @@ export default function AdminTools() {
     a.download = `audit-log-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground text-sm">You don't have permission to access Admin Tools.</p>
+      </div>
+    );
   }
 
   return (
