@@ -200,6 +200,7 @@ export default function AdminTools() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+      <h1 className="sr-only">Admin Tools</h1>
       <PageHeader
         title="Admin Tools"
         description="Town of Bow Code Enforcement Administrative Utilities"
@@ -423,16 +424,16 @@ export default function AdminTools() {
             ) : filteredLogs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No audit log entries found.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto" role="region" aria-labelledby="audit-log-heading" tabIndex="0">
+                <table className="w-full text-sm" role="table" aria-label="Audit log of case modifications">
                   <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">Timestamp</th>
-                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">User</th>
-                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">Case</th>
-                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">Type</th>
-                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">Action</th>
-                      <th className="text-left py-2 text-xs font-semibold text-muted-foreground">Changes</th>
+                    <tr className="border-b border-border" role="row">
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground" scope="col">Timestamp</th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground" scope="col">User</th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground" scope="col">Case</th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground" scope="col">Type</th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground" scope="col">Action</th>
+                      <th className="text-left py-2 text-xs font-semibold text-muted-foreground" scope="col">Changes</th>
                     </tr>
                   </thead>
                   <tbody>

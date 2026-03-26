@@ -79,9 +79,9 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   }
 
   return (
+    <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
     <div className="space-y-4">
-      <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
-      <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between">
         <h3 className="font-semibold">Document Vault</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -174,7 +174,7 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
         </Dialog>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3" role="region" aria-label="Document list">
         {documents.map(doc => {
           const Icon = typeIcons[doc.document_type] || FileText;
           return (
@@ -192,12 +192,22 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
               </div>
               <div className="flex flex-col gap-1">
                 {doc.file_url && (
-                  <button onClick={() => setPreviewDoc(doc)} className="text-muted-foreground hover:text-primary transition-colors" title="Preview">
+                  <button 
+                    onClick={() => setPreviewDoc(doc)} 
+                    className="text-muted-foreground hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring" 
+                    aria-label={`Preview ${doc.title}`}
+                  >
                     <Eye className="w-4 h-4" />
                   </button>
                 )}
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Download">
+                  <a 
+                    href={doc.file_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring" 
+                    aria-label={`Download ${doc.title}`}
+                  >
                     <Download className="w-4 h-4" />
                   </a>
                 )}

@@ -63,7 +63,8 @@ export default function Dashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <h2 className="text-lg font-semibold mb-4">Case Overview</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" role="region" aria-label="Case overview statistics">
         <StatCard icon={FileText} label="Open Cases" value={openCases.length} />
         <StatCard icon={Clock} label="Awaiting Response" value={awaitingCases.length} />
         <StatCard icon={Scale} label="In Court" value={courtCases.length} />

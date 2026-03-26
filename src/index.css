@@ -93,4 +93,16 @@
   body {
     @apply bg-background text-foreground font-inter;
   }
+  /* Ensure visible focus indicators for keyboard navigation */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  /* Skip to main content link */
+  .skip-to-main {
+    @apply absolute top-0 left-0 -translate-y-full focus:translate-y-0 z-50 bg-primary text-primary-foreground px-4 py-2;
+  }
+  /* Screen reader only content */
+  .sr-only {
+    @apply absolute -w-px -h-px -p-px overflow-hidden whitespace-nowrap border-0;
+  }
 }

@@ -83,6 +83,7 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
+          <a href="#main-content" className="skip-to-main">Skip to main content</a>
           <AuthenticatedApp />
         </Router>
         <Toaster />

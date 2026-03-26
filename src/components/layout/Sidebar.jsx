@@ -52,7 +52,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
             (item.path !== '/' && location.pathname.startsWith(item.path));
@@ -102,8 +102,9 @@ export default function Sidebar() {
 
       <button
         onClick={() => logout()}
+        aria-label="Logout"
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150",
+          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-ring",
           "text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent/50"
         )}
       >
@@ -112,7 +113,8 @@ export default function Sidebar() {
       </button>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring"
       >
         {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
       </button>

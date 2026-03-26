@@ -146,6 +146,7 @@ export default function CaseDetail() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+      <h1 className="sr-only">Case Details</h1>
       {/* Header */}
       <div className="mb-6">
         <Link to="/cases" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-3">
@@ -153,14 +154,13 @@ export default function CaseDetail() {
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h1>
+            <h2 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h2>
               <StatusBadge status={caseData.status} />
               <StatusBadge status={caseData.priority} type="priority" />
             </div>
-            <p className="text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> {caseData.property_address}
-            </p>
+            <address className="text-muted-foreground flex items-center gap-1.5 not-italic">
+              <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> {caseData.property_address}
+            </address>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
@@ -280,8 +280,8 @@ export default function CaseDetail() {
       />
 
       {/* Tabbed Content */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="bg-muted/50 p-1">
+      <Tabs defaultValue="overview" className="space-y-4" aria-label="Case details tabs">
+        <TabsList className="bg-muted/50 p-1" role="tablist">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="notices">Notices ({notices.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>

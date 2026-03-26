@@ -25,10 +25,14 @@ export default function StatusBadge({ status, type = 'status' }) {
   const item = config[status] || { label: status, className: 'bg-gray-50 text-gray-600 border-gray-200' };
 
   return (
-    <span className={cn(
-      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-      item.className
-    )}>
+    <span 
+      className={cn(
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+        item.className
+      )}
+      role="status"
+      aria-label={`${type === 'priority' ? 'Priority' : 'Status'}: ${item.label}`}
+    >
       {item.label}
     </span>
   );

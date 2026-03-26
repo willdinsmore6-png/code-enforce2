@@ -34,13 +34,19 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+const Button = React.forwardRef(({ className, variant, size, asChild = false, 'aria-label': ariaLabel, title, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
+  // Ensure icon-only buttons have aria-label or title
+  const hasAriaLabel = ariaLabel || title || (typeof children === 'string' && children.trim())
   return (
     (<Comp
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, className }), 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
       ref={ref}
-      {...props} />)
+      aria-label={ariaLabel}
+      title={title}
+      {...props}>
+      {children}
+    </Comp>)
   );
 })
 Button.displayName = "Button"
