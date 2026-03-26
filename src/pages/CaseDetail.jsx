@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2, Download } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
@@ -28,6 +28,7 @@ export default function CaseDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -88,6 +89,24 @@ export default function CaseDetail() {
     navigate('/cases');
   }
 
+  async function handleExportPDF() {
+    setExportLoading(true);
+    try {
+      const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${caseData.case_number || 'case'}-court-file.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -144,6 +163,10 @@ export default function CaseDetail() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
+              {exportLoading ? <div className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Export PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
               <Pencil className="w-3.5 h-3.5" /> Edit Case
             </Button>
