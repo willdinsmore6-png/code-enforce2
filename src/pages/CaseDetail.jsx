@@ -155,10 +155,11 @@ export default function CaseDetail() {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h2>
+            <div className="flex gap-2 mt-2">
               <StatusBadge status={caseData.status} />
               <StatusBadge status={caseData.priority} type="priority" />
             </div>
-            <address className="text-muted-foreground flex items-center gap-1.5 not-italic">
+            <address className="text-muted-foreground flex items-center gap-1.5 not-italic mt-2">
               <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> {caseData.property_address}
             </address>
           </div>
