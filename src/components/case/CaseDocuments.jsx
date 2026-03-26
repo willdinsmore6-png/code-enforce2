@@ -79,8 +79,9 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   }
 
   return (
-    <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
-    <div className="space-y-4">
+    <>
+      <DocumentPreview document={previewDoc} open={!!previewDoc} onClose={() => setPreviewDoc(null)} />
+      <div className="space-y-4">
     <div className="flex items-center justify-between">
         <h3 className="font-semibold">Document Vault</h3>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -227,5 +228,6 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
         </div>
       )}
     </div>
+    </>
   );
 }
