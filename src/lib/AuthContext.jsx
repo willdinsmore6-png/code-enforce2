@@ -124,12 +124,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
-      if (currentUser && currentUser.data?.town_id && !currentUser.town_id) {
-        currentUser.town_id = currentUser.data.town_id;
+      // Ensure town_id is set from user.data for RLS to work
+      if (currentUser) {
+        currentUser.town_id = currentUser.town_id || currentUser.data?.town_id;
       }
       setUser(currentUser);
       setIsAuthenticated(true);
-      loadMunicipality(currentUser);
+      if (currentUser?.town_id) {
+        await loadMunicipality(currentUser);
+      }
 
       if (currentUser && !currentUser.invitation_accepted) {
         await base44.auth.updateMe({ invitation_accepted: true });
