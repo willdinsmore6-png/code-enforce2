@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Building2, Users, Plus, LogIn, Trash2, Shield, FileText,
-  AlertTriangle, CheckCircle, Loader2, UserPlus, X, Edit, Globe
+  AlertTriangle, CheckCircle, Loader2, UserPlus, X, Edit, Globe, Copy
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
@@ -204,7 +204,17 @@ export default function SuperAdminDashboard() {
                         <div>
                           <p className="font-semibold text-sm">{town.town_name}</p>
                           <p className="text-xs text-muted-foreground">{town.state} · {userCount} user{userCount !== 1 ? 's' : ''}</p>
-                        </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <p className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[140px]">{town.id}</p>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(town.id); }}
+                              className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                              title="Copy town_id"
+                            >
+                              <Copy className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                      </div>
                       </div>
                       <div className="flex gap-1">
                         <button onClick={() => openEdit(town)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Edit className="w-3.5 h-3.5" /></button>
