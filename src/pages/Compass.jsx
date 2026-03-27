@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function CompassPage() {
-  const { user } = useAuth();
+  const { user, municipality } = useAuth();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -28,17 +28,17 @@ export default function CompassPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
-    Promise.all([
-      base44.entities.TownConfig.filter({ is_active: true }),
-      base44.entities.Case.list('-created_date', 100),
-    ]).then(([configs, c]) => {
-      if (configs[0]) {
-        setTownConfig(configs[0]);
-        setConfigForm(f => ({ ...f, ...configs[0] }));
-        setUploadedDocNames(configs[0].ordinance_doc_names || []);
-      } else {
-        setShowConfig(isAdmin);
-      }
+    if (municipality) {
+      setTownConfig(municipality);
+      setConfigForm(f => ({ ...f, ...municipality }));
+      setUploadedDocNames(municipality.ordinance_doc_names || []);
+    } else {
+      setShowConfig(isAdmin);
+    }
+  }, [municipality]);
+
+  useEffect(() => {
+    base44.entities.Case.list('-created_date', 100).then(c => {
       setCases(c.filter(ca => !['resolved', 'closed'].includes(ca.status)));
     });
   }, []);

@@ -42,10 +42,8 @@ export default function ResourceLibrary() {
 
   useEffect(() => {
     loadResources();
-    base44.entities.TownConfig.list('-created_date', 1).then(configs => {
-      if (configs[0]) setTownConfig(configs[0]);
-    });
-  }, []);
+    if (municipality) setTownConfig(municipality);
+  }, [municipality]);
 
   async function loadResources() {
     setLoading(true);

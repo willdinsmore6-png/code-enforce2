@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/AuthContext';
 import { Wand2, ArrowRight, CheckCircle, AlertTriangle, FileText, Scale, Clock, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -103,19 +104,15 @@ function buildRecommendations(config) {
 }
 
 export default function ActionWizard() {
+  const { municipality } = useAuth();
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [townConfig, setTownConfig] = useState(null);
 
   useEffect(() => {
     async function load() {
-      const [data, configs] = await Promise.all([
-        base44.entities.Case.list('-created_date', 100),
-        base44.entities.TownConfig.filter({ is_active: true }),
-      ]);
+      const data = await base44.entities.Case.list('-created_date', 100);
       setCases(data.filter(c => !['resolved', 'closed'].includes(c.status)));
-      if (configs[0]) setTownConfig(configs[0]);
       setLoading(false);
     }
     load();
@@ -129,14 +126,14 @@ export default function ActionWizard() {
     );
   }
 
-  const recommendations = buildRecommendations(townConfig);
+  const recommendations = buildRecommendations(municipality);
   const rec = selectedCase ? recommendations[selectedCase.status] : null;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
       <PageHeader
         title="Action Wizard"
-        description={townConfig ? `Guidance for ${townConfig.town_name}, ${townConfig.state} — ${townConfig.compliance_days_zoning}-day abatement · ${townConfig.zba_appeal_days}-day ZBA window` : 'Get step-by-step guidance based on NH statutes for your enforcement cases'}
+        description={municipality ? `Guidance for ${municipality.town_name}, ${municipality.state} — ${municipality.compliance_days_zoning}-day abatement · ${municipality.zba_appeal_days}-day ZBA window` : 'Get step-by-step guidance based on NH statutes for your enforcement cases'}
         actions={
           <Link to="/compass">
             <Button variant="outline" size="sm" className="gap-1.5">
