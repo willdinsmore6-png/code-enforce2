@@ -18,7 +18,6 @@ export default function AdminTools() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -74,9 +73,9 @@ export default function AdminTools() {
     setInviting(true);
     setInviteResult(null);
     try {
-      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: inviteRole });
+      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: 'user' });
       if (res.data?.error) throw new Error(res.data.error);
-      setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail} as ${inviteRole}` });
+      setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
       setInviteEmail('');
       setInviteRole('user');
       const r = await base44.functions.invoke('getUsers', {});
@@ -314,16 +313,7 @@ export default function AdminTools() {
                 <Label>Email Address</Label>
                 <Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="officer@yourtown.gov" required />
               </div>
-              <div className="space-y-1.5 min-w-[130px]">
-                <Label>Role</Label>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                      </SelectContent>
-                </Select>
-              </div>
+
               <Button type="submit" disabled={inviting} className="gap-1.5">
                 {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                 {inviting ? 'Inviting...' : 'Send Invite'}
