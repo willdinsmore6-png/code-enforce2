@@ -11,11 +11,17 @@ export default function CompassBackground() {
       const conversationId = sessionStorage.getItem('compass_conversation_id');
       if (!conversationId) return;
 
-      unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
-        sessionStorage.setItem('compass_messages', JSON.stringify(data.messages || []));
-        // Dispatch a custom event so the Compass page can react if it's open
-        window.dispatchEvent(new CustomEvent('compass_update', { detail: { messages: data.messages } }));
-      });
+      try {
+        unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
+          sessionStorage.setItem('compass_messages', JSON.stringify(data.messages || []));
+          // Dispatch a custom event so the Compass page can react if it's open
+          window.dispatchEvent(new CustomEvent('compass_update', { detail: { messages: data.messages } }));
+        });
+      } catch (error) {
+        // Conversation expired or belongs to another user — clear it
+        sessionStorage.removeItem('compass_conversation_id');
+        sessionStorage.removeItem('compass_messages');
+      }
     }
 
     subscribe();
