@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -214,6 +215,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
 }
 
 export default function Investigations() {
+  const { impersonatedMunicipality } = useAuth();
   const [investigations, setInvestigations] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,16 +241,17 @@ export default function Investigations() {
 
   useEffect(() => {
     async function load() {
+      const townFilter = impersonatedMunicipality ? { town_id: impersonatedMunicipality.id } : null;
       const [inv, c] = await Promise.all([
-        base44.entities.Investigation.list('-created_date', 50),
-        base44.entities.Case.list('-created_date', 100),
+        townFilter ? base44.entities.Investigation.filter(townFilter, '-created_date', 50) : base44.entities.Investigation.list('-created_date', 50),
+        townFilter ? base44.entities.Case.filter(townFilter, '-created_date', 100) : base44.entities.Case.list('-created_date', 100),
       ]);
       setInvestigations(inv);
       setCases(c);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [impersonatedMunicipality]);
 
   async function handleSubmit(e) {
     e.preventDefault();
