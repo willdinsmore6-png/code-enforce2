@@ -8,9 +8,9 @@ export default function AppLayout() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       <a href="#main-content" className="skip-to-main">Skip to main content</a>
-      <header aria-label="Application header">
+      <header aria-label="Application header" className="sticky top-0 z-40 md:static">
         <CompassBackground />
-        <SuperAdminBanner />
+        <div className="hidden md:block"><SuperAdminBanner /></div>
         <MobileNav />
       </header>
       <div className="flex flex-1 overflow-hidden">

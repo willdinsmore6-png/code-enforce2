@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Plus, Bell, Scale,
   FolderOpen, Wand2, BookOpen, Globe, Settings,
-  Compass, Search, Menu, X, Shield, LogOut
+  Compass, Search, Menu, X, Shield, LogOut, ShieldCheck
 } from 'lucide-react';
+import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -36,8 +37,13 @@ export default function MobileNav() {
 
   return (
     <>
+      {/* SuperAdmin Banner (mobile, sticky) */}
+      <div className="md:hidden">
+        <SuperAdminBanner />
+      </div>
+
       {/* Top Header Bar */}
-      <header className="md:hidden flex items-center justify-between px-4 h-14 bg-sidebar border-b border-sidebar-border z-40 sticky top-0">
+      <header className="md:hidden flex items-center justify-between px-4 h-14 bg-sidebar border-b border-sidebar-border z-40">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center flex-shrink-0">
             {municipality?.logo_url
@@ -128,6 +134,21 @@ export default function MobileNav() {
                   {item.label}
                 </Link>
               ))}
+              {user?.role === 'superadmin' && (
+                <Link
+                  to="/superadmin"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                    isActive('/superadmin')
+                      ? "bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                  Super Admin
+                </Link>
+              )}
             </>
           )}
         </nav>

@@ -10,14 +10,14 @@ import { format, differenceInDays } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function Dashboard() {
-  const { user, impersonatedMunicipality } = useAuth();
+  const { user, municipality } = useAuth();
   const [cases, setCases] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const townFilter = impersonatedMunicipality ? { town_id: impersonatedMunicipality.id } : null;
+      const townFilter = municipality ? { town_id: municipality.id } : null;
       const [casesData, deadlinesData] = await Promise.all([
         townFilter ? base44.entities.Case.filter(townFilter, '-created_date', 50) : base44.entities.Case.list('-created_date', 50),
         townFilter ? base44.entities.Deadline.filter({ ...townFilter, is_completed: false }, 'due_date', 20) : base44.entities.Deadline.filter({ is_completed: false }, 'due_date', 20),
@@ -27,7 +27,7 @@ export default function Dashboard() {
       setLoading(false);
     }
     load();
-  }, [impersonatedMunicipality]);
+  }, [municipality]);
 
   if (loading) {
     return (

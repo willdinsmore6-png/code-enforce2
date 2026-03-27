@@ -99,35 +99,39 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
   events.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   return (
-    <div className="bg-card rounded-xl border border-border p-5">
-      <h3 className="font-semibold mb-6">Case Timeline</h3>
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-5">
+      <h3 className="font-semibold mb-5">Case Timeline</h3>
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No events recorded yet.</p>
       ) : (
-        <div className="relative">
-          <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
-          <div className="space-y-6">
-            {events.map((event, i) => (
-              <div key={i} className="flex gap-4 relative">
-                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10", event.color)}>
+        <div className="space-y-0">
+          {events.map((event, i) => (
+            <div key={i} className="flex gap-3 relative">
+              {/* Vertical connector line */}
+              <div className="flex flex-col items-center flex-shrink-0">
+                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center z-10 flex-shrink-0", event.color)}>
                   <event.icon className="w-3.5 h-3.5" />
                 </div>
-                <div className="pb-1 flex-1">
-                  <p className="text-sm font-semibold capitalize">{event.title}</p>
-                  <p className="text-[11px] text-muted-foreground/70 mb-2">
-                    {format(new Date(event.date), 'MMM d, yyyy')}
-                  </p>
-                  {event.details?.length > 0 && (
-                    <ul className="space-y-0.5">
-                      {event.details.map((d, j) => (
-                        <li key={j} className="text-xs text-muted-foreground leading-relaxed">• {d}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                {i < events.length - 1 && (
+                  <div className="w-px flex-1 bg-border my-1" />
+                )}
               </div>
-            ))}
-          </div>
+              {/* Content */}
+              <div className="pb-5 flex-1 min-w-0 pt-1">
+                <p className="text-sm font-semibold capitalize leading-snug">{event.title}</p>
+                <p className="text-[11px] text-muted-foreground/70 mb-1.5">
+                  {format(new Date(event.date), 'MMM d, yyyy')}
+                </p>
+                {event.details?.length > 0 && (
+                  <ul className="space-y-0.5">
+                    {event.details.map((d, j) => (
+                      <li key={j} className="text-xs text-muted-foreground leading-relaxed break-words">• {d}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

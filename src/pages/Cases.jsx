@@ -17,7 +17,7 @@ const violationLabels = {
 };
 
 export default function Cases() {
-  const { impersonatedMunicipality } = useAuth();
+  const { municipality } = useAuth();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,14 +25,14 @@ export default function Cases() {
 
   useEffect(() => {
     async function load() {
-      const data = impersonatedMunicipality
-        ? await base44.entities.Case.filter({ town_id: impersonatedMunicipality.id }, '-created_date', 100)
+      const data = municipality
+        ? await base44.entities.Case.filter({ town_id: municipality.id }, '-created_date', 100)
         : await base44.entities.Case.list('-created_date', 100);
       setCases(data);
       setLoading(false);
     }
     load();
-  }, [impersonatedMunicipality]);
+  }, [municipality]);
 
   const filtered = cases.filter(c => {
     const matchesSearch = !searchTerm || 
