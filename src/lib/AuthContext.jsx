@@ -112,9 +112,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const u = currentUser || user;
       if (!u?.town_id) return;
-      const configs = await base44.entities.TownConfig.filter({ id: u.town_id });
-      if (configs[0]) setMunicipality(configs[0]);
-    } catch (e) { /* silent */ }
+      const configs = await base44.entities.TownConfig.list();
+      const matching = configs?.find(c => c.id === u.town_id);
+      if (matching) setMunicipality(matching);
+    } catch (e) { console.error('Failed to load municipality:', e); }
   };
 
   const checkUserAuth = async () => {
