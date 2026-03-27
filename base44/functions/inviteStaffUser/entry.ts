@@ -10,30 +10,31 @@ Deno.serve(async (req) => {
     }
 
     const { email, role, town_id } = await req.json();
-    if (!email || !role) {
-      return Response.json({ error: 'email and role are required' }, { status: 400 });
+    if (!email) {
+      return Response.json({ error: 'email is required' }, { status: 400 });
     }
 
     if (user.role === 'admin' && role === 'superadmin') {
       return Response.json({ error: 'Admins cannot invite Superadmins' }, { status: 403 });
     }
 
-    // Invite the user (platform sets role to 'user' initially)
-    await base44.users.inviteUser(email, 'user');
+    // Determine the role to invite with (admins can only invite users)
+    const inviteRole = user.role === 'superadmin' && role === 'admin' ? 'admin' : 'user';
+
+    // Invite the user with appropriate role
+    await base44.users.inviteUser(email, inviteRole);
 
     // Wait briefly for the user record to be created
     await new Promise(r => setTimeout(r, 2000));
 
-    // Find the newly created user record
+    // Find the newly created user record and set town_id
     const allUsers = await base44.asServiceRole.entities.User.list();
     const newUser = allUsers.find(u => u.email === email);
 
     if (newUser) {
-    const updates = {};
-    if (role !== 'user') updates.role = role;
-    // Use explicitly provided town_id, or fall back to the inviting admin's town
-    const assignedTown = town_id || user.town_id || user.data?.town_id;
-    if (assignedTown) updates.town_id = assignedTown;
+      const updates = {};
+      const assignedTown = town_id || user.town_id || user.data?.town_id;
+      if (assignedTown) updates.town_id = assignedTown;
 
       if (Object.keys(updates).length > 0) {
         await base44.asServiceRole.entities.User.update(newUser.id, updates);
@@ -42,6 +43,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ success: true });
   } catch (error) {
+    console.error('Invite error:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
