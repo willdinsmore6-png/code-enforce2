@@ -24,7 +24,7 @@ export default function PublicPortal() {
   const [abatementNotes, setAbatementNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [muni, setMuni] = useState({ name: 'Code Enforcement', logo_url: null });
+  const [muni, setMuni] = useState({ name: 'Municipal Code Enforcement Portal', logo_url: null, loaded: false });
 
   // Muni branding is loaded after case lookup using the case's town_id
 
@@ -44,7 +44,7 @@ export default function PublicPortal() {
       if (foundCase?.town_id) {
         try {
           const configs = await base44.entities.TownConfig.filter({ id: foundCase.town_id });
-          if (configs[0]) setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null });
+          if (configs[0]) setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null, tagline: configs[0].tagline || null, loaded: true });
         } catch (e) { /* silent */ }
       }
     } else {
@@ -91,7 +91,7 @@ export default function PublicPortal() {
         {muni.logo_url && <img src={muni.logo_url} alt={muni.name} className="h-10 object-contain" />}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{muni.name}</h1>
-          <p className="text-sm text-muted-foreground">Municipal Code Enforcement</p>
+          <p className="text-sm text-muted-foreground">{muni.loaded ? (muni.tagline || 'Municipal Code Enforcement') : 'Enter your access code to view your case'}</p>
         </div>
       </div>
 
