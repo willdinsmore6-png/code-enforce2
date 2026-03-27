@@ -11,15 +11,8 @@ Deno.serve(async (req) => {
 
     const code = access_code.trim().toUpperCase();
 
-    // Try filtering directly by public_access_code
-    let matched = [];
-    try {
-      matched = await base44.asServiceRole.entities.Case.filter({ public_access_code: code });
-    } catch (filterErr) {
-      // fallback: list all and filter client-side
-      const allCases = await base44.asServiceRole.entities.Case.filter({});
-      matched = allCases.filter(c => (c.public_access_code || '').trim().toUpperCase() === code);
-    }
+    // Filter cases by public_access_code universally (no town_id restriction)
+    const matched = await base44.asServiceRole.entities.Case.filter({ public_access_code: code });
 
     if (!matched || matched.length === 0) {
       return Response.json({ found: false });
@@ -46,7 +39,6 @@ Deno.serve(async (req) => {
         specific_code_violated: c.specific_code_violated,
         abatement_deadline: c.abatement_deadline,
         zba_appeal_deadline: c.zba_appeal_deadline,
-        town_id: c.town_id,
       },
       notices: allNotices.map(n => ({
         id: n.id,

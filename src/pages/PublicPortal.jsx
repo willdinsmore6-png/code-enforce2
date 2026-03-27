@@ -25,15 +25,13 @@ export default function PublicPortal() {
   const [abatementNotes, setAbatementNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [muni, setMuni] = useState({ name: 'Municipal Code Enforcement Portal', logo_url: null, loaded: false });
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(setIsLoggedIn);
   }, []);
-
-  // Muni branding is loaded after case lookup using the case's town_id
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -47,13 +45,6 @@ export default function PublicPortal() {
       setCaseData(foundCase);
       setDocuments(response.data.documents || []);
       setNotices(response.data.notices || []);
-      // Load town branding using the case's town_id
-      if (foundCase?.town_id) {
-        try {
-          const configs = await base44.entities.TownConfig.filter({ id: foundCase.town_id });
-          if (configs[0]) setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null, tagline: configs[0].tagline || null, loaded: true });
-        } catch (e) { /* silent */ }
-      }
     } else {
       setNotFound(true);
     }
@@ -103,10 +94,12 @@ export default function PublicPortal() {
         </button>
       )}
       <div className="flex items-center gap-3 mb-6">
-        {muni.logo_url && <img src={muni.logo_url} alt={muni.name} className="h-10 object-contain" />}
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Globe className="w-5 h-5 text-primary" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{muni.name}</h1>
-          <p className="text-sm text-muted-foreground">{muni.loaded ? (muni.tagline || 'Municipal Code Enforcement') : 'Enter your access code to view your case'}</p>
+          <h1 className="text-2xl font-bold tracking-tight">Code-Enforce</h1>
+          <p className="text-sm text-muted-foreground">Municipal Code Compliance System</p>
         </div>
       </div>
 
