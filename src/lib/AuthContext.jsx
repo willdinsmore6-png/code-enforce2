@@ -114,36 +114,15 @@ export const AuthProvider = ({ children }) => {
       if (!u?.town_id) return;
       const configs = await base44.entities.TownConfig.list();
       const matching = configs?.find(c => c.id === u.town_id);
-      if (matching) setMunicipality(matching);
-    } catch (e) { console.error('Failed to load municipality:', e); }
+      if (matching) {
+        setMunicipality(matching);
+      }
+    } catch (e) { 
+      console.error('Failed to load municipality:', e);
+    }
   };
 
   const checkUserAuth = async () => {
-    try {
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      // Extract town_id from data field if present
-      if (currentUser && currentUser.data?.town_id && !currentUser.town_id) {
-        currentUser.town_id = currentUser.data.town_id;
-      }
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      loadMunicipality(currentUser);
-
-      if (currentUser && !currentUser.invitation_accepted) {
-        await base44.auth.updateMe({ invitation_accepted: true });
-      }
-
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({ type: 'auth_required', message: 'Authentication required' });
-      }
-    }
-  };
 
 
 
