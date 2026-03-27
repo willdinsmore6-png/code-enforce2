@@ -21,6 +21,7 @@ import PublicPortal from './pages/PublicPortal';
 import Report from './pages/Report';
 import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
         <Route path="/resources" element={<ResourceLibrary />} />
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
+        <Route path="/superadmin" element={<SuperAdminDashboard />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

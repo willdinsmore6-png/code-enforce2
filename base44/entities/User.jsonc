@@ -13,14 +13,7 @@
     },
     "town_id": {
       "type": "string",
-      "description": "Links officer to their municipality. Null = superadmin access."
-    },
-    "title": {
-      "type": "string",
-      "description": "Job title, e.g. Code Enforcement Officer"
-    },
-    "phone": {
-      "type": "string"
+      "description": "Foreign key to TownConfig. Set by superadmin to assign user to a municipality."
     }
   }
 }

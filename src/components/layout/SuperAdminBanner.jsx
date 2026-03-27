@@ -4,9 +4,8 @@ import { Shield, X, ArrowLeft } from 'lucide-react';
 
 export default function SuperAdminBanner() {
   const { user, impersonatedMunicipality, clearImpersonation } = useAuth();
-  const navigate = useNavigate();
-
   if (user?.role !== 'superadmin' || !impersonatedMunicipality) return null;
+  const townName = impersonatedMunicipality.town_name || impersonatedMunicipality.name || 'Town';
 
   function handleExit() {
     clearImpersonation();
@@ -19,7 +18,7 @@ export default function SuperAdminBanner() {
         <Shield className="w-4 h-4 flex-shrink-0" />
         <span className="font-medium">Super Admin View</span>
         <span className="opacity-70">·</span>
-        <span>Viewing as admin of <strong>{impersonatedMunicipality.name}</strong></span>
+        <span>Viewing as admin of <strong>{townName}</strong></span>
       </div>
       <button
         onClick={handleExit}

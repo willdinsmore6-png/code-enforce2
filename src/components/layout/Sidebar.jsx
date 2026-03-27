@@ -26,12 +26,31 @@ const adminNavItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
-
+const superAdminNavItems = [
+  { path: '/superadmin', icon: Shield, label: 'Global Dashboard' },
+];
 
 export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { municipality, user, logout } = useAuth();
+
+  function renderNavItem(item, activeClass, inactiveClass, iconActiveClass) {
+    const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+          isActive ? activeClass : inactiveClass
+        )}
+      >
+        <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && iconActiveClass)} />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+      </Link>
+    );
+  }
 
   return (
     <aside className={cn(
@@ -53,51 +72,36 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-            (item.path !== '/' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-primary" 
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-              )}
-            >
-              <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-sidebar-primary")} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-        })}
+        {navItems.map(item => renderNavItem(
+          item,
+          "bg-sidebar-accent text-sidebar-primary",
+          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+          "text-sidebar-primary"
+        ))}
+
+        {user?.role === 'superadmin' && (
+          <>
+            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-400 px-3 pt-4 pb-1">Super Admin</p>}
+            {superAdminNavItems.map(item => renderNavItem(
+              item,
+              "bg-purple-800/40 text-purple-300",
+              "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30",
+              "text-purple-300"
+            ))}
+          </>
+        )}
 
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
             {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>}
-            {adminNavItems.map((item) => {
-              const isActive = location.pathname === item.path || location.pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                    isActive 
-                      ? "bg-sidebar-accent text-sidebar-primary" 
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-sidebar-primary")} />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
+            {adminNavItems.map(item => renderNavItem(
+              item,
+              "bg-sidebar-accent text-sidebar-primary",
+              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+              "text-sidebar-primary"
+            ))}
           </>
         )}
-
-
       </nav>
 
       <button

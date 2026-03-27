@@ -12,7 +12,10 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
-  const [municipality, setMunicipality] = useState(null); // Contains only { id, public_settings }
+  const [municipality, setMunicipality] = useState(null);
+  const [impersonatedMunicipality, setImpersonatedMunicipality] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('impersonated_town') || 'null'); } catch { return null; }
+  });
 
   useEffect(() => {
     // Skip auth checks for public portal
@@ -137,7 +140,18 @@ export const AuthProvider = ({ children }) => {
 
 
 
+  function impersonateMunicipality(town) {
+    setImpersonatedMunicipality(town);
+    sessionStorage.setItem('impersonated_town', JSON.stringify(town));
+  }
+
+  function clearImpersonation() {
+    setImpersonatedMunicipality(null);
+    sessionStorage.removeItem('impersonated_town');
+  }
+
   const logout = (shouldRedirect = true) => {
+    clearImpersonation();
     setUser(null);
     setIsAuthenticated(false);
     if (shouldRedirect) {
@@ -152,6 +166,9 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  // When impersonating, expose the impersonated town as municipality
+  const activeMunicipality = impersonatedMunicipality || municipality;
+
   return (
     <AuthContext.Provider value={{ 
       user,
@@ -160,8 +177,11 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
-      municipality,
+      municipality: activeMunicipality,
       refreshMunicipality: loadMunicipality,
+      impersonatedMunicipality,
+      impersonateMunicipality,
+      clearImpersonation,
       logout,
       navigateToLogin,
       checkAppState,
