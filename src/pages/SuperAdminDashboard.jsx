@@ -123,12 +123,14 @@ export default function SuperAdminDashboard() {
     setInviting(true);
     setInviteResult(null);
     try {
-      await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
-      // If a town was selected, try to assign after invite
-      if (inviteTownId) {
-        // We'll need to find the user after creation — just show a note
-      }
-      setInviteResult({ success: true, message: `Invited ${inviteEmail} as ${inviteRole}${inviteTownId ? '. Assign their town once they accept.' : ''}` });
+      const res = await base44.functions.invoke('superAdminInvite', {
+        email: inviteEmail.trim(),
+        role: inviteRole,
+        town_id: inviteTownId || null,
+      });
+      if (res.data?.error) throw new Error(res.data.error);
+      const townName = inviteTownId ? towns.find(t => t.id === inviteTownId)?.town_name : null;
+      setInviteResult({ success: true, message: `Invited ${inviteEmail} as ${inviteRole}${townName ? ` · assigned to ${townName}` : ''}` });
       setInviteEmail(''); setInviteRole('user'); setInviteTownId('');
       const r = await base44.functions.invoke('getUsers', {});
       setAllUsers(r.data?.users || []);
