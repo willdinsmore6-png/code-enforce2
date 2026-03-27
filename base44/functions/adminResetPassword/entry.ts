@@ -6,11 +6,11 @@ Deno.serve(async (req) => {
 
     // Verify the caller is an admin
     const user = await base44.auth.me();
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { email } = await req.json();
+    const { email, town_id: requestedTownId } = await req.json();
     if (!email) {
       return Response.json({ error: 'Email is required' }, { status: 400 });
     }
@@ -19,6 +19,15 @@ Deno.serve(async (req) => {
     const users = await base44.asServiceRole.entities.User.filter({ email });
     if (users.length === 0) {
       return Response.json({ error: 'No user found with that email address' }, { status: 404 });
+    }
+
+    // Verify the user to reset is in the same town (unless caller is superadmin)
+    const targetUser = users[0];
+    const targetTown = targetUser.town_id || targetUser.data?.town_id;
+    const callerTown = requestedTownId || user.town_id || user.data?.town_id;
+    
+    if (user.role === 'admin' && targetTown !== callerTown) {
+      return Response.json({ error: 'Forbidden: Can only reset passwords for users in your town' }, { status: 403 });
     }
 
     // Send a password reset email with a link to the login page

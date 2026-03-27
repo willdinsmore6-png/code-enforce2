@@ -66,10 +66,14 @@ export default function AdminTools() {
     } else if (municipality) {
       setInviteTownId(municipality.id);
     }
-    base44.entities.AuditLog.list('-timestamp', 500).then(logs => {
-      setAuditLogs(logs || []);
+    if (municipality?.id) {
+      base44.entities.AuditLog.filter({ town_id: municipality.id }, '-timestamp', 500).then(logs => {
+        setAuditLogs(logs || []);
+        setLogsLoading(false);
+      });
+    } else {
       setLogsLoading(false);
-    });
+    }
   }, []);
 
   const filteredLogs = auditLogs.filter(log =>
