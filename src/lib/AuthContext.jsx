@@ -125,11 +125,11 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       // Ensure town_id is set from user.data for RLS to work
       if (currentUser) {
-        currentUser.town_id = currentUser.town_id || currentUser.data?.town_id;
+        currentUser.town_id = currentUser.data?.town_id || currentUser.town_id;
       }
       setUser(currentUser);
       setIsAuthenticated(true);
-      if (currentUser?.town_id) {
+      if (currentUser?.town_id && currentUser.town_id !== 'Null') {
         await loadMunicipality(currentUser);
       }
 
