@@ -92,8 +92,14 @@ export default function CaseDetail() {
   async function handleExportPDF() {
     setExportLoading(true);
     try {
-      const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      // Call the function directly via fetch to get binary data
+      const response = await fetch('/api/functions/exportCaseCourtFile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_id: id }),
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
