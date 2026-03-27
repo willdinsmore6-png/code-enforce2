@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download, Mail } from 'lucide-react';
 import DocumentPreview from '../components/case/DocumentPreview';
@@ -25,6 +26,12 @@ export default function PublicPortal() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [muni, setMuni] = useState({ name: 'Municipal Code Enforcement Portal', logo_url: null, loaded: false });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    base44.auth.isAuthenticated().then(setIsLoggedIn);
+  }, []);
 
   // Muni branding is loaded after case lookup using the case's town_id
 
@@ -87,6 +94,14 @@ export default function PublicPortal() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
+      {isLoggedIn && (
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+        >
+          ← Back to App
+        </button>
+      )}
       <div className="flex items-center gap-3 mb-6">
         {muni.logo_url && <img src={muni.logo_url} alt={muni.name} className="h-10 object-contain" />}
         <div>
