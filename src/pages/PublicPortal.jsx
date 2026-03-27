@@ -26,15 +26,7 @@ export default function PublicPortal() {
   const [submitted, setSubmitted] = useState(false);
   const [muni, setMuni] = useState({ name: 'Code Enforcement', logo_url: null });
 
-  useEffect(() => {
-    async function loadMuni() {
-      const configs = await base44.entities.TownConfig.list('-created_date', 1);
-      if (configs[0]) {
-        setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null });
-      }
-    }
-    loadMuni();
-  }, []);
+  // Muni branding is loaded after case lookup using the case's town_id
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -44,9 +36,17 @@ export default function PublicPortal() {
 
     const response = await base44.functions.invoke('lookupCaseByCode', { access_code: accessCode.trim().toUpperCase() });
     if (response.data?.found) {
-      setCaseData(response.data.case);
+      const foundCase = response.data.case;
+      setCaseData(foundCase);
       setDocuments(response.data.documents || []);
       setNotices(response.data.notices || []);
+      // Load town branding using the case's town_id
+      if (foundCase?.town_id) {
+        try {
+          const configs = await base44.entities.TownConfig.filter({ id: foundCase.town_id });
+          if (configs[0]) setMuni({ name: configs[0].town_name, logo_url: configs[0].logo_url || null });
+        } catch (e) { /* silent */ }
+      }
     } else {
       setNotFound(true);
     }
