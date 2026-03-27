@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
-  const { user, impersonateMunicipality } = useAuth();
+  const { user, impersonateMunicipality, impersonatedMunicipality } = useAuth();
   const navigate = useNavigate();
 
   const [towns, setTowns] = useState([]);
@@ -33,15 +33,18 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     if (user?.role !== 'superadmin') return;
-    load();
-  }, [user]);
+    load(impersonatedMunicipality?.id || null);
+  }, [user, impersonatedMunicipality?.id]);
 
-  async function load() {
+  async function load(selectedTownId) {
     setLoading(true);
+    const townFilter = selectedTownId || null;
     const [townsData, usersRes, casesData] = await Promise.all([
       base44.entities.TownConfig.list('-created_date', 200),
-      base44.functions.invoke('getUsers', {}),
-      base44.entities.Case.list('-created_date', 500),
+      base44.functions.invoke('getUsers', townFilter ? { town_id: townFilter } : {}),
+      townFilter
+        ? base44.entities.Case.filter({ town_id: townFilter }, '-created_date', 500)
+        : base44.entities.Case.list('-created_date', 500),
     ]);
     setTowns(townsData || []);
     setAllUsers(usersRes.data?.users || []);
@@ -147,6 +150,8 @@ export default function SuperAdminDashboard() {
   }
 
   const totalOpen = allCases.filter(c => !['resolved', 'closed'].includes(c.status)).length;
+  const isFiltered = !!impersonatedMunicipality;
+  const filteredTownName = impersonatedMunicipality?.town_name || '';
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -158,7 +163,9 @@ export default function SuperAdminDashboard() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Super Admin Dashboard</h1>
-            <p className="text-muted-foreground text-sm">Global control across all municipalities</p>
+            <p className="text-muted-foreground text-sm">
+              {isFiltered ? `Viewing: ${filteredTownName}` : 'Global control across all municipalities'}
+            </p>
           </div>
         </div>
         <Button onClick={() => { setEditTown(null); setTownForm({ town_name: '', state: 'NH', contact_email: '', contact_phone: '', address: '', tagline: '' }); setAddTownOpen(true); }} className="gap-2 bg-purple-700 hover:bg-purple-800">
@@ -168,9 +175,9 @@ export default function SuperAdminDashboard() {
 
       {/* Global Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={Building2} label="Total Towns" value={towns.length} color="purple" />
-        <StatCard icon={Users} label="Total Users" value={allUsers.length} color="blue" />
-        <StatCard icon={FileText} label="Total Cases" value={allCases.length} color="slate" />
+        {!isFiltered && <StatCard icon={Building2} label="Total Towns" value={towns.length} color="purple" />}
+        <StatCard icon={Users} label={isFiltered ? 'Town Users' : 'Total Users'} value={allUsers.length} color="blue" />
+        <StatCard icon={FileText} label={isFiltered ? 'Town Cases' : 'Total Cases'} value={allCases.length} color="slate" />
         <StatCard icon={AlertTriangle} label="Open Cases" value={totalOpen} color="orange" />
       </div>
 
