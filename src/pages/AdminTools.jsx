@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user, refreshMunicipality } = useAuth();
+  const { user, municipality, refreshMunicipality } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -37,25 +37,21 @@ export default function AdminTools() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
-    async function loadTownConfig() {
-      const configs = await base44.entities.TownConfig.list('-created_date', 1);
-      if (configs[0]) {
-        setMuniForm(f => ({
-          ...f,
-          name: configs[0].town_name || '',
-          short_name: configs[0].short_name || '',
-          state: configs[0].state || 'NH',
-          logo_url: configs[0].logo_url || '',
-          tagline: configs[0].tagline || '',
-          contact_email: configs[0].contact_email || '',
-          contact_phone: configs[0].contact_phone || '',
-          website: configs[0].website || '',
-          address: configs[0].address || '',
-        }));
-      }
+    if (municipality) {
+      setMuniForm(f => ({
+        ...f,
+        name: municipality.town_name || '',
+        short_name: municipality.short_name || '',
+        state: municipality.state || 'NH',
+        logo_url: municipality.logo_url || '',
+        tagline: municipality.tagline || '',
+        contact_email: municipality.contact_email || '',
+        contact_phone: municipality.contact_phone || '',
+        website: municipality.website || '',
+        address: municipality.address || '',
+      }));
     }
-    loadTownConfig();
-  }, []);
+  }, [municipality]);
 
   useEffect(() => {
     base44.functions.invoke('getUsers', {}).then(r => {
@@ -147,10 +143,9 @@ export default function AdminTools() {
 
   async function handleSaveMuni(e) {
     e.preventDefault();
+    if (!municipality?.id) return;
     setSavingMuni(true);
-    const configs = await base44.entities.TownConfig.list('-created_date', 1);
-    if (configs[0]) {
-      await base44.entities.TownConfig.update(configs[0].id, {
+    await base44.entities.TownConfig.update(municipality.id, {
         town_name: muniForm.name || muniForm.town_name,
         state: muniForm.state,
         logo_url: muniForm.logo_url,
@@ -161,7 +156,6 @@ export default function AdminTools() {
         website: muniForm.website,
         address: muniForm.address,
       });
-    }
     setSavingMuni(false);
     setMuniSaved(true);
     if (refreshMunicipality) refreshMunicipality();
