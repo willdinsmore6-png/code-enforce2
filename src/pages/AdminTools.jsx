@@ -57,7 +57,7 @@ export default function AdminTools() {
   }, [municipality]);
 
   useEffect(() => {
-    base44.functions.invoke('getUsers', {}).then(r => {
+    base44.functions.invoke('getUsers', { town_id: municipality?.id }).then(r => {
       setUsers(r.data?.users || []);
       setLoadingUsers(false);
     });
