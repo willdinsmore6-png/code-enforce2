@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
   try {
@@ -9,24 +9,29 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Access code required' }, { status: 400 });
     }
 
-    const results = await base44.asServiceRole.entities.Case.filter({
-      public_access_code: access_code.trim().toUpperCase()
-    });
+    const code = access_code.trim().toUpperCase();
 
-    if (results.length === 0) {
+    // Try filtering directly by public_access_code
+    let matched = [];
+    try {
+      matched = await base44.asServiceRole.entities.Case.filter({ public_access_code: code });
+    } catch (filterErr) {
+      // fallback: list all and filter client-side
+      const allCases = await base44.asServiceRole.entities.Case.filter({});
+      matched = allCases.filter(c => (c.public_access_code || '').trim().toUpperCase() === code);
+    }
+
+    if (!matched || matched.length === 0) {
       return Response.json({ found: false });
     }
 
-    // Return only fields needed for the public portal (no sensitive internal data)
-    const c = results[0];
+    const c = matched[0];
 
-    // Fetch documents (NOV types + owner-uploaded) and notices
     const [allDocs, allNotices] = await Promise.all([
       base44.asServiceRole.entities.Document.filter({ case_id: c.id }),
       base44.asServiceRole.entities.Notice.filter({ case_id: c.id }),
     ]);
 
-    // Only show NOV/citation documents and abatement_proof (owner uploads)
     const publicDocTypes = ['nov', 'citation', 'abatement_proof', 'court_filing', 'correspondence', 'other'];
     const publicDocs = allDocs.filter(d => publicDocTypes.includes(d.document_type));
 
@@ -41,6 +46,7 @@ Deno.serve(async (req) => {
         specific_code_violated: c.specific_code_violated,
         abatement_deadline: c.abatement_deadline,
         zba_appeal_deadline: c.zba_appeal_deadline,
+        town_id: c.town_id,
       },
       notices: allNotices.map(n => ({
         id: n.id,
