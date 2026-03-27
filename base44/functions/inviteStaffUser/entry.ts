@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const updates = {};
     if (role !== 'user') updates.role = role;
     // Use explicitly provided town_id, or fall back to the inviting admin's town
-    const assignedTown = town_id || user.town_id;
+    const assignedTown = town_id || user.town_id || user.data?.town_id;
     if (assignedTown) updates.town_id = assignedTown;
 
       if (Object.keys(updates).length > 0) {

@@ -108,7 +108,10 @@
           }
         },
         {
-          "data.id": "{{user.town_id}}"
+          "id": "{{user.data.town_id}}"
+        },
+        {
+          "id": "{{user.town_id}}"
         }
       ]
     },
@@ -120,10 +123,23 @@
           }
         },
         {
-          "data.id": "{{user.town_id}}",
-          "user_condition": {
-            "role": "admin"
-          }
+          "$and": [
+            {
+              "$or": [
+                {
+                  "id": "{{user.data.town_id}}"
+                },
+                {
+                  "id": "{{user.town_id}}"
+                }
+              ]
+            },
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            }
+          ]
         }
       ]
     },
