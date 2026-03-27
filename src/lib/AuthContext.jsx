@@ -145,11 +145,21 @@ export const AuthProvider = ({ children }) => {
   function impersonateMunicipality(town) {
     setImpersonatedMunicipality(town);
     sessionStorage.setItem('impersonated_town', JSON.stringify(town));
+    // Override user.town_id so all RLS-filtered entity queries use the impersonated town
+    setUser(prev => {
+      if (!prev) return prev;
+      sessionStorage.setItem('original_user_town_id', prev.town_id || '');
+      return { ...prev, town_id: town.id };
+    });
   }
 
   function clearImpersonation() {
     setImpersonatedMunicipality(null);
     sessionStorage.removeItem('impersonated_town');
+    // Restore the real user's town_id
+    const originalTownId = sessionStorage.getItem('original_user_town_id');
+    sessionStorage.removeItem('original_user_town_id');
+    setUser(prev => prev ? { ...prev, town_id: originalTownId || null } : prev);
   }
 
   const logout = (shouldRedirect = true) => {
