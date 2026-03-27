@@ -106,8 +106,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
-
   const loadMunicipality = async (currentUser) => {
     try {
       const u = currentUser || user;
@@ -123,8 +121,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkUserAuth = async () => {
+    try {
+      setIsLoadingAuth(true);
+      const currentUser = await base44.auth.me();
+      if (currentUser && currentUser.data?.town_id && !currentUser.town_id) {
+        currentUser.town_id = currentUser.data.town_id;
+      }
+      setUser(currentUser);
+      setIsAuthenticated(true);
+      loadMunicipality(currentUser);
 
+      if (currentUser && !currentUser.invitation_accepted) {
+        await base44.auth.updateMe({ invitation_accepted: true });
+      }
 
+      setIsLoadingAuth(false);
+    } catch (error) {
+      console.error('User auth check failed:', error);
+      setIsLoadingAuth(false);
+      setIsAuthenticated(false);
+      if (error.status === 401 || error.status === 403) {
+        setAuthError({ type: 'auth_required', message: 'Authentication required' });
+      }
+    }
+  };
 
   function impersonateMunicipality(town) {
     setImpersonatedMunicipality(town);
