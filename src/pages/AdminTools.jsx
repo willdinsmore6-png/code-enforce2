@@ -74,7 +74,8 @@ export default function AdminTools() {
     setInviting(true);
     setInviteResult(null);
     try {
-      await base44.users.inviteUser(inviteEmail.trim(), inviteRole);
+      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: inviteRole });
+      if (res.data?.error) throw new Error(res.data.error);
       setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail} as ${inviteRole}` });
       setInviteEmail('');
       setInviteRole('user');
