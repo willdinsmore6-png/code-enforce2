@@ -110,9 +110,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const u = currentUser || user;
       if (!u?.town_id) return;
-      const configs = await base44.entities.TownConfig.filter({ id: u.town_id });
-      if (configs && configs.length > 0) {
-        setMunicipality(configs[0]);
+      const config = await base44.entities.TownConfig.get(u.town_id);
+      if (config) {
+        setMunicipality(config);
       }
     } catch (e) { 
       console.error('Failed to load municipality:', e);
