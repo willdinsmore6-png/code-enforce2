@@ -1,0 +1,142 @@
+{
+  "name": "Violation",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "Foreign key to Case"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "rsa_citation": {
+      "type": "string",
+      "description": "e.g. RSA 676:17, RSA 674:17"
+    },
+    "ordinance_citation": {
+      "type": "string",
+      "description": "Local ordinance reference"
+    },
+    "violation_type": {
+      "type": "string",
+      "enum": [
+        "junk_debris",
+        "housing_condition",
+        "zoning",
+        "building_code",
+        "health_safety",
+        "signage",
+        "setback",
+        "use_violation",
+        "junkyard",
+        "septic",
+        "wetlands",
+        "site_plan",
+        "subdivision",
+        "other"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "corrective_actions": {
+      "type": "string",
+      "description": "Specific actions required to achieve compliance"
+    },
+    "compliance_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "in_progress",
+        "complied",
+        "cited",
+        "court_referred"
+      ],
+      "default": "open"
+    },
+    "fine_per_day": {
+      "type": "number",
+      "default": 275
+    },
+    "is_repeat_offense": {
+      "type": "boolean",
+      "default": false
+    },
+    "resolved_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "compliance_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "violation_type",
+    "description"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

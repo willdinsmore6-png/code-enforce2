@@ -1,0 +1,243 @@
+{
+  "name": "Case",
+  "type": "object",
+  "properties": {
+    "town_id": {
+      "type": "string",
+      "description": "Foreign key to TownConfig. Required for multi-tenancy."
+    },
+    "case_number": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "intake",
+        "investigation",
+        "notice_sent",
+        "awaiting_response",
+        "in_compliance",
+        "citation_issued",
+        "court_action",
+        "resolved",
+        "closed"
+      ],
+      "default": "intake"
+    },
+    "complaint_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "property_owner_name": {
+      "type": "string"
+    },
+    "property_owner_email": {
+      "type": "string"
+    },
+    "property_owner_phone": {
+      "type": "string"
+    },
+    "parcel_id": {
+      "type": "string"
+    },
+    "complainant_name": {
+      "type": "string"
+    },
+    "complainant_contact": {
+      "type": "string"
+    },
+    "complainant_anonymous": {
+      "type": "boolean",
+      "default": false
+    },
+    "violation_type": {
+      "type": "string",
+      "enum": [
+        "junk_debris",
+        "housing_condition",
+        "zoning",
+        "building_code",
+        "health_safety",
+        "signage",
+        "setback",
+        "use_violation",
+        "junkyard",
+        "septic",
+        "wetlands",
+        "site_plan",
+        "subdivision",
+        "other"
+      ]
+    },
+    "violation_description": {
+      "type": "string"
+    },
+    "specific_code_violated": {
+      "type": "string"
+    },
+    "compliance_path": {
+      "type": "string",
+      "enum": [
+        "none",
+        "citation_676_17b",
+        "superior_court_676_15"
+      ],
+      "default": "none"
+    },
+    "assigned_officer": {
+      "type": "string"
+    },
+    "assigned_attorney": {
+      "type": "string"
+    },
+    "abatement_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "zba_appeal_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "daily_penalty_rate": {
+      "type": "number",
+      "default": 275
+    },
+    "total_fines_accrued": {
+      "type": "number",
+      "default": 0
+    },
+    "is_first_offense": {
+      "type": "boolean",
+      "default": true
+    },
+    "visible_from_public_row": {
+      "type": "boolean"
+    },
+    "warrant_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "warrant_obtained": {
+      "type": "boolean",
+      "default": false
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "resolution_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "resolution_notes": {
+      "type": "string"
+    },
+    "public_access_code": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "public_report"
+      ],
+      "default": "internal",
+      "description": "Whether case was filed by staff or via public portal"
+    },
+    "retention_category": {
+      "type": "string",
+      "enum": [
+        "rsa_33a_7yr",
+        "rsa_33a_10yr",
+        "rsa_33a_permanent"
+      ],
+      "default": "rsa_33a_7yr",
+      "description": "RSA 33-A records retention classification"
+    },
+    "retention_expires": {
+      "type": "string",
+      "format": "date",
+      "description": "Auto-calculated date when record may be purged per RSA 33-A"
+    }
+  },
+  "required": [
+    "property_address",
+    "violation_type",
+    "violation_description"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

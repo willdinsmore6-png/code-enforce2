@@ -1,0 +1,26 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "superadmin",
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Links officer to their municipality. Null = superadmin access."
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title, e.g. Code Enforcement Officer"
+    },
+    "phone": {
+      "type": "string"
+    }
+  }
+}

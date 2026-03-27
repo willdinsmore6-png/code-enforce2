@@ -18,6 +18,7 @@ import ActionWizard from './pages/ActionWizard';
 import CompassPage from './pages/Compass';
 import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
+import Report from './pages/Report';
 import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
 
@@ -34,8 +35,11 @@ const AuthenticatedApp = () => {
   }
 
   // Allow public portal without auth—skip auth checks for that route
-  if (window.location.pathname === '/public-portal') {
-    return <Routes><Route path="/public-portal" element={<PublicPortal />} /></Routes>;
+  if (window.location.pathname === '/public-portal' || window.location.pathname === '/report') {
+    return <Routes>
+      <Route path="/public-portal" element={<PublicPortal />} />
+      <Route path="/report" element={<Report />} />
+    </Routes>;
   }
 
   // Handle authentication errors for other routes
@@ -55,6 +59,7 @@ const AuthenticatedApp = () => {
     <Routes>
       {/* Public routes */}
       <Route path="/public-portal" element={<PublicPortal />} />
+      <Route path="/report" element={<Report />} />
       
       {/* Protected routes */}
       <Route element={<AppLayout />}>
