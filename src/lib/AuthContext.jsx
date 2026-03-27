@@ -108,9 +108,11 @@ export const AuthProvider = ({ children }) => {
 
 
 
-  const loadMunicipality = async () => {
+  const loadMunicipality = async (currentUser) => {
     try {
-      const configs = await base44.entities.TownConfig.list('-created_date', 1);
+      const u = currentUser || user;
+      if (!u?.town_id) return;
+      const configs = await base44.entities.TownConfig.filter({ id: u.town_id });
       if (configs[0]) setMunicipality(configs[0]);
     } catch (e) { /* silent */ }
   };
@@ -121,7 +123,7 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
-      loadMunicipality();
+      loadMunicipality(currentUser);
 
       if (currentUser && !currentUser.invitation_accepted) {
         await base44.auth.updateMe({ invitation_accepted: true });
@@ -178,7 +180,7 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       municipality: activeMunicipality,
-      refreshMunicipality: loadMunicipality,
+      refreshMunicipality: () => loadMunicipality(),
       impersonatedMunicipality,
       impersonateMunicipality,
       clearImpersonation,
