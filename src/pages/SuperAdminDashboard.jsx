@@ -47,8 +47,11 @@ export default function SuperAdminDashboard() {
         : base44.entities.Case.list('-created_date', 500),
     ]);
     setTowns(townsData || []);
-    setAllUsers(usersRes.data?.users || []);
-    setAllCases(casesData || []);
+    // Client-side filter as a safety net — superadmin bypasses RLS so we enforce it here
+    const fetchedUsers = usersRes.data?.users || [];
+    const fetchedCases = casesData || [];
+    setAllUsers(townFilter ? fetchedUsers.filter(u => u.town_id === townFilter) : fetchedUsers);
+    setAllCases(townFilter ? fetchedCases.filter(c => c.town_id === townFilter) : fetchedCases);
     setLoading(false);
   }
 
