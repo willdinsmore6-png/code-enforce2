@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin role required' }, { status: 403 });
     }
 
-    const { email, role } = await req.json();
+    const { email, role, town_id } = await req.json();
     if (!email || !role) {
       return Response.json({ error: 'email and role are required' }, { status: 400 });
     }
@@ -29,10 +29,11 @@ Deno.serve(async (req) => {
     const newUser = allUsers.find(u => u.email === email);
 
     if (newUser) {
-      const updates = {};
-      if (role !== 'user') updates.role = role;
-      // Automatically assign the inviting admin's town
-      if (user.town_id) updates.town_id = user.town_id;
+    const updates = {};
+    if (role !== 'user') updates.role = role;
+    // Use explicitly provided town_id, or fall back to the inviting admin's town
+    const assignedTown = town_id || user.town_id;
+    if (assignedTown) updates.town_id = assignedTown;
 
       if (Object.keys(updates).length > 0) {
         await base44.asServiceRole.entities.User.update(newUser.id, updates);

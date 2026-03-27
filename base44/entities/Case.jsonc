@@ -204,9 +204,6 @@
         },
         {
           "data.town_id": "{{user.town_id}}"
-        },
-        {
-          "created_by": "{{user.email}}"
         }
       ]
     },
@@ -219,9 +216,6 @@
         },
         {
           "data.town_id": "{{user.town_id}}"
-        },
-        {
-          "created_by": "{{user.email}}"
         }
       ]
     },

@@ -18,6 +18,8 @@ export default function AdminTools() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteTownId, setInviteTownId] = useState('');
+  const [towns, setTowns] = useState([]);
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -59,6 +61,11 @@ export default function AdminTools() {
       setUsers(r.data?.users || []);
       setLoadingUsers(false);
     });
+    if (user?.role === 'superadmin') {
+      base44.entities.TownConfig.list('town_name', 100).then(t => setTowns(t || []));
+    } else if (municipality) {
+      setInviteTownId(municipality.id);
+    }
     base44.entities.AuditLog.list('-timestamp', 500).then(logs => {
       setAuditLogs(logs || []);
       setLogsLoading(false);
@@ -75,11 +82,10 @@ export default function AdminTools() {
     setInviting(true);
     setInviteResult(null);
     try {
-      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: 'user' });
+      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: 'user', town_id: inviteTownId || municipality?.id });
       if (res.data?.error) throw new Error(res.data.error);
       setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
       setInviteEmail('');
-      setInviteRole('user');
       const r = await base44.functions.invoke('getUsers', {});
       setUsers(r.data?.users || []);
     } catch (err) {
@@ -315,7 +321,19 @@ export default function AdminTools() {
                 <Label>Email Address</Label>
                 <Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="officer@yourtown.gov" required />
               </div>
-
+              {user?.role === 'superadmin' && (
+                <div className="min-w-[180px] space-y-1.5">
+                  <Label>Assign to Town</Label>
+                  <Select value={inviteTownId} onValueChange={setInviteTownId}>
+                    <SelectTrigger><SelectValue placeholder="Select town..." /></SelectTrigger>
+                    <SelectContent>
+                      {towns.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.town_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button type="submit" disabled={inviting} className="gap-1.5">
                 {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                 {inviting ? 'Inviting...' : 'Send Invite'}
