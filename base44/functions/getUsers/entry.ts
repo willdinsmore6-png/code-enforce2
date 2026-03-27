@@ -12,6 +12,11 @@ Deno.serve(async (req) => {
     // Exclude the hardcoded build account
     users = users.filter(u => u.email !== 'will@buildwithme.biz');
 
+    // Superadmins see all users; admins only see users in their town
+    if (user.role === 'admin') {
+      users = users.filter(u => u.town_id === user.town_id);
+    }
+
     return Response.json({ users });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
