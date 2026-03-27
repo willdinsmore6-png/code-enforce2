@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PageHeader from '../components/shared/PageHeader';
-import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, Trash2, X } from 'lucide-react';
+import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, Trash2, X, Hash } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -34,6 +34,8 @@ export default function AdminTools() {
   const [savingMuni, setSavingMuni] = useState(false);
   const [muniSaved, setMuniSaved] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
 
   useEffect(() => {
     if (municipality) {
@@ -455,6 +457,39 @@ export default function AdminTools() {
 
         {/* Security */}
         <TabsContent value="security">
+          <div className="bg-card rounded-xl border border-border p-6 mb-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <Hash className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="font-semibold">Backfill Public Access Codes</h2>
+                <p className="text-sm text-muted-foreground">Generate access codes for existing cases that are missing them</p>
+              </div>
+            </div>
+            <Button
+              onClick={async () => {
+                setBackfilling(true);
+                setBackfillResult(null);
+                const res = await base44.functions.invoke('backfillAccessCodes', {});
+                setBackfillResult(res.data);
+                setBackfilling(false);
+              }}
+              disabled={backfilling}
+              variant="outline"
+              className="gap-2"
+            >
+              {backfilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Hash className="w-4 h-4" />}
+              {backfilling ? 'Running...' : 'Run Backfill'}
+            </Button>
+            {backfillResult && (
+              <div className={`mt-3 flex items-center gap-2 p-3 rounded-lg text-sm ${backfillResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {backfillResult.success
+                  ? <><CheckCircle className="w-4 h-4 flex-shrink-0" /> Updated {backfillResult.updated} of {backfillResult.total} cases with new access codes.</>
+                  : <><AlertTriangle className="w-4 h-4 flex-shrink-0" /> {backfillResult.error}</>}
+              </div>
+            )}
+          </div>
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
