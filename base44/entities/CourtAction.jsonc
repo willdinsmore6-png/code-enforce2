@@ -1,0 +1,144 @@
+{
+  "name": "CourtAction",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "citation_filed",
+        "injunction_request",
+        "hearing_scheduled",
+        "hearing_completed",
+        "judgment",
+        "appeal",
+        "settlement",
+        "dismissed"
+      ]
+    },
+    "court_type": {
+      "type": "string",
+      "enum": [
+        "district_court",
+        "superior_court",
+        "zba"
+      ]
+    },
+    "filing_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "hearing_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "court_location": {
+      "type": "string"
+    },
+    "docket_number": {
+      "type": "string"
+    },
+    "attorney_assigned": {
+      "type": "string"
+    },
+    "attorney_notes": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string"
+    },
+    "penalties_awarded": {
+      "type": "number"
+    },
+    "costs_recovered": {
+      "type": "number"
+    },
+    "injunction_granted": {
+      "type": "boolean"
+    },
+    "next_action_required": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "scheduled",
+        "completed",
+        "continued",
+        "dismissed"
+      ],
+      "default": "pending"
+    }
+  },
+  "required": [
+    "case_id",
+    "action_type",
+    "court_type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "title": {
+      "type": "string"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "complaint",
+        "nov",
+        "photo",
+        "court_filing",
+        "correspondence",
+        "warrant",
+        "abatement_proof",
+        "citation",
+        "attorney_notes",
+        "other"
+      ]
+    },
+    "file_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "previous_version_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "case_id",
+    "title",
+    "document_type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

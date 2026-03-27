@@ -1,0 +1,145 @@
+{
+  "name": "Notice",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "notice_type": {
+      "type": "string",
+      "enum": [
+        "first_nov",
+        "second_nov",
+        "cease_desist_676_17a",
+        "citation_676_17b",
+        "court_summons"
+      ]
+    },
+    "date_issued": {
+      "type": "string",
+      "format": "date"
+    },
+    "delivery_method": {
+      "type": "string",
+      "enum": [
+        "certified_mail",
+        "first_class_mail",
+        "hand_delivered",
+        "posted_on_property"
+      ]
+    },
+    "tracking_number": {
+      "type": "string"
+    },
+    "delivery_confirmed": {
+      "type": "boolean",
+      "default": false
+    },
+    "delivery_confirmed_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "rsa_cited": {
+      "type": "string"
+    },
+    "ordinance_cited": {
+      "type": "string"
+    },
+    "abatement_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "appeal_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "appeal_instructions": {
+      "type": "string"
+    },
+    "notice_content": {
+      "type": "string"
+    },
+    "recipient_name": {
+      "type": "string"
+    },
+    "recipient_address": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "document_url": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "required": [
+    "case_id",
+    "notice_type",
+    "date_issued"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

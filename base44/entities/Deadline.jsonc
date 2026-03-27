@@ -1,0 +1,122 @@
+{
+  "name": "Deadline",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "deadline_type": {
+      "type": "string",
+      "enum": [
+        "abatement",
+        "zba_appeal",
+        "court_appearance",
+        "response_due",
+        "filing_deadline",
+        "follow_up",
+        "custom"
+      ]
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "description": {
+      "type": "string"
+    },
+    "is_completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "alert_days_before": {
+      "type": "number",
+      "default": 3
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "assigned_to": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "deadline_type",
+    "due_date",
+    "description"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "name": "Investigation",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "town_id": {
+      "type": "string",
+      "description": "Denormalized for RLS filtering"
+    },
+    "investigation_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "officer_name": {
+      "type": "string"
+    },
+    "field_notes": {
+      "type": "string"
+    },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "visible_from_public_row": {
+      "type": "boolean"
+    },
+    "warrant_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "warrant_reference": {
+      "type": "string"
+    },
+    "evidence_summary": {
+      "type": "string"
+    },
+    "violation_confirmed": {
+      "type": "boolean"
+    },
+    "site_conditions": {
+      "type": "string"
+    },
+    "weather_conditions": {
+      "type": "string"
+    },
+    "witnesses": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "investigation_date",
+    "officer_name"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.town_id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

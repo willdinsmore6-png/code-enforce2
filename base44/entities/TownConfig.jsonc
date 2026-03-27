@@ -1,0 +1,140 @@
+{
+  "name": "TownConfig",
+  "type": "object",
+  "properties": {
+    "town_name": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "default": "NH"
+    },
+    "compliance_days_zoning": {
+      "type": "number",
+      "default": 30
+    },
+    "compliance_days_building": {
+      "type": "number",
+      "default": 30
+    },
+    "zba_appeal_days": {
+      "type": "number",
+      "default": 30
+    },
+    "penalty_first_offense": {
+      "type": "number",
+      "default": 275
+    },
+    "penalty_subsequent": {
+      "type": "number",
+      "default": 550
+    },
+    "specific_regulations": {
+      "type": "string"
+    },
+    "ordinance_docs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "ordinance_doc_names": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "uploaded_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "tagline": {
+      "type": "string"
+    },
+    "short_name": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "contact_phone": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "town_name",
+    "state"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.id": "{{user.town_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        },
+        {
+          "data.id": "{{user.town_id}}",
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "superadmin"
+          }
+        }
+      ]
+    }
+  }
+}
