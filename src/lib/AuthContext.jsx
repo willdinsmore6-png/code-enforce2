@@ -121,6 +121,10 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
+      // Extract town_id from data field if present
+      if (currentUser && currentUser.data?.town_id && !currentUser.town_id) {
+        currentUser.town_id = currentUser.data.town_id;
+      }
       setUser(currentUser);
       setIsAuthenticated(true);
       loadMunicipality(currentUser);
