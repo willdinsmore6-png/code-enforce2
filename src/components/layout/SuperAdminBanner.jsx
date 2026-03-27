@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, X, ArrowLeft } from 'lucide-react';
 
 export default function SuperAdminBanner() {
+  const navigate = useNavigate();
   const { user, impersonatedMunicipality, clearImpersonation } = useAuth();
   if (user?.role !== 'superadmin' || !impersonatedMunicipality) return null;
   const townName = impersonatedMunicipality.town_name || impersonatedMunicipality.name || 'Town';
