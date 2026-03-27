@@ -79,18 +79,6 @@ export default function Sidebar() {
           "text-sidebar-primary"
         ))}
 
-        {user?.role === 'superadmin' && (
-          <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-400 px-3 pt-4 pb-1">Super Admin</p>}
-            {superAdminNavItems.map(item => renderNavItem(
-              item,
-              "bg-purple-800/40 text-purple-300",
-              "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30",
-              "text-purple-300"
-            ))}
-          </>
-        )}
-
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
             {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>}
@@ -99,6 +87,18 @@ export default function Sidebar() {
               "bg-sidebar-accent text-sidebar-primary",
               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
               "text-sidebar-primary"
+            ))}
+          </>
+        )}
+
+        {user?.role === 'superadmin' && (
+          <>
+            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-400 px-3 pt-4 pb-1">Super Admin</p>}
+            {superAdminNavItems.map(item => renderNavItem(
+              item,
+              "bg-purple-800/40 text-purple-300",
+              "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30",
+              "text-purple-300"
             ))}
           </>
         )}
