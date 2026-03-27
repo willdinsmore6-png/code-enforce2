@@ -14,7 +14,11 @@ Deno.serve(async (req) => {
 
     // Superadmins see all users; admins only see users in their town
     if (user.role === 'admin') {
-      users = users.filter(u => u.town_id === user.town_id);
+      const adminTown = user.town_id || user.data?.town_id;
+      users = users.filter(u => {
+        const userTown = u.town_id || u.data?.town_id;
+        return userTown === adminTown;
+      });
     }
 
     return Response.json({ users });
