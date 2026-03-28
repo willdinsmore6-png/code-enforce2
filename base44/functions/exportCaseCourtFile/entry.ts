@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
 
     console.log(`Generating PDF for case: ${case_id}`);
 
-    const [caseRecord, investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
-      base44.asServiceRole.entities.Case.get(case_id),
+    const [caseResults, investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
+      base44.asServiceRole.entities.Case.filter({ id: case_id }),
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
       base44.asServiceRole.entities.Notice.filter({ case_id }),
       base44.asServiceRole.entities.Document.filter({ case_id }),
@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.AuditLog.filter({ case_id }),
       base44.asServiceRole.entities.Violation.filter({ case_id }),
     ]);
+    const caseRecord = caseResults?.[0];
 
     if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
