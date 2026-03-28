@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { town_name, state } = await req.json();
+    const { town_name, state, agreement_accepted_at, agreement_accepted_by } = await req.json();
     if (!town_name) return Response.json({ error: 'town_name is required' }, { status: 400 });
 
     // Create the new TownConfig using service role (users can't create towns directly)
@@ -14,6 +14,7 @@ Deno.serve(async (req) => {
       town_name,
       state: state || 'NH',
       is_active: false, // Will be activated on successful Stripe payment
+      ...(agreement_accepted_at ? { agreement_accepted_at, agreement_accepted_by: agreement_accepted_by || user.email } : {}),
     });
 
     // Link the user to the new town via their data field

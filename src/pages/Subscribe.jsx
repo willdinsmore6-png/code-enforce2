@@ -32,7 +32,12 @@ export default function Subscribe() {
           setLoading(false);
           return;
         }
-        const res = await base44.functions.invoke('setupNewTown', { town_name: townName.trim(), state: townState });
+        const res = await base44.functions.invoke('setupNewTown', {
+          town_name: townName.trim(),
+          state: townState,
+          agreement_accepted_at: new Date().toISOString(),
+          agreement_accepted_by: user?.email,
+        });
         if (!res.data?.success) throw new Error(res.data?.error || 'Failed to create town');
         townId = res.data.town_id;
         setCreatedTownId(townId);
