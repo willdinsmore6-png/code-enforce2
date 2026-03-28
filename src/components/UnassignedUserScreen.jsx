@@ -1,10 +1,8 @@
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { Building2, LogOut, UserCheck } from 'lucide-react';
 
 export default function UnassignedUserScreen() {
-  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 p-4">
@@ -20,7 +18,7 @@ export default function UnassignedUserScreen() {
         <div className="space-y-3">
           <Button
             className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
-            onClick={() => navigate('/subscribe?new=true')}
+            onClick={() => { window.location.href = '/subscribe?new=true'; }}
           >
             <Building2 className="w-4 h-4" />
             Set Up New Town & Subscribe

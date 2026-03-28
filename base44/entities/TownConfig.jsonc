@@ -114,6 +114,16 @@
           "user_condition": {
             "role": "superadmin"
           }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
         }
       ]
     },
