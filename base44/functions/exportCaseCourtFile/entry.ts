@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
+
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
   let binary = '';
@@ -48,8 +49,16 @@ Deno.serve(async (req) => {
 
     console.log(`Generating PDF for case: ${case_id}`);
 
-    const [caseResults, investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
-      base44.asServiceRole.entities.Case.filter({ id: case_id }),
+    let caseRecord;
+    try {
+      caseRecord = await base44.entities.Case.get(case_id);
+    } catch (e) {
+      console.error('Error fetching case:', e?.message);
+      return Response.json({ error: 'Case not found: ' + e?.message }, { status: 404 });
+    }
+    if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
+
+    const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
       base44.asServiceRole.entities.Notice.filter({ case_id }),
       base44.asServiceRole.entities.Document.filter({ case_id }),
@@ -58,7 +67,6 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.AuditLog.filter({ case_id }),
       base44.asServiceRole.entities.Violation.filter({ case_id }),
     ]);
-    const caseRecord = caseResults?.[0];
 
     if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
@@ -496,8 +504,9 @@ Deno.serve(async (req) => {
 
     // Upload PDF to private storage
     const pdfBuffer = doc.output('arraybuffer');
-    const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
-    const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfBlob });
+    const pdfFilename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
+    const pdfFile = new File([pdfBuffer], pdfFilename, { type: 'application/pdf' });
+    const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfFile });
 
     // Create a Document entity record linked to this case & town (RLS enforced)
     const filename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
