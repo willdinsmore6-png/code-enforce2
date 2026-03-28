@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import SubscriptionGate from './SubscriptionGate';
 import SuperAdminBanner from './SuperAdminBanner';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
@@ -18,7 +19,9 @@ export default function AppLayout() {
           <Sidebar />
         </nav>
         <main className="flex-1 overflow-y-auto" id="main-content">
-          <Outlet />
+          <SubscriptionGate>
+            <Outlet />
+          </SubscriptionGate>
         </main>
       </div>
       <footer aria-label="Application footer" className="text-center text-xs text-muted-foreground py-2 px-4 border-t border-border">
