@@ -23,6 +23,7 @@ import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Subscribe from './pages/Subscribe';
+import UnassignedUserScreen from './components/UnassignedUserScreen';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,7 +47,9 @@ const AuthenticatedApp = () => {
 
   // Handle authentication errors for other routes
   if (authError) {
-    if (authError.type === 'pending_approval') {
+    if (authError.type === 'unassigned_user') {
+      return <UnassignedUserScreen />;
+    } else if (authError.type === 'pending_approval') {
       return <PendingApprovalScreen />;
     } else if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;

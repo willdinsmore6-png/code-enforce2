@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,34 @@ export default function Subscribe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // New-town setup state (when arriving via ?new=true)
+  const isNewTownFlow = new URLSearchParams(window.location.search).get('new') === 'true';
+  const [townName, setTownName] = useState('');
+  const [townState, setTownState] = useState('NH');
+  const [townCreated, setTownCreated] = useState(false);
+  const [createdTownId, setCreatedTownId] = useState(null);
+
   async function handleSubscribe() {
     if (!agreed) return;
     setLoading(true);
     setError(null);
     try {
+      let townId = user?.data?.town_id || user?.town_id;
+
+      // If new-town flow, create the town first
+      if (isNewTownFlow && !townCreated) {
+        if (!townName.trim()) {
+          setError('Please enter your town name.');
+          setLoading(false);
+          return;
+        }
+        const res = await base44.functions.invoke('setupNewTown', { town_name: townName.trim(), state: townState });
+        if (!res.data?.success) throw new Error(res.data?.error || 'Failed to create town');
+        townId = res.data.town_id;
+        setCreatedTownId(townId);
+        setTownCreated(true);
+      }
+
       // Save agreement acceptance
       if (municipality?.id) {
         await base44.entities.TownConfig.update(municipality.id, {
@@ -23,9 +46,9 @@ export default function Subscribe() {
           agreement_accepted_by: user?.email,
         });
       }
-      // Create Stripe checkout session
+
       const res = await base44.functions.invoke('createStripeCheckout', {
-        town_id: user?.data?.town_id || user?.town_id,
+        town_id: townId,
         user_email: user?.email,
       });
       if (res.data?.url) {
@@ -63,28 +86,38 @@ export default function Subscribe() {
           </p>
         </div>
 
-        {/* Pricing */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 mb-10 text-center">
-          <div className="flex items-end justify-center gap-1 mb-2">
-            <span className="text-5xl font-bold">$50</span>
-            <span className="text-slate-400 mb-2">/month</span>
-          </div>
-          <p className="text-slate-400 mb-6">Per municipality · Cancel anytime · Instant activation</p>
-          <div className="grid sm:grid-cols-3 gap-4 text-left">
-            {[
-              { icon: FileText, label: 'Unlimited Cases & Court Exports' },
-              { icon: Database, label: 'Encrypted Evidence Storage' },
-              { icon: Shield, label: 'AI-Assisted Violation Detection' },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2.5 bg-white/5 rounded-xl p-3">
-                <Icon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span className="text-sm text-slate-300">{label}</span>
+        {/* New Town Setup Fields */}
+        {isNewTownFlow && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+            <h2 className="text-lg font-semibold mb-4">Your Municipality</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-sm text-slate-400">Town / City Name *</label>
+                <input
+                  type="text"
+                  value={townName}
+                  onChange={e => setTownName(e.target.value)}
+                  placeholder="e.g. Town of Bow"
+                  className="w-full rounded-lg bg-white/10 border border-white/20 text-white placeholder-slate-500 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-            ))}
+              <div className="space-y-1.5">
+                <label className="text-sm text-slate-400">State</label>
+                <select
+                  value={townState}
+                  onChange={e => setTownState(e.target.value)}
+                  className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {['NH','ME','VT','MA','CT','RI','NY','NJ','PA','OH','MI','WI','MN','IL','IN'].map(s => (
+                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Data Safety Section */}
+        {/* Pricing */}
         <div className="bg-emerald-950/40 border border-emerald-700/30 rounded-2xl p-8 mb-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-9 h-9 bg-emerald-600/20 rounded-lg flex items-center justify-center">

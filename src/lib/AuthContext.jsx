@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
@@ -137,6 +137,13 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       if (currentUser?.town_id && currentUser.town_id !== 'Null') {
         await loadMunicipality(currentUser);
+      } else if (currentUser && currentUser.role !== 'superadmin') {
+        // User has no town — flag as unassigned unless they're on a permitted route
+        const path = window.location.pathname;
+        const allowed = ['/subscribe', '/public-portal', '/report'].some(r => path.startsWith(r));
+        if (!allowed) {
+          setAuthError({ type: 'unassigned_user', message: 'Account not linked to a municipality' });
+        }
       }
 
       if (currentUser && !currentUser.invitation_accepted) {
