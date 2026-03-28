@@ -22,6 +22,7 @@ import Report from './pages/Report';
 import DocumentVault from './pages/DocumentVault';
 import AdminTools from './pages/AdminTools';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import Subscribe from './pages/Subscribe';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -61,6 +62,7 @@ const AuthenticatedApp = () => {
       {/* Public routes */}
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
+      <Route path="/subscribe" element={<Subscribe />} />
       
       {/* Protected routes */}
       <Route element={<AppLayout />}>

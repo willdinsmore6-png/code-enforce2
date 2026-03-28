@@ -113,8 +113,14 @@ export const AuthProvider = ({ children }) => {
       const config = await base44.entities.TownConfig.get(u.town_id);
       if (config) {
         setMunicipality(config);
+        // Paywall: redirect to subscribe if town is inactive (skip for superadmin and public/subscribe routes)
+        const path = window.location.pathname;
+        const isPublicRoute = ['/public-portal', '/report', '/subscribe'].some(r => path.startsWith(r));
+        if (!config.is_active && !isPublicRoute && u.role !== 'superadmin') {
+          window.location.href = '/subscribe';
+        }
       }
-    } catch (e) { 
+    } catch (e) {
       console.error('Failed to load municipality:', e);
     }
   };

@@ -84,6 +84,23 @@
     "is_active": {
       "type": "boolean",
       "default": true
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "description": "Stripe customer ID for subscription billing"
+    },
+    "stripe_subscription_id": {
+      "type": "string",
+      "description": "Stripe subscription ID"
+    },
+    "agreement_accepted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the ToS was accepted"
+    },
+    "agreement_accepted_by": {
+      "type": "string",
+      "description": "Email of the user who accepted the agreement"
     }
   },
   "required": [
