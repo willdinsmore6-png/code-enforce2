@@ -29,6 +29,8 @@ export default function CaseDetail() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [generatedDocId, setGeneratedDocId] = useState(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -89,29 +91,41 @@ export default function CaseDetail() {
     navigate('/cases');
   }
 
-  async function handleExportPDF() {
+  async function handleGeneratePDF() {
     setExportLoading(true);
+    setGeneratedDocId(null);
     try {
       const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
-      const { pdf_base64, filename } = response.data;
-      if (!pdf_base64) throw new Error('No PDF data returned');
-      const binaryStr = atob(pdf_base64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const { document_id } = response.data;
+      if (!document_id) throw new Error('No document ID returned');
+      setGeneratedDocId(document_id);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert(`Generation failed: ${err.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  async function handleDownloadPDF() {
+    if (!generatedDocId) return;
+    setDownloadLoading(true);
+    try {
+      const response = await base44.functions.invoke('getCourtFilePDF', { document_id: generatedDocId });
+      const { signed_url, filename } = response.data;
+      if (!signed_url) throw new Error('No download URL returned');
       const a = document.createElement('a');
-      a.href = url;
+      a.href = signed_url;
       a.download = filename || `${caseData.case_number || 'case'}-court-file.pdf`;
+      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('PDF export failed:', err);
-      alert(`Export failed: ${err.message}`);
+      console.error('PDF download failed:', err);
+      alert(`Download failed: ${err.message}`);
     } finally {
-      setExportLoading(false);
+      setDownloadLoading(false);
     }
   }
 
@@ -172,10 +186,16 @@ export default function CaseDetail() {
             </address>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
+            <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
               {exportLoading ? <div className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              Export PDF
+              {exportLoading ? 'Generating...' : 'Generate PDF'}
             </Button>
+            {generatedDocId && (
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadLoading} className="gap-1.5 border-green-200 text-green-600 hover:bg-green-50">
+                {downloadLoading ? <div className="w-3.5 h-3.5 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {downloadLoading ? 'Downloading...' : 'Download PDF'}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
               <Pencil className="w-3.5 h-3.5" /> Edit Case
             </Button>

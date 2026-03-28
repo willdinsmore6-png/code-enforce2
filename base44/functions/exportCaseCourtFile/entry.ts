@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
-// Safe base64 encoding for large buffers (avoids stack overflow)
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
   let binary = '';
@@ -13,7 +12,6 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-// Fetch an image URL and return base64 data URL
 async function fetchImageAsBase64(url) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -32,12 +30,10 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Authenticate user
     let user;
     try {
       user = await base44.auth.me();
     } catch (e) {
-      console.error('Auth failed:', e?.message);
       return Response.json({ error: 'Unauthorized - please log in' }, { status: 401 });
     }
 
@@ -52,16 +48,9 @@ Deno.serve(async (req) => {
 
     console.log(`Generating PDF for case: ${case_id}`);
 
-    // Fetch all case data using service role to bypass RLS
     const [
-      caseResults,
-      investigations,
-      notices,
-      documents,
-      courtActions,
-      deadlines,
-      auditLogs,
-      violations,
+      caseResults, investigations, notices, documents,
+      courtActions, deadlines, auditLogs, violations,
     ] = await Promise.all([
       base44.asServiceRole.entities.Case.filter({ id: case_id }),
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
@@ -74,16 +63,24 @@ Deno.serve(async (req) => {
     ]);
 
     const caseRecord = caseResults?.[0];
-    if (!caseRecord) {
-      return Response.json({ error: 'Case not found' }, { status: 404 });
-    }
+    if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
-    console.log(`Case found: ${caseRecord.case_number}. Building PDF...`);
+    // Pre-fetch all investigation photos in parallel
+    const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
+    const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
+    const photoCache = {};
+    allPhotoUrls.forEach((url, i) => {
+      if (photoResults[i].status === 'fulfilled' && photoResults[i].value) {
+        photoCache[url] = photoResults[i].value;
+      }
+    });
+
+    console.log(`Pre-fetched ${Object.keys(photoCache).length}/${allPhotoUrls.length} photos. Building PDF...`);
 
     // --- PDF Setup ---
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-    const pw = doc.internal.pageSize.getWidth();   // 215.9
-    const ph = doc.internal.pageSize.getHeight();  // 279.4
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
     const margin = 18;
     const cw = pw - margin * 2;
     let y = margin;
@@ -191,25 +188,19 @@ Deno.serve(async (req) => {
       catch { return String(d); }
     }
 
-    // =====================================================================
     // COVER PAGE
-    // =====================================================================
     doc.setFillColor(30, 64, 175);
     doc.rect(0, 0, pw, 60, 'F');
-
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
     doc.text('CODE ENFORCEMENT', pw / 2, 22, { align: 'center' });
     doc.text('CASE FILE', pw / 2, 34, { align: 'center' });
-
     doc.setFontSize(13);
     doc.setFont('Helvetica', 'normal');
     doc.text(caseRecord.case_number || `Case #${case_id.slice(0, 8)}`, pw / 2, 47, { align: 'center' });
 
     doc.setTextColor(0);
-    doc.setFontSize(10);
-
     y = 72;
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(11);
@@ -220,7 +211,6 @@ Deno.serve(async (req) => {
     doc.text(caseRecord.property_address || '—', pw / 2, y, { align: 'center' });
     y += 8;
     doc.text(`Owner: ${caseRecord.property_owner_name || '—'}`, pw / 2, y, { align: 'center' });
-
     y += 20;
     doc.setDrawColor(200);
     doc.line(margin + 20, y, pw - margin - 20, y);
@@ -235,7 +225,6 @@ Deno.serve(async (req) => {
       ['Assigned Officer', caseRecord.assigned_officer || 'Unassigned'],
       ['Report Generated', new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
     ];
-
     doc.setFontSize(9.5);
     coverFields.forEach(([label, val]) => {
       doc.setFont('Helvetica', 'bold');
@@ -246,7 +235,6 @@ Deno.serve(async (req) => {
       doc.text(String(val), pw / 2 + 5, y);
       y += 7;
     });
-
     y += 10;
     doc.setFont('Helvetica', 'italic');
     doc.setFontSize(8);
@@ -254,18 +242,9 @@ Deno.serve(async (req) => {
     doc.text('This document is prepared for municipal code enforcement proceedings.', pw / 2, y, { align: 'center' });
     doc.text('All information is confidential and intended for authorized use only.', pw / 2, y + 5, { align: 'center' });
 
-    // =====================================================================
-    // START CONTENT ON NEW PAGE
-    // =====================================================================
-    doc.addPage();
-    y = margin;
-    addPageHeader();
-
-    // =====================================================================
     // SECTION 1: CASE SUMMARY
-    // =====================================================================
+    doc.addPage(); y = margin; addPageHeader();
     sectionTitle('1. CASE SUMMARY');
-
     twoColField('Case Number', caseRecord.case_number || case_id.slice(0, 8), 'Status', (caseRecord.status || '').replace(/_/g, ' '));
     twoColField('Complaint Date', dateStr(caseRecord.complaint_date), 'Priority', caseRecord.priority || 'Medium');
     twoColField('Violation Type', (caseRecord.violation_type || '').replace(/_/g, ' '), 'First Offense', caseRecord.is_first_offense ? 'Yes' : 'No');
@@ -304,9 +283,7 @@ Deno.serve(async (req) => {
       bodyText(caseRecord.resolution_notes);
     }
 
-    // =====================================================================
     // SECTION 2: VIOLATIONS
-    // =====================================================================
     if (violations && violations.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`2. VIOLATIONS (${violations.length})`);
@@ -316,27 +293,23 @@ Deno.serve(async (req) => {
         twoColField('RSA Citation', v.rsa_citation || '—', 'Ordinance Citation', v.ordinance_citation || '—');
         twoColField('Status', (v.status || '').replace(/_/g, ' '), 'Fine Per Day', `$${v.fine_per_day || 275}`);
         twoColField('Compliance Deadline', dateStr(v.compliance_deadline), 'Repeat Offense', v.is_repeat_offense ? 'Yes' : 'No');
-        if (v.description) { fieldRow('Description', v.description); }
-        if (v.corrective_actions) { fieldRow('Corrective Actions Required', v.corrective_actions); }
-        if (v.compliance_notes) { fieldRow('Compliance Notes', v.compliance_notes); }
-        if (v.resolved_date) { fieldRow('Resolved Date', dateStr(v.resolved_date)); }
+        if (v.description) fieldRow('Description', v.description);
+        if (v.corrective_actions) fieldRow('Corrective Actions Required', v.corrective_actions);
+        if (v.compliance_notes) fieldRow('Compliance Notes', v.compliance_notes);
+        if (v.resolved_date) fieldRow('Resolved Date', dateStr(v.resolved_date));
         y += 4;
       });
     }
 
-    // =====================================================================
     // SECTION 3: INVESTIGATIONS
-    // =====================================================================
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle(`3. FIELD INVESTIGATIONS (${(investigations || []).length})`);
-
     if (!investigations || investigations.length === 0) {
       bodyText('No field investigations recorded for this case.');
       y += 5;
     } else {
       const sorted = [...investigations].sort((a, b) => new Date(b.investigation_date) - new Date(a.investigation_date));
-      for (let idx = 0; idx < sorted.length; idx++) {
-        const inv = sorted[idx];
+      for (const [idx, inv] of sorted.entries()) {
         checkPageBreak(20);
         subsectionTitle(`Investigation ${idx + 1} — ${dateStr(inv.investigation_date)}`);
         twoColField('Officer', inv.officer_name || '—', 'Violation Confirmed', inv.violation_confirmed ? 'YES' : inv.violation_confirmed === false ? 'No' : '—');
@@ -346,21 +319,21 @@ Deno.serve(async (req) => {
         if (inv.field_notes) { fieldRow('Field Notes', ''); bodyText(inv.field_notes); }
         if (inv.evidence_summary) { fieldRow('Evidence Summary', ''); bodyText(inv.evidence_summary); }
 
-        // Embed investigation photos
+        // Embed photos from cache (already fetched in parallel above)
         if (inv.photos && inv.photos.length > 0) {
-          y += 3;
-          doc.setFont('Helvetica', 'bold');
-          doc.setFontSize(8.5);
-          doc.setTextColor(80);
-          doc.text(`Site Photos (${inv.photos.length}):`, margin, y + 4);
-          y += 7;
+          const validPhotos = inv.photos.filter(url => photoCache[url]);
+          if (validPhotos.length > 0) {
+            y += 3;
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(80);
+            doc.text(`Site Photos (${validPhotos.length} of ${inv.photos.length}):`, margin, y + 4);
+            y += 7;
 
-          let photoX = margin;
-          let photoRowMaxY = y;
-
-          for (const photoUrl of inv.photos) {
-            const imgData = await fetchImageAsBase64(photoUrl);
-            if (imgData) {
+            let photoX = margin;
+            let photoRowMaxY = y;
+            for (const photoUrl of validPhotos) {
+              const imgData = photoCache[photoUrl];
               const imgW = (cw - 5) / 2;
               const imgH = imgW * 0.65;
               if (photoX + imgW > pw - margin) {
@@ -372,22 +345,18 @@ Deno.serve(async (req) => {
               photoRowMaxY = Math.max(photoRowMaxY, y + imgH + 3);
               photoX += imgW + 5;
             }
+            y = photoRowMaxY;
           }
-          y = photoRowMaxY;
         }
         y += 5;
       }
     }
 
-    // =====================================================================
-    // SECTION 4: NOTICES & CITATIONS
-    // =====================================================================
+    // SECTION 4: NOTICES
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle(`4. NOTICES & CITATIONS (${(notices || []).length})`);
-
     if (!notices || notices.length === 0) {
       bodyText('No notices issued for this case.');
-      y += 5;
     } else {
       const sorted = [...notices].sort((a, b) => new Date(a.date_issued) - new Date(b.date_issued));
       sorted.forEach((notice, idx) => {
@@ -401,25 +370,21 @@ Deno.serve(async (req) => {
         fieldRow('Recipient Address', notice.recipient_address);
         if (notice.appeal_instructions) fieldRow('Appeal Instructions', notice.appeal_instructions);
         if (notice.notice_content) { y += 2; subsectionTitle('Notice Content'); bodyText(notice.notice_content); }
-        if (notice.document_url) fieldRow('Document URL', notice.document_url);
         y += 5;
       });
     }
 
-    // =====================================================================
     // SECTION 5: COURT ACTIONS
-    // =====================================================================
     if (courtActions && courtActions.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`5. COURT ACTIONS (${courtActions.length})`);
-      const sorted = [...courtActions].sort((a, b) => new Date(a.filing_date) - new Date(b.filing_date));
-      sorted.forEach((action, idx) => {
+      [...courtActions].sort((a, b) => new Date(a.filing_date) - new Date(b.filing_date)).forEach((action, idx) => {
         checkPageBreak(20);
         subsectionTitle(`${idx + 1}. ${(action.action_type || '').replace(/_/g, ' ').toUpperCase()}`);
         twoColField('Court Type', (action.court_type || '').replace(/_/g, ' '), 'Status', (action.status || '').replace(/_/g, ' '));
         twoColField('Filing Date', dateStr(action.filing_date), 'Docket Number', action.docket_number || '—');
         if (action.hearing_date) twoColField('Hearing Date', datetimeStr(action.hearing_date), 'Location', action.court_location || '—');
-        if (action.attorney_assigned) twoColField('Attorney Assigned', action.attorney_assigned, '', '');
+        if (action.attorney_assigned) fieldRow('Attorney Assigned', action.attorney_assigned);
         if (action.outcome) fieldRow('Outcome', action.outcome);
         if (action.penalties_awarded) twoColField('Penalties Awarded', `$${action.penalties_awarded}`, 'Costs Recovered', `$${action.costs_recovered || 0}`);
         if (action.injunction_granted) fieldRow('Injunction Granted', 'YES');
@@ -429,18 +394,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // =====================================================================
     // SECTION 6: DEADLINES
-    // =====================================================================
     checkPageBreak(20);
     if (y > margin + 40) { doc.addPage(); y = margin; addPageHeader(); }
     sectionTitle(`6. DEADLINES & CALENDAR (${(deadlines || []).length})`);
-
     if (!deadlines || deadlines.length === 0) {
       bodyText('No deadlines recorded for this case.');
     } else {
-      const sorted = [...deadlines].sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-      sorted.forEach((dl) => {
+      [...deadlines].sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).forEach((dl) => {
         checkPageBreak(10);
         const overdue = !dl.is_completed && new Date(dl.due_date) < new Date();
         const statusText = dl.is_completed ? `✓ Completed ${dateStr(dl.completed_date)}` : overdue ? '⚠ OVERDUE' : 'Pending';
@@ -453,9 +414,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // =====================================================================
     // SECTION 7: DOCUMENTS ON FILE
-    // =====================================================================
     if (documents && documents.length > 0) {
       checkPageBreak(20);
       if (y > ph - 80) { doc.addPage(); y = margin; addPageHeader(); }
@@ -467,22 +426,18 @@ Deno.serve(async (req) => {
         twoColField('Uploaded By', d.uploaded_by || '—', 'Upload Date', dateStr(d.created_date));
         if (d.description) fieldRow('Description', d.description);
         if (d.tags && d.tags.length) fieldRow('Tags', d.tags.join(', '));
-        if (d.file_url) fieldRow('File URL', d.file_url);
         y += 3;
       });
     }
 
-    // =====================================================================
-    // SECTION 8: CASE NOTES & ACTIVITY LOG
-    // =====================================================================
-    const notes = (auditLogs || []).filter(l => l.action === 'note_added');
-    const activity = (auditLogs || []).filter(l => l.action !== 'note_added').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // SECTION 8 & 9: NOTES & AUDIT LOG
+    const notes = (auditLogs || []).filter(l => l.action === 'note_added' || l.action === 'User note');
+    const activity = (auditLogs || []).filter(l => l.action !== 'note_added' && l.action !== 'User note').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     if (notes.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`8. CASE NOTES (${notes.length})`);
-      const sortedNotes = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      sortedNotes.forEach((note, idx) => {
+      [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach((note, idx) => {
         checkPageBreak(18);
         subsectionTitle(`Note ${idx + 1} — ${datetimeStr(note.timestamp)}`);
         fieldRow('Author', `${note.user_name || '—'} (${note.user_email || '—'})`);
@@ -490,9 +445,7 @@ Deno.serve(async (req) => {
           try {
             const parsed = typeof note.changes === 'string' ? JSON.parse(note.changes) : note.changes;
             bodyText(parsed.note || JSON.stringify(parsed));
-          } catch {
-            bodyText(note.changes);
-          }
+          } catch { bodyText(note.changes); }
         }
         y += 4;
       });
@@ -502,8 +455,7 @@ Deno.serve(async (req) => {
       checkPageBreak(20);
       if (y > ph - 80) { doc.addPage(); y = margin; addPageHeader(); }
       sectionTitle(`9. ACTIVITY AUDIT LOG (${Math.min(activity.length, 100)} most recent)`);
-      const toShow = activity.slice(0, 100);
-      toShow.forEach((log) => {
+      activity.slice(0, 100).forEach((log) => {
         checkPageBreak(8);
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(8);
@@ -530,11 +482,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // =====================================================================
-    // PAGE NUMBERS ON ALL PAGES
-    // =====================================================================
+    // PAGE NUMBERS
     const pageCount = doc.internal.pages.length - 1;
-    for (let i = 2; i <= pageCount; i++) { // skip cover
+    for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(7);
@@ -545,13 +495,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`PDF generated successfully. Pages: ${pageCount}`);
+    console.log(`PDF generated. Pages: ${pageCount}. Uploading to private storage...`);
 
+    // Upload PDF to private storage
     const pdfBuffer = doc.output('arraybuffer');
-    const base64 = arrayBufferToBase64(pdfBuffer);
-    const filename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
+    const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
+    const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfBlob });
 
-    return Response.json({ success: true, pdf_base64: base64, filename });
+    // Create a Document entity record linked to this case & town (RLS enforced)
+    const filename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
+    const docRecord = await base44.asServiceRole.entities.Document.create({
+      case_id,
+      town_id: caseRecord.town_id,
+      title: `Court File — ${caseRecord.case_number || case_id.slice(0, 8)} (${new Date().toLocaleDateString()})`,
+      document_type: 'court_filing',
+      file_url: file_uri,
+      description: `Auto-generated court file PDF. Generated by ${user.full_name || user.email} on ${new Date().toLocaleString()}.`,
+      uploaded_by: user.email,
+      version: 1,
+    });
+
+    console.log(`PDF stored. Document record created: ${docRecord.id}`);
+
+    return Response.json({
+      success: true,
+      document_id: docRecord.id,
+      filename,
+    });
 
   } catch (error) {
     console.error('PDF export error:', error?.message, error?.stack);
