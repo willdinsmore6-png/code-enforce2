@@ -94,21 +94,22 @@ export default function CaseDetail() {
     try {
       const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
       const { pdf_base64, filename } = response.data;
-      // Decode base64 to binary
-      const binaryString = atob(pdf_base64);
-      const uint8Array = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        uint8Array[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([uint8Array], { type: 'application/pdf' });
+      if (!pdf_base64) throw new Error('No PDF data returned');
+      const binaryStr = atob(pdf_base64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename || `${caseData.case_number || 'case'}-court-file.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('PDF export failed:', err);
+      alert(`Export failed: ${err.message}`);
     } finally {
       setExportLoading(false);
     }
