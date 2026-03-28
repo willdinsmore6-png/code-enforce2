@@ -258,13 +258,11 @@ Deno.serve(async (req) => {
     }
 
     const pdfBytes = doc.output('arraybuffer');
-    return new Response(pdfBytes, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${caseRecord.case_number || 'case'}-court-file.pdf"`,
-      },
-    });
+    // Convert to base64 for JSON transport
+    const uint8Array = new Uint8Array(pdfBytes);
+    const binaryString = String.fromCharCode.apply(null, uint8Array);
+    const base64Data = btoa(binaryString);
+    return Response.json({ success: true, pdf_base64: base64Data, filename: `${caseRecord.case_number || 'case'}-court-file.pdf` });
   } catch (error) {
     console.error('PDF export error:', error);
     return Response.json({ error: error.message }, { status: 500 });
