@@ -7,9 +7,6 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
 
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin' && user.role !== 'superadmin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
 
     const { town_id, user_email } = await req.json();
     if (!town_id) return Response.json({ error: 'town_id is required' }, { status: 400 });
@@ -18,7 +15,7 @@ Deno.serve(async (req) => {
     const priceId = Deno.env.get('STRIPE_PRICE_ID');
 
     // Get the town config to check for existing customer
-    const town = await base44.entities.TownConfig.get(town_id);
+    const town = await base44.asServiceRole.entities.TownConfig.get(town_id);
     if (!town) return Response.json({ error: 'Town not found' }, { status: 404 });
 
     // Find or create Stripe customer
