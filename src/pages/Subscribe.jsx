@@ -139,7 +139,7 @@ export default function Subscribe() {
           </div>
         )}
 
-        {/* Pricing/Security Section */}
+        {/* Security Section */}
         <div className="bg-emerald-950/40 border border-emerald-700/30 rounded-2xl p-8 mb-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-9 h-9 bg-emerald-600/20 rounded-lg flex items-center justify-center">
@@ -181,6 +181,14 @@ export default function Subscribe() {
               </h3>
               <p>The AI-powered violation detection, Compass advisor, and automated recommendations provided by this platform are <strong>decision-support tools only</strong>. They do not constitute legal advice or final enforcement authority. The licensed building official, code enforcement officer, or duly authorized municipal representative is the <strong>sole final authority</strong> on all code interpretations, violation determinations, and enforcement actions. Your municipality accepts full responsibility for all enforcement actions taken using this tool.</p>
             </div>
+            <div>
+              <h3 className="font-semibold text-white mb-1">2. Data Custodianship</h3>
+              <p>While CodeEnforce Pro provides the storage and management infrastructure, the municipality retains full legal ownership of all data entered into the system. We serve as a secure custodian only.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white mb-1">3. Privacy and RSA Compliance</h3>
+              <p>Users agree to operate within the legal frameworks of their respective states (including RSA 676:17 in NH) regarding notice, service of process, and property access.</p>
+            </div>
           </div>
 
           <div className="mt-8 flex items-start gap-3">
@@ -199,7 +207,7 @@ export default function Subscribe() {
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="text-2xl font-bold">CodeEnforce Pro Subscription</div>
-              <p className="text-xs text-slate-500 mt-1">Full access for your municipality.</p>
+              <p className="text-xs text-slate-500 mt-1">Full access for all town departments.</p>
             </div>
             <Button 
               size="lg" 
@@ -227,4 +235,3 @@ export default function Subscribe() {
     </div>
   );
 }
-
