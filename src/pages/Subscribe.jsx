@@ -11,14 +11,7 @@ export default function Subscribe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // New-town setup state (when arriving via ?new=true)
-  const isNewTownFlow = new URLSearchParams(window.location.search).get('new') === 'true';
-  const [townName, setTownName] = useState('');
-  const [townState, setTownState] = useState('NH');
-  const [townCreated, setTownCreated] = useState(false);
-  const [createdTownId, setCreatedTownId] = useState(null);
-
-  // ADDED: Logout logic
+  // LOGOUT LOGIC
   async function handleLogout() {
     try {
       await base44.auth.logout();
@@ -28,6 +21,13 @@ export default function Subscribe() {
     }
   }
 
+  // New-town setup state (when arriving via ?new=true)
+  const isNewTownFlow = new URLSearchParams(window.location.search).get('new') === 'true';
+  const [townName, setTownName] = useState('');
+  const [townState, setTownState] = useState('NH');
+  const [townCreated, setTownCreated] = useState(false);
+  const [createdTownId, setCreatedTownId] = useState(null);
+
   async function handleSubscribe() {
     if (!agreed) return;
     setLoading(true);
@@ -35,7 +35,6 @@ export default function Subscribe() {
     try {
       let townId = user?.data?.town_id || user?.town_id;
 
-      // If new-town flow, create the town first
       if (isNewTownFlow && !townCreated) {
         if (!townName.trim()) {
           setError('Please enter your town name.');
@@ -73,7 +72,7 @@ export default function Subscribe() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
-      {/* ADDED: Header with Logout Button */}
+      {/* Header with Logout Button */}
       <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -140,7 +139,7 @@ export default function Subscribe() {
           </div>
         )}
 
-        {/* Pricing */}
+        {/* Pricing/Security Section */}
         <div className="bg-emerald-950/40 border border-emerald-700/30 rounded-2xl p-8 mb-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-9 h-9 bg-emerald-600/20 rounded-lg flex items-center justify-center">
@@ -199,8 +198,8 @@ export default function Subscribe() {
 
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="text-2xl font-bold">$1,200.00 <span className="text-sm font-normal text-slate-400">/ year</span></div>
-              <p className="text-xs text-slate-500 mt-1">Full access for all town departments.</p>
+              <div className="text-2xl font-bold">CodeEnforce Pro Subscription</div>
+              <p className="text-xs text-slate-500 mt-1">Full access for your municipality.</p>
             </div>
             <Button 
               size="lg" 
@@ -228,3 +227,4 @@ export default function Subscribe() {
     </div>
   );
 }
+
