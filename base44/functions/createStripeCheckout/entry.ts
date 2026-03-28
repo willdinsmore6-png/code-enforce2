@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { town_id, user_email } = await req.json();
+    const { town_id, user_email, agreement_accepted_at, agreement_accepted_by } = await req.json();
     if (!town_id) return Response.json({ error: 'town_id is required' }, { status: 400 });
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'));
@@ -17,6 +17,14 @@ Deno.serve(async (req) => {
     // Get the town config to check for existing customer
     const town = await base44.asServiceRole.entities.TownConfig.get(town_id);
     if (!town) return Response.json({ error: 'Town not found' }, { status: 404 });
+
+    // Save agreement acceptance if provided
+    if (agreement_accepted_at) {
+      await base44.asServiceRole.entities.TownConfig.update(town_id, {
+        agreement_accepted_at,
+        agreement_accepted_by: agreement_accepted_by || user.email,
+      });
+    }
 
     // Find or create Stripe customer
     let customerId = town.stripe_customer_id;

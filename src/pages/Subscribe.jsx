@@ -39,17 +39,11 @@ export default function Subscribe() {
         setTownCreated(true);
       }
 
-      // Save agreement acceptance
-      if (municipality?.id) {
-        await base44.entities.TownConfig.update(municipality.id, {
-          agreement_accepted_at: new Date().toISOString(),
-          agreement_accepted_by: user?.email,
-        });
-      }
-
       const res = await base44.functions.invoke('createStripeCheckout', {
         town_id: townId,
         user_email: user?.email,
+        agreement_accepted_at: new Date().toISOString(),
+        agreement_accepted_by: user?.email,
       });
       if (res.data?.url) {
         window.location.href = res.data.url;
