@@ -117,7 +117,7 @@
         },
         {
           "user_condition": {
-            "role": "user"
+            "role": "admin"
           }
         },
         {
@@ -146,19 +146,27 @@
       "$or": [
         {
           "user_condition": {
-            "role": "service_role"
-          }
-        },
-        {
-          "user_condition": {
             "role": "superadmin"
           }
         },
         {
-          "id": "{{user.data.town_id}}"
-        },
-        {
-          "id": "{{user.town_id}}"
+          "$and": [
+            {
+              "$or": [
+                {
+                  "id": "{{user.data.town_id}}"
+                },
+                {
+                  "id": "{{user.town_id}}"
+                }
+              ]
+            },
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            }
+          ]
         }
       ]
     },
