@@ -6,16 +6,14 @@ const priceId = Deno.env.get('STRIPE_PRICE_ID');
 
 Deno.serve(async (req) => {
   try {
-    // This helper automatically uses the project's internal system token
     const base44 = createClientFromRequest(req);
+    // Force the service role to ignore RLS
     const admin = base44.asServiceRole;
 
     const body = await req.json().catch(() => ({}));
     const { town_id, user_email } = body;
-
     if (!town_id) return Response.json({ error: 'town_id is required' }, { status: 400 });
 
-    // IMPORTANT: We use 'admin' here to bypass the "must be logged in" check
     const town = await admin.entities.TownConfig.get(town_id);
     if (!town) return Response.json({ error: 'Town not found' }, { status: 404 });
 
@@ -29,6 +27,7 @@ Deno.serve(async (req) => {
       });
       customerId = customer.id;
 
+      // Update the record using admin privileges
       await admin.entities.TownConfig.update(town_id, {
         stripe_customer_id: customerId,
       });
