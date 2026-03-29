@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// Import existing page components
+// Page Imports
 import Dashboard from './pages/Dashboard';
 import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
@@ -15,10 +15,14 @@ export default function App() {
   useEffect(() => {
     if (loading || !user) return;
 
+    // --- SUPERADMIN BYPASS ---
+    // If you are the superadmin, don't redirect to onboarding or subscribe
+    if (user.role === 'superadmin') return;
+
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // Gatekeeper Logic
+    // Gatekeeper Logic for regular users
     if (!townId) {
       navigate('/onboarding');
     } else if (!isActive) {
@@ -46,16 +50,13 @@ export default function App() {
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       
-      {/* Dashboard is protected by the gatekeeper logic in useEffect */}
+      {/* Dashboard - Accessible if logged in */}
       <Route 
         path="/" 
         element={user ? <Dashboard /> : <Navigate to="/login" />} 
       />
 
-      {/* Login fallback - ensures Vite finds the path even without a component */}
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
-      
-      {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
