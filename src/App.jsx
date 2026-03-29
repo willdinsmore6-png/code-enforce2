@@ -13,17 +13,15 @@ export default function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Wait for Auth to finish loading
     if (loading || !user) return;
 
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // 2. Logic: No Town? -> Onboarding. 2. Not Paid? -> Subscribe.
+    // Gatekeeper Logic
     if (!townId) {
       navigate('/onboarding');
     } else if (!isActive) {
-      // Allow them to visit the success bridge if they just paid
       const path = window.location.pathname;
       if (path !== '/success' && path !== '/subscribe') {
         navigate('/subscribe');
@@ -44,25 +42,20 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Route for users waiting for admin setup */}
       <Route path="/onboarding" element={<Onboarding />} />
-      
-      {/* Route for users who need to pay */}
       <Route path="/subscribe" element={<Subscribe />} />
-
-      {/* Success bridge for immediate activation */}
       <Route path="/success" element={<Success />} />
       
-      {/* Main Dashboard - Protected by logic above */}
+      {/* Dashboard is protected by the gatekeeper logic in useEffect */}
       <Route 
         path="/" 
         element={user ? <Dashboard /> : <Navigate to="/login" />} 
       />
 
-      {/* Fallback for system login path */}
+      {/* Login fallback - ensures Vite finds the path even without a component */}
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
       
-      {/* Catch-all: Send back to Home */}
+      {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
