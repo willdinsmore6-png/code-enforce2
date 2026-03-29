@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// --- FIXED IMPORT: Exact Case-Sensitive Match ---
-import Layout from '@/components/Layout'; 
+// --- FIXED IMPORT: Points to the actual file in your repo ---
+import Sidebar from '@/components/sidebar'; 
 
 // Original Page Imports
 import Dashboard from '@/pages/Dashboard';
@@ -46,6 +46,16 @@ export default function App() {
     </div>
   );
 
+  // --- RESTORED LAYOUT WRAPPER ---
+  const LayoutWrapper = () => (
+    <div className="flex h-screen bg-slate-900 overflow-hidden font-sans">
+      <Sidebar user={user} /> 
+      <div className="flex-1 overflow-auto bg-slate-900">
+        <Outlet />
+      </div>
+    </div>
+  );
+
   return (
     <Routes>
       {/* System Pages (No Sidebar) */}
@@ -54,8 +64,8 @@ export default function App() {
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
 
-      {/* --- RESTORED: Your Original Sidebar/Layout Structure --- */}
-      <Route element={<Layout />}>
+      {/* --- RESTORED: Your Original Sidebar Menu Structure --- */}
+      <Route element={<LayoutWrapper />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/investigations" element={<Investigations />} />
