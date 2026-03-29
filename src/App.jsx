@@ -8,8 +8,8 @@ import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
 import Success from './pages/Success';
 
-// Layout Component
-import Sidebar from './components/Sidebar'; 
+// --- FIXED IMPORT: Use lowercase 'sidebar' to match your filename ---
+import Sidebar from './components/sidebar'; 
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -43,7 +43,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
       </div>
     );
@@ -51,8 +51,7 @@ export default function App() {
 
   // Wrapper that puts the Sidebar back on the screen
   const LayoutWrapper = () => (
-    <div className="flex h-screen bg-slate-900 overflow-hidden">
-      {/* This renders your original navigation menu */}
+    <div className="flex h-screen bg-slate-900 overflow-hidden font-sans">
       <Sidebar user={user} /> 
       <div className="flex-1 overflow-auto">
         <Outlet />
@@ -62,7 +61,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Pages WITHOUT the sidebar (Onboarding & Payments) */}
+      {/* Pages WITHOUT the sidebar */}
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
@@ -73,7 +72,6 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
       </Route>
       
-      {/* Fallback redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
