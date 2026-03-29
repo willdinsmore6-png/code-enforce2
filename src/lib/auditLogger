@@ -1,0 +1,17 @@
+import { base44 } from '@/api/base44Client';
+
+export const logAction = async (user, action, details) => {
+  try {
+    // This talks to your EXISTING AuditLog entity
+    await base44.entities.AuditLog.create({
+      town_id: user?.data?.town_id || user?.town_id,
+      user_email: user?.email,
+      action: action, 
+      details: details,
+      timestamp: new Date().toISOString()
+    });
+    console.log(`Audit Log Created: ${action}`);
+  } catch (err) {
+    console.error("Audit log failed:", err.message);
+  }
+};
