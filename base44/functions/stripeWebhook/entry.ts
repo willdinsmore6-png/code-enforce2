@@ -12,30 +12,22 @@ Deno.serve(async (req) => {
     const event = await stripe.webhooks.constructEventAsync(body, sig, Deno.env.get('STRIPE_WEBHOOK_SECRET'));
     const getTownId = (obj) => obj?.metadata?.town_id || obj?.subscription_details?.metadata?.town_id;
 
-    // HANDLE SUCCESSFUL PAYMENT
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const townId = getTownId(session);
-      const email = session.customer_details?.email;
-
+    // 1. SUCCESS: Activate Town
+    if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+      const townId = getTownId(event.data.object);
       if (townId) {
-        // Activate Town
         await admin.entities.TownConfig.update(townId, { is_active: true });
-
-        // Link User to Town automatically
-        if (email) {
-          const users = await admin.entities.User.list({ filter: { email } });
-          if (users.length > 0) {
-            await admin.entities.User.update(users[0].id, { town_id: townId, role: 'admin' });
-          }
-        }
+        console.log(`Town ${townId} verified ACTIVE.`);
       }
     }
 
-    // HANDLE CANCELLATION
-    if (event.type === 'customer.subscription.deleted') {
+    // 2. FAILURE: Deactivate Town (Billing Security)
+    if (event.type === 'invoice.payment_failed' || event.type === 'customer.subscription.deleted') {
       const townId = getTownId(event.data.object);
-      if (townId) await admin.entities.TownConfig.update(townId, { is_active: false });
+      if (townId) {
+        await admin.entities.TownConfig.update(townId, { is_active: false });
+        console.log(`Town ${townId} DEACTIVATED due to billing issue.`);
+      }
     }
 
     return Response.json({ received: true });
