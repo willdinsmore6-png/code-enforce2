@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// --- RESTORED ORIGINAL LAYOUT ---
-import Layout from '@/components/layout'; 
+// --- FIXED IMPORT: Exact Case-Sensitive Match ---
+import Layout from '@/components/Layout'; 
 
-// Page Imports
+// Original Page Imports
 import Dashboard from '@/pages/Dashboard';
 import Cases from '@/pages/Cases';
 import Investigations from '@/pages/Investigations';
@@ -40,7 +40,11 @@ export default function App() {
     }
   }, [user, loading, navigate, location.pathname]);
 
-  if (loading) return <div className="h-screen bg-slate-900" />;
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
+      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
+    </div>
+  );
 
   return (
     <Routes>
