@@ -7,35 +7,28 @@ const priceId = Deno.env.get('STRIPE_PRICE_ID');
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const admin = base44.asServiceRole;
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json().catch(() => ({}));
-    const { town_id, user_email } = body;
+    const { town_id } = await req.json().catch(() => ({}));
     if (!town_id) return Response.json({ error: 'town_id is required' }, { status: 400 });
 
-    // 1. Get Town (Bypassing RLS with admin client)
-    const town = await admin.entities.TownConfig.get(town_id).catch(() => null);
-    let customerId = town?.stripe_customer_id;
+    const town = await base44.asServiceRole.entities.TownConfig.get(town_id);
+    
+    // 1. DEDUPLICATION: Check if customer already exists in Stripe
+    const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+    let customerId = existing.data.length > 0 ? existing.data[0].id : null;
 
     if (!customerId) {
-      // 2. Create Stripe Customer
       const customer = await stripe.customers.create({
-        email: user_email || "billing@code-enforce.com",
-        name: town?.town_name || `Town ${town_id}`,
+        email: user.email,
+        name: town?.town_name || "Municipal User",
+        metadata: { town_id: String(town_id) },
       });
       customerId = customer.id;
-
-      // 3. TRY to update, but DO NOT stop if it fails with a 403
-      try {
-        await admin.entities.TownConfig.update(town_id, {
-          stripe_customer_id: customerId,
-        });
-      } catch (e) {
-        console.warn("DB Update blocked, but proceeding to Stripe anyway.");
-      }
     }
 
-    // 4. Generate the Session
+    // 2. CREATE SESSION: With Metadata bridge
     const origin = "https://code-enforce.com";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -43,11 +36,12 @@ Deno.serve(async (req) => {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/?subscription=success`,
       cancel_url: `${origin}/subscribe?canceled=true`,
+      metadata: { town_id: String(town_id) },
+      subscription_data: { metadata: { town_id: String(town_id) } }
     });
 
     return Response.json({ url: session.url });
   } catch (error) {
-    console.error('SERVER ERROR:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
