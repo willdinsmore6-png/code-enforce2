@@ -2,12 +2,15 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// Your original Layout and Page imports
-import MainLayout from '@/components/layout/MainLayout';
+// --- RESTORED ORIGINAL LAYOUT ---
+import Layout from '@/components/layout'; 
+
+// Page Imports
 import Dashboard from '@/pages/Dashboard';
 import Cases from '@/pages/Cases';
 import Investigations from '@/pages/Investigations';
 import AdminTools from '@/pages/AdminTools';
+
 // The new gates we added
 import Subscribe from '@/pages/Subscribe';
 import Onboarding from '@/pages/Onboarding';
@@ -21,13 +24,13 @@ export default function App() {
   useEffect(() => {
     if (loading || !user) return;
 
-    // 1. RESTORED: Superadmin Bypass (This fixes your supervisory view)
+    // --- SUPERADMIN BYPASS (Restores your supervisory view) ---
     if (user.role === 'superadmin') return;
 
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // 2. The Gates (Only for regular users)
+    // The Gates (Only for regular users)
     if (!townId && location.pathname !== '/onboarding') {
       navigate('/onboarding');
     } else if (townId && !isActive) {
@@ -47,8 +50,8 @@ export default function App() {
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
 
-      {/* RESTORED: Your Original Nested Layout Structure */}
-      <Route element={<MainLayout />}>
+      {/* --- RESTORED: Your Original Sidebar/Layout Structure --- */}
+      <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/investigations" element={<Investigations />} />
