@@ -8,23 +8,20 @@ import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
 import Success from './pages/Success';
 
-// --- FIXED IMPORT: Use lowercase 'sidebar' to match your filename ---
-import Sidebar from './components/sidebar'; 
+// --- RELIABLE IMPORT: Using the @ alias for the src directory ---
+import Sidebar from '@/components/sidebar'; 
 
 export default function App() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // supervisory / Preview Bypass
   const isPreview = window.location.hostname.includes('base44.app') || 
                     window.location.hostname.includes('localhost');
   const isSuperadmin = user?.role === 'superadmin';
 
   useEffect(() => {
     if (loading) return;
-    
-    // Bypass gates for superadmins and in the preview editor
     if (isPreview || isSuperadmin) return;
 
     if (user) {
@@ -49,9 +46,9 @@ export default function App() {
     );
   }
 
-  // Wrapper that puts the Sidebar back on the screen
+  // Wrapper for pages WITH the sidebar menu
   const LayoutWrapper = () => (
-    <div className="flex h-screen bg-slate-900 overflow-hidden font-sans">
+    <div className="flex h-screen bg-slate-900 overflow-hidden font-sans text-white">
       <Sidebar user={user} /> 
       <div className="flex-1 overflow-auto">
         <Outlet />
