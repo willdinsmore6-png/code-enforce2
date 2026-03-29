@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 
-// Original Components & Layout
+// --- FIXED IMPORTS: Using direct relative paths ---
 import AppLayout from './components/layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
@@ -60,6 +60,7 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // --- FIXED ROUTER: No <Router> tag here anymore ---
   return (
     <Routes>
       {/* Public routes */}
@@ -69,7 +70,7 @@ const AuthenticatedApp = () => {
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       
-      {/* RESTORED: Your Original Protected Routes with Sidebar */}
+      {/* Protected Routes with Sidebar Layout */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
@@ -95,6 +96,7 @@ export default function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
+        {/* Only ONE Router wrapper at the top level */}
         <Router>
           <a href="#main-content" className="skip-to-main">Skip to main content</a>
           <AuthenticatedApp />
