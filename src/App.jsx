@@ -1,73 +1,106 @@
 import { useEffect } from 'react';
-import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
+import { BrowserRouter as Router, Route, Routes, useNavigate, Navigate } from 'react-router-dom';
+import { Toaster } from "@/components/ui/toaster";
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClientInstance } from '@/lib/query-client';
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
 
-// --- THE DEFINITIVE FIX: Absolute path with explicit extension ---
-import AppLayout from '/src/components/AppLayout.jsx'; 
+// Original Components & Layout
+import AppLayout from './components/layout/AppLayout';
+import Dashboard from './pages/Dashboard';
+import Cases from './pages/Cases';
+import CaseDetail from './pages/CaseDetail';
+import NewComplaint from './pages/NewComplaint';
+import Investigations from './pages/Investigations';
+import Deadlines from './pages/Deadlines';
+import CourtActions from './pages/CourtActions';
+import ActionWizard from './pages/ActionWizard';
+import CompassPage from './pages/Compass';
+import ResourceLibrary from './pages/ResourceLibrary';
+import PublicPortal from './pages/PublicPortal';
+import Report from './pages/Report';
+import DocumentVault from './pages/DocumentVault';
+import AdminTools from './pages/AdminTools';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import PageNotFound from './lib/PageNotFound';
 
-// Page Imports
-import Dashboard from '/src/pages/Dashboard.jsx';
-import Cases from '/src/pages/Cases.jsx';
-import Investigations from '/src/pages/Investigations.jsx';
-import AdminTools from '/src/pages/AdminTools.jsx';
-import Profile from '/src/pages/Profile.jsx';
+// New Onboarding/Payment Pages
+import Onboarding from './pages/Onboarding';
+import Subscribe from './pages/Subscribe';
+import Success from './pages/Success';
 
-// Gatekeeper Pages
-import Subscribe from '/src/pages/Subscribe.jsx';
-import Onboarding from '/src/pages/Onboarding.jsx';
-import Success from '/src/pages/Success.jsx';
-
-export default function App() {
-  const { user, loading } = useAuth();
+const AuthenticatedApp = () => {
+  const { user, loading, isLoadingAuth, isLoadingPublicSettings } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     if (loading || !user) return;
 
-    // --- SUPERADMIN BYPASS (Restores your "Supervisory" view) ---
+    // 1. SUPERADMIN BYPASS (Restores your "Supervisory" view)
     if (user.role === 'superadmin') return;
 
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // The Gates (Only for regular users)
-    if (!townId && location.pathname !== '/onboarding') {
+    // 2. THE GATES
+    if (!townId && window.location.pathname !== '/onboarding') {
       navigate('/onboarding');
     } else if (townId && !isActive) {
-      if (location.pathname !== '/success' && location.pathname !== '/subscribe') {
+      if (window.location.pathname !== '/success' && window.location.pathname !== '/subscribe') {
         navigate('/subscribe');
       }
     }
-  }, [user, loading, navigate, location.pathname]);
+  }, [user, loading, navigate]);
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
-      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
-    </div>
-  );
+  if (isLoadingPublicSettings || isLoadingAuth || loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
+      {/* Public routes */}
+      <Route path="/public-portal" element={<PublicPortal />} />
+      <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
-      <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
-
-      {/* --- RESTORED: Your Original Sidebar Menu Structure --- */}
+      
+      {/* RESTORED: Your Original Protected Routes with Sidebar */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
+        <Route path="/cases/:id" element={<CaseDetail />} />
+        <Route path="/new-complaint" element={<NewComplaint />} />
         <Route path="/investigations" element={<Investigations />} />
-        <Route path="/profile" element={<Profile />} />
-        
-        {/* Only show Admin Tools in menu if user is admin/superadmin */}
-        {(user?.role === 'admin' || user?.role === 'superadmin') && (
-          <Route path="/admin-tools" element={<AdminTools />} />
-        )}
+        <Route path="/deadlines" element={<Deadlines />} />
+        <Route path="/court-actions" element={<CourtActions />} />
+        <Route path="/wizard" element={<ActionWizard />} />
+        <Route path="/compass" element={<CompassPage />} />
+        <Route path="/resources" element={<ResourceLibrary />} />
+        <Route path="/documents" element={<DocumentVault />} />
+        <Route path="/admin" element={<AdminTools />} />
+        <Route path="/superadmin" element={<SuperAdminDashboard />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<PageNotFound />} />
     </Routes>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <a href="#main-content" className="skip-to-main">Skip to main content</a>
+          <AuthenticatedApp />
+        </Router>
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
