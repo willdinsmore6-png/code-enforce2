@@ -5,8 +5,10 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 
-// --- FIXED IMPORTS: Using direct relative paths ---
+// --- FIXED IMPORT: Matches your lowercase 'layout' folder exactly ---
 import AppLayout from './components/layout/AppLayout';
+
+// Original Page Imports
 import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
@@ -60,17 +62,14 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // --- FIXED ROUTER: No <Router> tag here anymore ---
   return (
     <Routes>
-      {/* Public routes */}
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       
-      {/* Protected Routes with Sidebar Layout */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
@@ -96,7 +95,6 @@ export default function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
-        {/* Only ONE Router wrapper at the top level */}
         <Router>
           <a href="#main-content" className="skip-to-main">Skip to main content</a>
           <AuthenticatedApp />
