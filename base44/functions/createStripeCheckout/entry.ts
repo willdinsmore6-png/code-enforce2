@@ -10,12 +10,13 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { town_id } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const { town_id } = body;
     if (!town_id) return Response.json({ error: 'town_id is required' }, { status: 400 });
 
     const town = await base44.asServiceRole.entities.TownConfig.get(town_id);
     
-    // 1. DEDUPLICATION: Check if customer already exists in Stripe
+    // Deduplicate Stripe Customers
     const existing = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId = existing.data.length > 0 ? existing.data[0].id : null;
 
@@ -28,13 +29,13 @@ Deno.serve(async (req) => {
       customerId = customer.id;
     }
 
-    // 2. CREATE SESSION: With Metadata bridge
     const origin = "https://code-enforce.com";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/?subscription=success`,
+      // POINTING TO SUCCESS PAGE
+      success_url: `${origin}/success`, 
       cancel_url: `${origin}/subscribe?canceled=true`,
       metadata: { town_id: String(town_id) },
       subscription_data: { metadata: { town_id: String(town_id) } }
@@ -42,6 +43,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ url: session.url });
   } catch (error) {
+    console.error('Stripe Error:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
