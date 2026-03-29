@@ -2,20 +2,20 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// --- THE CRITICAL FIX: Direct relative path bypassing all aliases ---
-import AppLayout from './components/AppLayout'; 
+// --- THE DEFINITIVE FIX: Absolute path with explicit extension ---
+import AppLayout from '/src/components/AppLayout.jsx'; 
 
-// Original Page Imports Restored
-import Dashboard from './pages/Dashboard';
-import Cases from './pages/Cases';
-import Investigations from './pages/Investigations';
-import AdminTools from './pages/AdminTools';
-import Profile from './pages/Profile';
+// Page Imports
+import Dashboard from '/src/pages/Dashboard.jsx';
+import Cases from '/src/pages/Cases.jsx';
+import Investigations from '/src/pages/Investigations.jsx';
+import AdminTools from '/src/pages/AdminTools.jsx';
+import Profile from '/src/pages/Profile.jsx';
 
 // Gatekeeper Pages
-import Subscribe from './pages/Subscribe';
-import Onboarding from './pages/Onboarding';
-import Success from './pages/Success';
+import Subscribe from '/src/pages/Subscribe.jsx';
+import Onboarding from '/src/pages/Onboarding.jsx';
+import Success from '/src/pages/Success.jsx';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -42,7 +42,7 @@ export default function App() {
   }, [user, loading, navigate, location.pathname]);
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
+    <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
     </div>
   );
@@ -54,7 +54,7 @@ export default function App() {
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
 
-      {/* --- RESTORED ORIGINAL ARCHITECTURE --- */}
+      {/* --- RESTORED: Your Original Sidebar Menu Structure --- */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
