@@ -1,35 +1,33 @@
 import { useEffect } from 'react';
-import { Routes, Route, useNavigate, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// Page Imports
-import Dashboard from './pages/Dashboard';
-import Subscribe from './pages/Subscribe';
-import Onboarding from './pages/Onboarding';
-import Success from './pages/Success';
-
-// --- THE FIX: Lowercase 'sidebar' and NO curly braces ---
-import Sidebar from '@/components/sidebar'; 
+// Your original Layout and Page imports
+import MainLayout from '@/components/layout/MainLayout';
+import Dashboard from '@/pages/Dashboard';
+import Cases from '@/pages/Cases';
+import Investigations from '@/pages/Investigations';
+import AdminTools from '@/pages/AdminTools';
+// The new gates we added
+import Subscribe from '@/pages/Subscribe';
+import Onboarding from '@/pages/Onboarding';
+import Success from '@/pages/Success';
 
 export default function App() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Supervisory / Preview Bypass
-  const isPreview = window.location.hostname.includes('base44.app') || 
-                    window.location.hostname.includes('localhost');
-  const isSuperadmin = user?.role === 'superadmin';
-
   useEffect(() => {
     if (loading || !user) return;
-    
-    // Bypass gates for superadmins and in the preview editor
-    if (isPreview || isSuperadmin) return;
+
+    // 1. RESTORED: Superadmin Bypass (This fixes your supervisory view)
+    if (user.role === 'superadmin') return;
 
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
+    // 2. The Gates (Only for regular users)
     if (!townId && location.pathname !== '/onboarding') {
       navigate('/onboarding');
     } else if (townId && !isActive) {
@@ -37,38 +35,30 @@ export default function App() {
         navigate('/subscribe');
       }
     }
-  }, [user, loading, navigate, location.pathname, isPreview, isSuperadmin]);
+  }, [user, loading, navigate, location.pathname]);
 
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  // Layout wrapper to inject the sidebar
-  const LayoutWrapper = () => (
-    <div className="flex h-screen bg-slate-900 overflow-hidden text-white">
-      <Sidebar user={user} /> 
-      <div className="flex-1 overflow-auto">
-        <Outlet />
-      </div>
-    </div>
-  );
+  if (loading) return <div className="h-screen bg-slate-900" />;
 
   return (
     <Routes>
+      {/* System Pages (No Sidebar) */}
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
-      
-      {/* Dashboard wrapped in Sidebar */}
-      <Route element={<LayoutWrapper />}>
+
+      {/* RESTORED: Your Original Nested Layout Structure */}
+      <Route element={<MainLayout />}>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/cases" element={<Cases />} />
+        <Route path="/investigations" element={<Investigations />} />
+        
+        {/* Only show Admin Tools in menu if user is admin/superadmin */}
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
+          <Route path="/admin" element={<AdminTools />} />
+        )}
       </Route>
-      
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
