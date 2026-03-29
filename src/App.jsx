@@ -2,23 +2,23 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// Page Imports
+// Import existing page components
 import Dashboard from './pages/Dashboard';
 import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
-import Login from './pages/Login';
 
 export default function App() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 1. Wait for Auth to finish loading
     if (loading || !user) return;
 
     const townId = user?.data?.town_id || user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // Logic: 1. No Town? -> Instructions. 2. Not Paid? -> Stripe.
+    // 2. Logic: No Town? -> Onboarding. 2. Not Paid? -> Subscribe.
     if (!townId) {
       navigate('/onboarding');
     } else if (!isActive) {
@@ -28,25 +28,33 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
+      <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="text-slate-400 text-sm animate-pulse">Loading CodeEnforce Pro...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      {/* Route for users waiting for admin setup */}
       <Route path="/onboarding" element={<Onboarding />} />
+      
+      {/* Route for users who need to pay */}
       <Route path="/subscribe" element={<Subscribe />} />
       
-      {/* Protected Dashboard Route */}
+      {/* Main Dashboard - If not logged in, redirect to Base44 Auth */}
       <Route 
         path="/" 
         element={user ? <Dashboard /> : <Navigate to="/login" />} 
       />
+
+      {/* Fallback Login Route (Uses built-in div if file is missing) */}
+      <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
       
-      {/* Redirect everything else to Home/Dashboard */}
+      {/* Catch-all: Send back to Home */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
