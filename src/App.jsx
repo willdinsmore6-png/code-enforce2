@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
 // Page Imports
@@ -8,21 +8,23 @@ import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
 import Success from './pages/Success';
 
-// Layout Component (This is what provides your menu)
-import MainLayout from './components/MainLayout'; // Ensure this matches your component's name
+// Layout Component
+import Sidebar from './components/Sidebar'; 
 
 export default function App() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Development/Preview Bypass
+  // supervisory / Preview Bypass
   const isPreview = window.location.hostname.includes('base44.app') || 
                     window.location.hostname.includes('localhost');
   const isSuperadmin = user?.role === 'superadmin';
 
   useEffect(() => {
     if (loading) return;
+    
+    // Bypass gates for superadmins and in the preview editor
     if (isPreview || isSuperadmin) return;
 
     if (user) {
@@ -39,22 +41,39 @@ export default function App() {
     }
   }, [user, loading, navigate, location.pathname, isPreview, isSuperadmin]);
 
-  if (loading) return <div className="h-screen bg-slate-900" />;
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Wrapper that puts the Sidebar back on the screen
+  const LayoutWrapper = () => (
+    <div className="flex h-screen bg-slate-900 overflow-hidden">
+      {/* This renders your original navigation menu */}
+      <Sidebar user={user} /> 
+      <div className="flex-1 overflow-auto">
+        <Outlet />
+      </div>
+    </div>
+  );
 
   return (
     <Routes>
-      {/* Pages without a sidebar (Onboarding/Payment) */}
+      {/* Pages WITHOUT the sidebar (Onboarding & Payments) */}
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
       
       {/* Pages WITH the sidebar menu */}
-      <Route element={<MainLayout />}>
+      <Route element={<LayoutWrapper />}>
         <Route path="/" element={<Dashboard />} />
-        {/* Add other protected routes here */}
       </Route>
       
+      {/* Fallback redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
