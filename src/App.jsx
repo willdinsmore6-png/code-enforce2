@@ -2,20 +2,20 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 
-// --- THE CRITICAL FIX: Verified Path & Case Sensitivity ---
-import AppLayout from '@/components/AppLayout'; 
+// --- THE CRITICAL FIX: Direct relative path bypassing all aliases ---
+import AppLayout from './components/AppLayout'; 
 
 // Original Page Imports Restored
-import Dashboard from '@/pages/Dashboard';
-import Cases from '@/pages/Cases';
-import Investigations from '@/pages/Investigations';
-import AdminTools from '@/pages/AdminTools';
-import Profile from '@/pages/Profile';
+import Dashboard from './pages/Dashboard';
+import Cases from './pages/Cases';
+import Investigations from './pages/Investigations';
+import AdminTools from './pages/AdminTools';
+import Profile from './pages/Profile';
 
 // Gatekeeper Pages
-import Subscribe from '@/pages/Subscribe';
-import Onboarding from '@/pages/Onboarding';
-import Success from '@/pages/Success';
+import Subscribe from './pages/Subscribe';
+import Onboarding from './pages/Onboarding';
+import Success from './pages/Success';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -26,7 +26,6 @@ export default function App() {
     if (loading || !user) return;
 
     // --- SUPERADMIN BYPASS (Restores your "Supervisory" view) ---
-    // This allows you to see the dashboard even with a Null town ID.
     if (user.role === 'superadmin') return;
 
     const townId = user?.data?.town_id || user?.town_id;
@@ -43,21 +42,19 @@ export default function App() {
   }, [user, loading, navigate, location.pathname]);
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-sans">
+    <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
     </div>
   );
 
   return (
     <Routes>
-      {/* System Pages (No Sidebar/Menu) */}
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
       <Route path="/login" element={<div className="h-screen bg-slate-900" />} />
 
       {/* --- RESTORED ORIGINAL ARCHITECTURE --- */}
-      {/* All routes inside AppLayout will show your sidebar menu automatically */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
