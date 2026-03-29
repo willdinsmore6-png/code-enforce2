@@ -8,15 +8,15 @@ import Subscribe from './pages/Subscribe';
 import Onboarding from './pages/Onboarding';
 import Success from './pages/Success';
 
-// --- THE FIX: Using a relative path and curly braces for the named export ---
-import { Sidebar } from './components/sidebar'; 
+// --- THE FIX: Lowercase 'sidebar' and NO curly braces ---
+import Sidebar from '@/components/sidebar'; 
 
 export default function App() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // supervisory / Preview Bypass
+  // Supervisory / Preview Bypass
   const isPreview = window.location.hostname.includes('base44.app') || 
                     window.location.hostname.includes('localhost');
   const isSuperadmin = user?.role === 'superadmin';
