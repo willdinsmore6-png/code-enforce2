@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 
-// Layout & Custom Error Screens
+// Layout & Access Logic Components
 import AppLayout from './components/layout/AppLayout';
 import UnassignedUserScreen from './components/UnassignedUserScreen';
 import UserNotRegisteredError from './components/UserNotRegisteredError';
@@ -36,14 +36,23 @@ const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
   const navigate = useNavigate();
 
-  // 1. HARD GATES: Show custom screens if AuthContext flagged an error
-  if (authError) {
-    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
-    if (authError.type === 'unassigned_user') return <UnassignedUserScreen />;
-    if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
-  }
+  // --- HOOKS MUST REMAIN AT TOP LEVEL ---
+  useEffect(() => {
+    // Skip redirect logic if there's an authError or user is a SuperAdmin
+    if (!user || user.role === 'superadmin' || authError) return;
 
-  // 2. LOADING STATE: Prevents flickering during auth checks
+    const townId = user?.town_id;
+    const isActive = user?.municipality?.is_active;
+    const path = window.location.pathname;
+
+    // Handle standard user redirects for inactive municipalities
+    if (townId && !isActive) {
+      const isAllowed = ['/success', '/subscribe', '/public-portal', '/report'].includes(path);
+      if (!isAllowed) navigate('/subscribe');
+    }
+  }, [user, navigate, authError]);
+
+  // --- LOADING STATE ---
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
@@ -52,23 +61,16 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // 3. INTERNAL REDIRECTS: Logic for standard users (Superadmin bypassed)
-  useEffect(() => {
-    if (!user || user.role === 'superadmin') return;
-
-    const townId = user?.town_id;
-    const isActive = user?.municipality?.is_active;
-    const path = window.location.pathname;
-
-    if (townId && !isActive) {
-      const isAllowed = ['/success', '/subscribe', '/public-portal', '/report'].includes(path);
-      if (!isAllowed) navigate('/subscribe');
-    }
-  }, [user, navigate]);
+  // --- ACCESS GATES (Moved after Hooks) ---
+  if (authError) {
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    if (authError.type === 'unassigned_user') return <UnassignedUserScreen />;
+    if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
+  }
 
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Public Pages */}
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
