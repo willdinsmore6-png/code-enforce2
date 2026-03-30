@@ -33,31 +33,31 @@ import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
   const navigate = useNavigate();
 
-  // --- 1. HOOKS AT TOP LEVEL (REQUIRED BY REACT) ---
+  // --- 1. HOOKS AT TOP LEVEL (NO EARLY RETURNS ABOVE THIS) ---
   useEffect(() => {
     const path = window.location.pathname;
     const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
 
-    // ACTION: If loading is finished and NO user is found, redirect to Base44 Login
+    // ACTION: If not loading and NO user, force redirect to login via URL
     if (!isLoadingAuth && !isLoadingPublicSettings && !user && !authError && !isPublicPath) {
-      navigateToLogin();
+      window.location.href = '/login'; 
       return;
     }
 
-    // Skip internal redirect logic if there's a hard authError or user is a SuperAdmin
+    // SuperAdmin Bypass: Let them through everything
     if (!user || user.role === 'superadmin' || authError) return;
 
     const townId = user?.town_id;
     const isActive = user?.municipality?.is_active;
 
-    // Redirect standard users if their municipality is inactive
+    // Redirect regular users if their town is inactive
     if (townId && !isActive && !isPublicPath) {
       navigate('/subscribe');
     }
-  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings, navigateToLogin]);
+  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings]);
 
   // --- 2. LOADING STATE ---
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -75,12 +75,16 @@ const AuthenticatedApp = () => {
     if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
   }
 
-  // --- 4. PREVENT RENDERING DASHBOARD/SIDEBAR IF NO USER ---
+  // --- 4. PREVENT RENDERING DASHBOARD FOR LOGGED OUT USERS ---
   const path = window.location.pathname;
   const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
   
   if (!user && !isPublicPath) {
-    return null; // Stop the dashboard shell from showing while redirecting
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
+        <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (
@@ -92,7 +96,7 @@ const AuthenticatedApp = () => {
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
 
-      {/* Protected Layout (Requires Login) */}
+      {/* Protected Layout */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
