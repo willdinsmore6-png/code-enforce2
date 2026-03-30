@@ -5,13 +5,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 
-// Layout & Access Logic Components
 import AppLayout from './components/layout/AppLayout';
 import UnassignedUserScreen from './components/UnassignedUserScreen';
 import UserNotRegisteredError from './components/UserNotRegisteredError';
 import PendingApprovalScreen from './components/PendingApprovalScreen';
 
-// Page Imports
 import Dashboard from './pages/Dashboard';
 import Cases from './pages/Cases';
 import CaseDetail from './pages/CaseDetail';
@@ -33,33 +31,31 @@ import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, municipality } = useAuth();
   const navigate = useNavigate();
 
-  // --- 1. HOOKS AT TOP LEVEL (NO EARLY RETURNS ABOVE THIS) ---
   useEffect(() => {
     const path = window.location.pathname;
     const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
 
-    // ACTION: If not loading and NO user, force redirect to login via URL
     if (!isLoadingAuth && !isLoadingPublicSettings && !user && !authError && !isPublicPath) {
       window.location.href = '/login'; 
       return;
     }
 
-    // SuperAdmin Bypass: Let them through everything
     if (!user || user.role === 'superadmin' || authError) return;
 
     const townId = user?.town_id;
-    const isActive = user?.municipality?.is_active;
-
-    // Redirect regular users if their town is inactive
-    if (townId && !isActive && !isPublicPath) {
-      navigate('/subscribe');
+    
+    // GUARD: Only evaluate the "Active" status once municipality data is actually loaded
+    if (townId && municipality && !isPublicPath) {
+      const isActive = String(municipality.is_active).toLowerCase() === 'true' || municipality.is_active === true;
+      if (!isActive) {
+        navigate('/subscribe');
+      }
     }
-  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings]);
+  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings, municipality]);
 
-  // --- 2. LOADING STATE ---
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
@@ -68,14 +64,12 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // --- 3. ACCESS GATES (ERROR SCREENS) ---
   if (authError) {
     if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
     if (authError.type === 'unassigned_user') return <UnassignedUserScreen />;
     if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
   }
 
-  // --- 4. PREVENT RENDERING DASHBOARD FOR LOGGED OUT USERS ---
   const path = window.location.pathname;
   const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
   
@@ -89,14 +83,12 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
 
-      {/* Protected Layout */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
