@@ -33,26 +33,33 @@ import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const navigate = useNavigate();
 
-  // --- HOOKS MUST REMAIN AT TOP LEVEL ---
+  // --- 1. HOOKS AT TOP LEVEL (REQUIRED BY REACT) ---
   useEffect(() => {
-    // Skip redirect logic if there's an authError or user is a SuperAdmin
+    const path = window.location.pathname;
+    const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
+
+    // ACTION: If loading is finished and NO user is found, redirect to Base44 Login
+    if (!isLoadingAuth && !isLoadingPublicSettings && !user && !authError && !isPublicPath) {
+      navigateToLogin();
+      return;
+    }
+
+    // Skip internal redirect logic if there's a hard authError or user is a SuperAdmin
     if (!user || user.role === 'superadmin' || authError) return;
 
     const townId = user?.town_id;
     const isActive = user?.municipality?.is_active;
-    const path = window.location.pathname;
 
-    // Handle standard user redirects for inactive municipalities
-    if (townId && !isActive) {
-      const isAllowed = ['/success', '/subscribe', '/public-portal', '/report'].includes(path);
-      if (!isAllowed) navigate('/subscribe');
+    // Redirect standard users if their municipality is inactive
+    if (townId && !isActive && !isPublicPath) {
+      navigate('/subscribe');
     }
-  }, [user, navigate, authError]);
+  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings, navigateToLogin]);
 
-  // --- LOADING STATE ---
+  // --- 2. LOADING STATE ---
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
@@ -61,23 +68,31 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // --- ACCESS GATES (Moved after Hooks) ---
+  // --- 3. ACCESS GATES (ERROR SCREENS) ---
   if (authError) {
     if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
     if (authError.type === 'unassigned_user') return <UnassignedUserScreen />;
     if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
   }
 
+  // --- 4. PREVENT RENDERING DASHBOARD/SIDEBAR IF NO USER ---
+  const path = window.location.pathname;
+  const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
+  
+  if (!user && !isPublicPath) {
+    return null; // Stop the dashboard shell from showing while redirecting
+  }
+
   return (
     <Routes>
-      {/* Public Pages */}
+      {/* Public Routes */}
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/subscribe" element={<Subscribe />} />
       <Route path="/success" element={<Success />} />
 
-      {/* Protected Layout */}
+      {/* Protected Layout (Requires Login) */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
