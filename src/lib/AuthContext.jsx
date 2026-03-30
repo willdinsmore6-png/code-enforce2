@@ -80,13 +80,21 @@ export const AuthProvider = ({ children }) => {
   const loadMunicipality = async (currentUser) => {
     try {
       const u = currentUser || user;
-      if (!u?.town_id) return;
+      if (!u?.town_id || u.town_id === 'Null') return;
+
       const config = await base44.entities.TownConfig.get(u.town_id);
+      
       if (config) {
-        setMunicipality(config);
+        // ROBUST CHECK: Handles both boolean true and string "true"
+        const isActuallyActive = String(config.is_active).toLowerCase() === 'true' || config.is_active === true;
+        
+        const updatedConfig = { ...config, is_active: isActuallyActive };
+        setMunicipality(updatedConfig);
+
         const path = window.location.pathname;
-        const isPublicRoute = ['/public-portal', '/report', '/subscribe'].some(r => path.startsWith(r));
-        if (!config.is_active && !isPublicRoute && u.role !== 'superadmin') {
+        const isPublicRoute = ['/public-portal', '/report', '/subscribe', '/success'].some(r => path.startsWith(r));
+
+        if (!isActuallyActive && !isPublicRoute && u.role !== 'superadmin') {
           window.location.href = '/subscribe';
         }
       }
