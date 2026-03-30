@@ -105,20 +105,18 @@ export const AuthProvider = ({ children }) => {
         setUser(currentUser);
         setIsAuthenticated(true);
 
-        // --- SUPERADMIN BYPASS ---
         if (currentUser.role === 'superadmin') {
           setIsLoadingAuth(false);
           return;
         }
 
-        // --- CUSTOM GATE LOGIC ---
         if (currentUser.status === 'pending') {
           setAuthError({ type: 'pending_approval', message: 'Waiting for admin approval' });
         } else if (!currentUser.town_id || currentUser.town_id === 'Null') {
           const path = window.location.pathname;
           const allowed = ['/subscribe', '/public-portal', '/report', '/onboarding'].some(r => path.startsWith(r));
           if (!allowed) {
-            setAuthError({ type: 'unassigned_user', message: 'Account not linked to a municipality' });
+            setAuthError({ type: 'unassigned_user', message: 'Account not linked' });
           }
         } else {
           await loadMunicipality(currentUser);
