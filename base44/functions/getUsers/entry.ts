@@ -5,34 +5,43 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     
+    // 1. Basic Security Check
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin' && user.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    // Read the params sent from the frontend
-    const { town_id: requestedTownId, all: showAll } = await req.json().catch(() => ({}));
-
-    // Grab EVERYONE using Service Role bypass
-    let users = await base44.asServiceRole.entities.User.list();
-
-    // Exclude the build account
-    users = users.filter(u => u.email !== 'will@buildwithme.biz');
-
-    // --- LOGIC CHANGE START ---
-    
-    // 1. If 'all' is true and user is superadmin, do NO filtering (Show Everyone)
-    if (showAll && user.role === 'superadmin') {
-      // Do nothing, keep the full list
-    } 
-    // 2. If a specific town is requested (Impersonation), filter by that town
-    else if (requestedTownId) {
-      users = users.filter(u => (u.town_id || u.data?.town_id) === requestedTownId);
-    } 
-    // 3. Otherwise, default to the user's own town (Standard Admin view)
-    else if (user.town_id && user.town_id !== 'Null') {
-      users = users.filter(u => (u.town_id || u.data?.town_id) === user.town_id);
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // --- LOGIC CHANGE END ---
+    // 2. Safely parse the "all: true" flag from the frontend
+    let params = {};
+    try {
+      const body = await req.json();
+      params = body || {};
+    } catch (e) {
+      params = {}; // Handle empty requests
+    }
+
+    const { town_id: requestedTownId, all: showAll } = params;
+
+    // 3. Fetch EVERYONE using the Service Role (Bypasses all RLS)
+    let users = await base44.asServiceRole.entities.User.list();
+
+    // 4. Filter the list based on the request
+    if (showAll === true && user.role === 'superadmin') {
+      // Return the full list (All 4 users)
+      console.log(`SuperAdmin viewing all users`);
+    } else if (requestedTownId) {
+      // Used for impersonation: only show users for that specific town
+      users = users.filter(u => (u.town_id || u.data?.town_id) === requestedTownId);
+    } else if (user.town_id && user.town_id !== 'Null') {
+      // Default: only show users in the same town as the logged-in admin
+      users = users.filter(u => (u.town_id || u.data?.town_id) === user.town_id);
+    } else {
+      // Show unassigned users if the admin has no town set
+      users = users.filter(u => !u.town_id || u.town_id === 'Null');
+    }
+
+    // Exclude the system build account from the list
+    users = users.filter(u => u.email !== 'will@buildwithme.biz');
 
     return Response.json({ users });
   } catch (error) {
