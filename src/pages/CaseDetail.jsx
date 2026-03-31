@@ -3,7 +3,28 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2, Download } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  FileText, 
+  Camera, 
+  Scale, 
+  Bell, 
+  Clock, 
+  MapPin, 
+  User, 
+  AlertTriangle, 
+  Copy, 
+  Globe, 
+  Pencil, 
+  Trash2, 
+  Download,
+  Gavel,
+  ShieldCheck,
+  History,
+  ChevronRight,
+  ExternalLink,
+  Loader2
+} from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
@@ -26,8 +47,6 @@ export default function CaseDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [generatedDocId, setGeneratedDocId] = useState(null);
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -78,33 +97,21 @@ export default function CaseDetail() {
   }
 
   async function updatePath(path) {
+    const dailyRate = path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : 0;
     await base44.entities.Case.update(id, { 
       compliance_path: path,
-      daily_penalty_rate: path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : caseData.daily_penalty_rate 
+      daily_penalty_rate: dailyRate 
     });
-    setCaseData(prev => ({ ...prev, compliance_path: path }));
-  }
-
-  async function handleDeleteCase() {
-    setDeleting(true);
-    await base44.functions.invoke('deleteCaseWithChildren', { case_id: id });
-    navigate('/cases');
+    setCaseData(prev => ({ ...prev, compliance_path: path, daily_penalty_rate: dailyRate }));
   }
 
   async function handleGeneratePDF() {
     setExportLoading(true);
-    setGeneratedDocId(null);
     try {
       const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
-      const { document_id } = response.data;
-      if (!document_id) throw new Error('No document ID returned');
-      setGeneratedDocId(document_id);
-    } catch (err) {
-      console.error('PDF generation failed:', err);
-      alert(`Generation failed: ${err.message}`);
-    } finally {
-      setExportLoading(false);
-    }
+      setGeneratedDocId(response.data.document_id);
+    } catch (err) { alert(`Generation failed: ${err.message}`); }
+    setExportLoading(false);
   }
 
   async function handleDownloadPDF() {
@@ -112,49 +119,12 @@ export default function CaseDetail() {
     setDownloadLoading(true);
     try {
       const response = await base44.functions.invoke('getCourtFilePDF', { document_id: generatedDocId });
-      const { signed_url, filename } = response.data;
-      if (!signed_url) throw new Error('No download URL returned');
-      const a = document.createElement('a');
-      a.href = signed_url;
-      a.download = filename || `${caseData.case_number || 'case'}-court-file.pdf`;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('PDF download failed:', err);
-      alert(`Download failed: ${err.message}`);
-    } finally {
-      setDownloadLoading(false);
-    }
+      window.open(response.data.signed_url, '_blank');
+    } catch (err) { alert(`Download failed: ${err.message}`); }
+    setDownloadLoading(false);
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-destructive font-medium mb-2">Error loading case</p>
-        <p className="text-muted-foreground text-sm mb-4">{error}</p>
-        <Link to="/cases" className="text-primary hover:underline text-sm inline-block">Back to cases</Link>
-      </div>
-    );
-  }
-
-  if (!caseData) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-muted-foreground">Case not found.</p>
-        <Link to="/cases" className="text-primary hover:underline text-sm mt-2 inline-block">Back to cases</Link>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
 
   const pathLabels = {
     none: 'Not Selected',
@@ -162,250 +132,159 @@ export default function CaseDetail() {
     superior_court_676_15: 'Path B: Superior Court (RSA 676:15)',
   };
 
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-  }
-
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
-      <h1 className="sr-only">Case Details</h1>
-      {/* Header */}
-      <div className="mb-6">
-        <Link to="/cases" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-3">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to cases
-        </Link>
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h2>
-            <div className="flex gap-2 mt-2">
-              <StatusBadge status={caseData.status} />
-              <StatusBadge status={caseData.priority} type="priority" />
-            </div>
-            <address className="text-muted-foreground flex items-center gap-1.5 not-italic mt-2">
-              <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> {caseData.property_address}
-            </address>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
-              {exportLoading ? <div className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              {exportLoading ? 'Generating...' : 'Generate PDF'}
-            </Button>
-            {generatedDocId && (
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadLoading} className="gap-1.5 border-green-200 text-green-600 hover:bg-green-50">
-                {downloadLoading ? <div className="w-3.5 h-3.5 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                {downloadLoading ? 'Downloading...' : 'Download PDF'}
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
-              <Pencil className="w-3.5 h-3.5" /> Edit Case
-            </Button>
-            {!deleteConfirm ? (
-              <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(true)} className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" /> Delete Case
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-red-600 font-medium">Are you sure?</span>
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDeleteCase}>
-                  {deleting ? 'Deleting...' : 'Yes, Delete'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
-              </div>
-            )}
-            <Select value={caseData.status} onValueChange={updateStatus}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Update status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="intake">Intake</SelectItem>
-                <SelectItem value="investigation">Investigation</SelectItem>
-                <SelectItem value="notice_sent">Notice Sent</SelectItem>
-                <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
-                <SelectItem value="in_compliance">In Compliance</SelectItem>
-                <SelectItem value="citation_issued">Citation Issued</SelectItem>
-                <SelectItem value="court_action">Court Action</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Key Info Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <InfoCard icon={User} label="Owner" value={caseData.property_owner_name || '—'} />
-        <InfoCard icon={AlertTriangle} label="Violation" value={caseData.violation_type?.replace('_', ' ') || '—'} />
-        <InfoCard icon={Clock} label="Abatement Deadline" value={caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : '—'} />
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-2 mb-1.5">
-            <User className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Assigned Officer</span>
-          </div>
-          <div>
-            <Select value={caseData.assigned_officer || ''} onValueChange={async (v) => {
-              await base44.entities.Case.update(id, { assigned_officer: v || null });
-              setCaseData(prev => ({ ...prev, assigned_officer: v || null }));
-            }}>
-              <SelectTrigger className="h-auto text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>— Unassigned —</SelectItem>
-                {users.map(u => (
-                  <SelectItem key={u.id} value={u.email}>{u.full_name} ({u.email})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Public Access Code */}
-      {caseData.public_access_code && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+      {/* Breadcrumb & Quick Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <Link to="/cases" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary flex items-center gap-2 mb-4">
+            <ArrowLeft className="w-4 h-4" /> Back to Registry
+          </Link>
           <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">Public Portal Access Code</p>
-              <p className="text-xs text-blue-600 mt-0.5">Share this code with the property owner so they can check their case status at the Public Portal page</p>
-            </div>
+            <h2 className="text-3xl font-black tracking-tight">{caseData.case_number || `CASE-${id.slice(0, 5).toUpperCase()}`}</h2>
+            <StatusBadge status={caseData.status} className="scale-110 shadow-sm" />
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
-              {caseData.public_access_code}
-            </span>
-            <button
-              onClick={() => copyToClipboard(caseData.public_access_code)}
-              className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
-              title="Copy code"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
+          <p className="text-muted-foreground flex items-center gap-2 mt-2 font-medium">
+            <MapPin className="w-4 h-4 text-primary" /> {caseData.property_address}
+          </p>
         </div>
-      )}
 
-      {/* Compliance Path Selector */}
-      {caseData.compliance_path === 'none' && caseData.status !== 'intake' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-          <h3 className="font-semibold text-amber-800 mb-2">Select Compliance Path</h3>
-          <p className="text-sm text-amber-700 mb-4">Choose the enforcement path for this violation:</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" onClick={() => updatePath('citation_676_17b')} className="border-amber-300 hover:bg-amber-100">
-              Path A: Land Use Citation (RSA 676:17-b)
+        <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2">
+                <Pencil className="w-4 h-4" /> Edit
             </Button>
-            <Button variant="outline" onClick={() => updatePath('superior_court_676_15')} className="border-amber-300 hover:bg-amber-100">
-              Path B: Superior Court (RSA 676:15)
+            <Button onClick={handleGeneratePDF} disabled={exportLoading} className="gap-2 shadow-lg shadow-primary/20">
+                {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gavel className="w-4 h-4" />}
+                Export Court File
             </Button>
-          </div>
         </div>
-      )}
-
-      {/* Edit Modal */}
-      <EditCaseModal
-        caseData={caseData}
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSave={(updated) => setCaseData(updated)}
-      />
-
-      {/* Tabbed Content */}
-      <Tabs defaultValue="overview" className="space-y-4" aria-label="Case details tabs">
-        <TabsList className="bg-muted/50 p-1" role="tablist">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="notices">Notices ({notices.length})</TabsTrigger>
-          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold mb-3">Violation Description</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{caseData.violation_description}</p>
-            {caseData.specific_code_violated && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <span className="text-xs font-medium text-muted-foreground">Code Cited: </span>
-                <span className="text-sm font-medium">{caseData.specific_code_violated}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Assigned Officer */}
-          {caseData.assigned_officer && (
-            <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-3">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Assigned Officer (receives deadline alerts)</p>
-                <p className="text-sm font-medium">{caseData.assigned_officer}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Deadlines */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold mb-3">Deadlines</h3>
-            <div className="space-y-2">
-              {deadlines.map(d => (
-                <div key={d.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{d.description}</p>
-                    <p className="text-xs text-muted-foreground">{d.deadline_type.replace('_', ' ')}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm">{format(new Date(d.due_date), 'MMM d, yyyy')}</p>
-                    <StatusBadge status={d.priority} type="priority" />
-                  </div>
-                </div>
-              ))}
-              {deadlines.length === 0 && <p className="text-sm text-muted-foreground">No deadlines set.</p>}
-            </div>
-          </div>
-
-          {/* Court Actions */}
-          {courtActions.length > 0 && (
-            <div className="bg-card rounded-xl border border-border p-5">
-              <h3 className="font-semibold mb-3">Court Actions</h3>
-              <div className="space-y-2">
-                {courtActions.map(ca => (
-                  <div key={ca.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{ca.action_type.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-muted-foreground">{ca.court_type.replace('_', ' ')} • {ca.docket_number || 'No docket #'}</p>
-                    </div>
-                    <StatusBadge status={ca.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Case Notes */}
-          <CaseNotes caseId={id} caseNumber={caseData.case_number} />
-        </TabsContent>
-
-        <TabsContent value="notices">
-          <CaseNotices caseId={id} caseData={caseData} notices={notices} setNotices={setNotices} />
-        </TabsContent>
-
-        <TabsContent value="documents">
-          <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
-        </TabsContent>
-
-        <TabsContent value="timeline">
-          <CaseTimeline caseData={caseData} investigations={investigations} notices={notices} courtActions={courtActions} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function InfoCard({ icon: Icon, label, value }) {
-  return (
-    <div className="bg-card rounded-xl border border-border p-4">
-      <div className="flex items-center gap-2 mb-1.5">
-        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-sm font-semibold capitalize">{value}</p>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Main Content: Tabs */}
+        <div className="lg:col-span-2 space-y-6">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="bg-muted/50 p-1 rounded-xl mb-6">
+              <TabsTrigger value="overview" className="rounded-lg px-6">Overview</TabsTrigger>
+              <TabsTrigger value="notices" className="rounded-lg px-6">Notices</TabsTrigger>
+              <TabsTrigger value="documents" className="rounded-lg px-6">Smart Vault</TabsTrigger>
+              <TabsTrigger value="timeline" className="rounded-lg px-6">History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6 outline-none">
+              <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-6 flex items-center gap-2">
+                    <Info className="w-4 h-4" /> Core Violation Facts
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Property Owner</p>
+                            <div className="flex items-center gap-2 font-bold text-slate-800">
+                                <User className="w-4 h-4 text-primary" /> {caseData.property_owner_name || 'N/A'}
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Violation Type</p>
+                            <p className="font-bold text-slate-800 bg-muted px-2 py-1 rounded inline-block text-sm uppercase">
+                                {caseData.violation_type?.replace('_', ' ')}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Compliance Path</p>
+                            <Select value={caseData.compliance_path || 'none'} onValueChange={updatePath}>
+                                <SelectTrigger className="h-9 font-bold border-primary/20 bg-primary/5 text-primary">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Select Path...</SelectItem>
+                                    <SelectItem value="citation_676_17b">Path A: Citation (RSA 676:17-b)</SelectItem>
+                                    <SelectItem value="superior_court_676_15">Path B: Superior Court (RSA 676:15)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {caseData.daily_penalty_rate > 0 && (
+                            <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg flex items-center justify-between">
+                                <span className="text-xs font-bold text-amber-800 uppercase">Penalty Accrual</span>
+                                <span className="text-sm font-black text-amber-900">${caseData.daily_penalty_rate}/day</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+              </div>
+              <CaseNotes caseId={id} />
+            </TabsContent>
+
+            <TabsContent value="notices" className="outline-none">
+              <CaseNotices caseId={id} />
+            </TabsContent>
+
+            <TabsContent value="documents" className="outline-none">
+              <CaseDocuments caseId={id} municipalityId={caseData.town_id} userEmail={users.find(u => u.id === caseData.assigned_to)?.email} />
+            </TabsContent>
+
+            <TabsContent value="timeline" className="outline-none">
+              <CaseTimeline caseId={id} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Sidebar: Status Controls */}
+        <div className="space-y-6">
+          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary/20 rounded-full blur-2xl" />
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" /> Lifecycle Control
+            </h3>
+            <div className="space-y-4 relative z-10">
+                <div>
+                    <Label className="text-[10px] uppercase font-black text-white/40 mb-2 block">Current Status</Label>
+                    <Select value={caseData.status} onValueChange={updateStatus}>
+                        <SelectTrigger className="bg-white/10 border-white/10 text-white h-11 font-bold">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {['intake', 'investigation', 'notice_sent', 'awaiting_response', 'citation_issued', 'court_action', 'resolved', 'closed'].map(s => (
+                                <SelectItem key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="pt-4 border-t border-white/10">
+                    <p className="text-[10px] font-bold text-white/40 leading-relaxed italic">
+                        Updating status will trigger an audit log entry. Ensure all evidence is filed before moving to 'Court Action'.
+                    </p>
+                </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Urgent Deadlines</h3>
+            <div className="space-y-3">
+                {deadlines.length > 0 ? deadlines.slice(0, 3).map(d => (
+                    <div key={d.id} className="p-3 bg-muted/50 rounded-xl border border-border flex items-center justify-between">
+                        <div className="min-w-0">
+                            <p className="text-xs font-bold truncate">{d.description}</p>
+                            <p className="text-[10px] text-muted-foreground">{format(new Date(d.due_date), 'MMM d, yyyy')}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                )) : (
+                    <p className="text-xs text-muted-foreground italic text-center py-4">No active deadlines.</p>
+                )}
+                <Link to="/deadlines">
+                    <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest mt-2 hover:bg-primary/5">
+                        Manage All Deadlines
+                    </Button>
+                </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <EditCaseModal open={editOpen} onOpenChange={setEditOpen} caseData={caseData} onSave={setCaseData} />
     </div>
   );
 }
