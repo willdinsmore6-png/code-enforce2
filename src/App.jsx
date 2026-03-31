@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { Clock, AlertTriangle } from 'lucide-react'; // Added icons
+import { Button } from '@/components/ui/button'; // Added button
 
 import AppLayout from './components/layout/AppLayout';
 import UnassignedUserScreen from './components/UnassignedUserScreen';
@@ -31,7 +33,7 @@ import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, municipality } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, municipality, appPublicSettings, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,7 +49,6 @@ const AuthenticatedApp = () => {
 
     const townId = user?.town_id;
     
-    // GUARD: Only evaluate the "Active" status once municipality data is actually loaded
     if (townId && municipality && !isPublicPath) {
       const isActive = String(municipality.is_active).toLowerCase() === 'true' || municipality.is_active === true;
       if (!isActive) {
@@ -55,6 +56,46 @@ const AuthenticatedApp = () => {
       }
     }
   }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings, municipality]);
+
+  // --- MAINTENANCE GUARD ---
+  const isMaintenanceActive = appPublicSettings?.is_maintenance_active === true;
+  const isSuperAdmin = user?.role === 'superadmin';
+  const path = window.location.pathname;
+  const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
+
+  // If maintenance is ON, and user is NOT a SuperAdmin, and they aren't on a public route: LOCK THEM OUT
+  if (isMaintenanceActive && !isSuperAdmin && !isPublicPath && !isLoadingPublicSettings && !isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full space-y-8 animate-in zoom-in-95 duration-500">
+          <div className="relative">
+            <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+              <Clock className="w-12 h-12 text-amber-500" />
+            </div>
+            <div className="absolute top-0 right-1/4 w-3 h-3 bg-red-500 rounded-full animate-ping" />
+          </div>
+
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black tracking-tight">System Update</h1>
+            <div className="h-1 w-12 bg-amber-500 mx-auto rounded-full" />
+            <p className="text-slate-400 text-lg leading-relaxed">
+              {appPublicSettings?.maintenance_notice || "We're currently fine-tuning the platform for a better experience."}
+            </p>
+          </div>
+
+          <div className="p-6 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
+            <p className="text-sm font-medium text-slate-300 italic">
+              Dashboard access is temporarily restricted.
+            </p>
+          </div>
+
+          <Button variant="ghost" onClick={() => logout()} className="text-slate-500 hover:text-white">
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -69,9 +110,6 @@ const AuthenticatedApp = () => {
     if (authError.type === 'unassigned_user') return <UnassignedUserScreen />;
     if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
   }
-
-  const path = window.location.pathname;
-  const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
   
   if (!user && !isPublicPath) {
     return (
@@ -118,7 +156,6 @@ export default function App() {
           <a href="#main-content" className="sr-only focus:not-sr-only">Skip to main content</a>
           <AuthenticatedApp />
         </Router>
-        <Toaster />
       </QueryClientProvider>
     </AuthProvider>
   );
