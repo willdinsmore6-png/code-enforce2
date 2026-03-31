@@ -106,14 +106,3 @@
     @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
   }
 }
-/* Fix for translucent blue box obstruction */
-.isolate {
-  -webkit-tap-highlight-color: transparent !important;
-  outline: none !important;
-}
-
-.pointer-events-none {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  pointer-events: none !important;
-}
