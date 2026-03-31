@@ -1,192 +1,138 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useAuth } from '@/lib/AuthContext';
-import { 
-  File, 
-  Upload, 
-  Search, 
-  Filter, 
-  Download, 
-  MoreVertical, 
-  Image as ImageIcon, 
-  FileText, 
-  ShieldCheck, 
-  Trash2,
-  FolderOpen,
-  Loader2,
-  CheckCircle,
-  ExternalLink
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { Search, FolderOpen, FileText, Image, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
 export default function DocumentVault() {
-  const { municipality, user } = useAuth();
   const [documents, setDocuments] = useState([]);
+  const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [uploading, setUploading] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
-    loadDocuments();
-  }, [municipality]);
-
-  async function loadDocuments() {
-    setLoading(true);
-    // In a real app, you'd filter by town_id here
-    const docs = await base44.entities.Document.list('-created_at', 100);
-    setDocuments(docs);
-    setLoading(false);
-  }
-
-  async function handleFileUpload(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    setUploading(true);
-    try {
-      // Simulate bulk upload logic
-      for (let i = 0; i < files.length; i++) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file: files[i] });
-        await base44.entities.Document.create({
-          name: files[i].name,
-          url: file_url,
-          file_type: files[i].type,
-          size: files[i].size,
-          municipality_id: municipality?.id,
-          uploaded_by: user?.email
-        });
-      }
-      await loadDocuments();
-    } catch (err) {
-      console.error("Upload failed", err);
+    async function load() {
+      const [docs, c] = await Promise.all([
+        base44.entities.Document.list('-created_date', 100),
+        base44.entities.Case.list('-created_date', 100),
+      ]);
+      setDocuments(docs);
+      setCases(c);
+      setLoading(false);
     }
-    setUploading(false);
-  }
+    load();
+  }, []);
 
-  const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || doc.file_type?.includes(filterType);
+  const caseMap = {};
+  cases.forEach(c => { caseMap[c.id] = c; });
+
+  const typeLabels = {
+    complaint: 'Complaint', nov: 'NOV', photo: 'Photo', court_filing: 'Court Filing',
+    correspondence: 'Correspondence', warrant: 'Warrant', abatement_proof: 'Abatement Proof',
+    citation: 'Citation', attorney_notes: 'Attorney Notes', other: 'Other',
+  };
+
+  const filtered = documents.filter(doc => {
+    const linkedCase = caseMap[doc.case_id];
+    const matchesSearch = !searchTerm ||
+      doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      linkedCase?.property_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      linkedCase?.case_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = typeFilter === 'all' || doc.document_type === typeFilter;
     return matchesSearch && matchesType;
   });
 
-  const getFileIcon = (type) => {
-    if (type?.includes('image')) return <ImageIcon className="w-5 h-5 text-blue-500" />;
-    if (type?.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />;
-    return <File className="w-5 h-5 text-slate-400" />;
-  };
+  // Group by property address
+  const grouped = {};
+  filtered.forEach(doc => {
+    const linkedCase = caseMap[doc.case_id];
+    const key = linkedCase?.property_address || 'Unlinked';
+    if (!grouped[key]) grouped[key] = { caseData: linkedCase, docs: [] };
+    grouped[key].docs.push(doc);
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Document Vault" 
-        description={`Secure storage for evidence, notices, and legal filings in ${municipality?.town_name || 'your town'}.`}
-      />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+      <PageHeader title="Document Vault" description="All documents indexed by property address" />
 
-      {/* --- Upload & Filter Bar --- */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-6 rounded-2xl border border-border shadow-sm">
-        <div className="flex flex-1 gap-3 w-full">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search files..." 
-              className="pl-10 h-11"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[180px] h-11">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Files</SelectItem>
-              <SelectItem value="image">Images/Photos</SelectItem>
-              <SelectItem value="pdf">PDF Documents</SelectItem>
-              <SelectItem value="video">Videos</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, address, or case #..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
-
-        <label className="w-full md:w-auto">
-          <Button variant="default" className="w-full h-11 px-6 shadow-lg shadow-primary/20 gap-2 pointer-events-none">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            {uploading ? "Uploading..." : "Upload New Files"}
-          </Button>
-          <input type="file" className="hidden" multiple onChange={handleFileUpload} disabled={uploading} />
-        </label>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {Object.entries(typeLabels).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* --- File Grid --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {loading ? (
-            Array(10).fill(0).map((_, i) => (
-                <div key={i} className="h-48 bg-muted rounded-2xl animate-pulse" />
-            ))
-        ) : filteredDocs.length === 0 ? (
-            <div className="col-span-full py-20 text-center bg-muted/30 rounded-3xl border-2 border-dashed border-border">
-                <FolderOpen className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-                <h3 className="text-lg font-bold">The vault is empty</h3>
-                <p className="text-sm text-muted-foreground">Upload property photos or legal notices to get started.</p>
-            </div>
-        ) : filteredDocs.map(doc => (
-          <div key={doc.id} className="group bg-card rounded-2xl border border-border p-4 hover:shadow-xl hover:border-primary/30 transition-all flex flex-col relative overflow-hidden">
-            {/* Status Indicators */}
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                </Button>
-            </div>
-
-            <div className="aspect-square mb-4 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-colors overflow-hidden">
-                {doc.file_type?.includes('image') ? (
-                    <img src={doc.url} className="w-full h-full object-cover" alt={doc.name} />
-                ) : (
-                    getFileIcon(doc.file_type)
+      <div className="space-y-6">
+        {Object.entries(grouped).map(([address, { caseData: linkedCase, docs }]) => (
+          <div key={address} className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/30 flex items-center gap-3">
+              <FolderOpen className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-sm font-semibold">{address}</p>
+                {linkedCase && (
+                  <Link to={`/cases/${linkedCase.id}`} className="text-xs text-primary hover:underline">
+                    {linkedCase.case_number}
+                  </Link>
                 )}
+              </div>
+              <span className="ml-auto text-xs text-muted-foreground">{docs.length} document{docs.length !== 1 ? 's' : ''}</span>
             </div>
-
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold truncate pr-6" title={doc.name}>{doc.name}</p>
-                <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
-                        {format(new Date(doc.created_at), 'MMM d, yyyy')}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                        {(doc.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
+            <div className="divide-y divide-border">
+              {docs.map(doc => (
+                <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    {doc.document_type === 'photo' ? <Image className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{doc.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {typeLabels[doc.document_type]} • v{doc.version}
+                      {doc.created_date && ` • ${format(new Date(doc.created_date), 'MMM d, yyyy')}`}
+                    </p>
+                  </div>
+                  {doc.file_url && (
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                      <Download className="w-4 h-4" />
+                    </a>
+                  )}
                 </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-full bg-green-500/10 flex items-center justify-center">
-                        <CheckCircle className="w-3 h-3 text-green-600" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">Verified</span>
-                </div>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10">
-                        <ExternalLink className="w-4 h-4" />
-                    </Button>
-                </a>
+              ))}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* --- Town Governance Footer --- */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex gap-4 items-center shadow-inner">
-        <ShieldCheck className="w-6 h-6 text-primary" />
-        <div>
-            <h4 className="text-sm font-bold text-slate-800">Retention Policy Enforcement</h4>
-            <p className="text-xs text-slate-500">Documents in this vault are stored according to your town's state retention schedule. Only authorized admins can permanently delete files.</p>
-        </div>
+        {Object.keys(grouped).length === 0 && (
+          <div className="text-center py-16 text-sm text-muted-foreground bg-card rounded-xl border border-border">
+            No documents found.
+          </div>
+        )}
       </div>
     </div>
   );
