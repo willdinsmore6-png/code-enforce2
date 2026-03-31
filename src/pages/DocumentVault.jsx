@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
+import { useAuth } from '@/lib/AuthContext'; // 1. ADDED: Import Auth context
 
 export default function DocumentVault() {
+  const { user } = useAuth(); // 2. ADDED: Access the current user object
   const [documents, setDocuments] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,16 +18,36 @@ export default function DocumentVault() {
 
   useEffect(() => {
     async function load() {
-      const [docs, c] = await Promise.all([
-        base44.entities.Document.list('-created_date', 100),
-        base44.entities.Case.list('-created_date', 100),
-      ]);
-      setDocuments(docs);
-      setCases(c);
-      setLoading(false);
+      // 3. ADDED: Safety check to ensure town_id exists before fetching
+      if (!user?.town_id) {
+        if (user) setLoading(false); 
+        return;
+      }
+
+      try {
+        // 4. UPDATED: Pass the town_id filter as the first argument to the list methods
+        const [docs, c] = await Promise.all([
+          base44.entities.Document.list(
+            { town_id: user.town_id }, // Filter object
+            '-created_date', 
+            100
+          ),
+          base44.entities.Case.list(
+            { town_id: user.town_id }, // Filter object
+            '-created_date', 
+            100
+          ),
+        ]);
+        setDocuments(docs);
+        setCases(c);
+      } catch (error) {
+        console.error("Failed to load vaulted documents:", error);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [user?.town_id]); // 5. UPDATED: Re-run if the user switches towns (impersonation)
 
   const caseMap = {};
   cases.forEach(c => { caseMap[c.id] = c; });
@@ -130,7 +152,7 @@ export default function DocumentVault() {
         ))}
         {Object.keys(grouped).length === 0 && (
           <div className="text-center py-16 text-sm text-muted-foreground bg-card rounded-xl border border-border">
-            No documents found.
+            No documents found for your municipality.
           </div>
         )}
       </div>
