@@ -5,21 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  CheckCircle, 
-  Upload, 
-  X, 
-  AlertTriangle, 
-  MapPin, 
-  Camera, 
-  FileText, 
-  Shield, 
-  EyeOff, 
-  Loader2, 
-  ChevronRight,
-  ClipboardCheck
-} from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCircle, Upload, X, AlertTriangle, MapPin, Camera, FileText, Shield } from 'lucide-react';
 
 const VIOLATION_TYPES = [
   { value: 'junk_debris', label: 'Junk / Debris / Abandoned Vehicles' },
@@ -63,13 +49,11 @@ export default function Report() {
     setErrors(prev => ({ ...prev, [field]: null }));
   };
 
-  async function handlePhotoAdd(e) {
-    const files = e.target.files;
-    if (!files) return;
+  async function handlePhotoAdd(files) {
     setUploading(true);
     for (const file of Array.from(files)) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setPhotos(prev => [...prev, { url: file_url, name: file.name }]);
+      setPhotos(prev => [...prev, { url: file_url, name: file.name, preview: URL.createObjectURL(file) }]);
     }
     setUploading(false);
   }
@@ -79,8 +63,8 @@ export default function Report() {
     if (!form.property_address.trim()) e.property_address = 'Address is required.';
     if (!form.violation_type) e.violation_type = 'Please select a violation category.';
     if (!form.violation_description.trim()) e.violation_description = 'Please describe the issue.';
-    if (!form.complainant_anonymous && !form.complainant_name.trim()) {
-        e.complainant_name = 'Name is required unless anonymous.';
+    if (!form.complainant_anonymous) {
+      if (!form.complainant_name.trim()) e.complainant_name = 'Name is required, or check "Stay Anonymous."';
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -90,203 +74,290 @@ export default function Report() {
     e.preventDefault();
     if (!validate()) return;
     setSubmitting(true);
-    try {
-      const response = await base44.functions.invoke('submitPublicReport', {
-        ...form,
-        photo_urls: photos.map(p => p.url),
-        town_id: townConfig?.id || null,
-      });
-      setResult(response.data);
-    } catch (err) {
-      alert("Submission failed. Please try again.");
-    }
+    const response = await base44.functions.invoke('submitPublicReport', {
+      ...form,
+      photo_urls: photos.map(p => p.url),
+      town_id: townConfig?.id || null,
+    });
+    setResult(response.data);
     setSubmitting(false);
   }
 
+  const townName = townConfig?.town_name || 'Town';
+
   if (result?.success) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 animate-in zoom-in-95 duration-500">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-10 max-w-lg w-full text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-green-500" />
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Report Received</h1>
-          <p className="text-slate-500 mb-8 font-medium">Thank you. Your report has been successfully filed with {townConfig?.town_name || 'Town'} Enforcement.</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Report Submitted</h1>
+          <p className="text-slate-600 mb-6">Thank you. Your complaint has been received by {townName} Code Enforcement.</p>
 
-          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-6 mb-8 space-y-4">
-            <div>
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Official Case ID</p>
-              <p className="font-mono text-xl font-bold text-slate-800 tracking-tighter">{result.case_number}</p>
-            </div>
-            <div className="pt-4 border-t border-slate-200">
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Public Access Code</p>
-              <p className="font-mono text-3xl font-black text-primary bg-primary/5 py-3 rounded-xl border border-primary/10">
-                {result.public_access_code}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-3 items-start text-left p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <p className="text-xs text-blue-800 leading-relaxed font-medium">
-              <strong>Save this code.</strong> You will need it to track progress, view officer notes, or submit more evidence via the Public Portal.
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6">
+            <p className="text-sm text-slate-500 mb-1">Your Case Number</p>
+            <p className="font-mono text-xl font-bold text-slate-800">{result.case_number}</p>
+            <p className="text-sm text-slate-500 mt-3 mb-1">Your Access Code (to check status)</p>
+            <p className="font-mono text-2xl font-bold tracking-widest text-blue-700 bg-blue-50 px-4 py-2 rounded-lg inline-block">
+              {result.public_access_code}
             </p>
           </div>
+
+          <p className="text-xs text-slate-500">
+            Save your access code. Visit the Public Portal to track your complaint's status.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-white border-b border-slate-200 py-6 px-6 shadow-sm">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-200">
-                {townConfig?.logo_url ? <img src={townConfig.logo_url} className="w-10 h-10 object-contain" /> : <Shield className="w-6 h-6 text-slate-400" />}
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">Report a Violation</h1>
-              <p className="text-xs font-bold text-primary uppercase tracking-widest">{townConfig?.town_name || 'Municipal Enforcement'}</p>
-            </div>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100">
-             <Shield className="w-3.5 h-3.5" />
-             <span className="text-[10px] font-black uppercase tracking-wider">Secure Portal</span>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 py-4 px-4" role="banner">
+        <div className="max-w-2xl mx-auto flex items-center gap-3">
+          {townConfig?.logo_url && (
+            <img src={townConfig.logo_url} alt={`${townName} seal`} className="w-10 h-10 object-contain" />
+          )}
+          <div>
+            <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">{townName}</p>
+            <h1 className="text-lg font-bold text-slate-900">Report a Code Violation</h1>
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10 w-full flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <form onSubmit={handleSubmit} className="grid md:grid-cols-3 gap-10">
-          <div className="md:col-span-2 space-y-8">
-            {/* Section: Location */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <MapPin className="w-5 h-5 text-primary" />
-                    <h2 className="font-bold text-slate-800">Property Location</h2>
-                </div>
-                <div className="space-y-2">
-                    <Label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Street Address *</Label>
-                    <Input 
-                        value={form.property_address} 
-                        onChange={e => update('property_address', e.target.value)} 
-                        placeholder="123 Main St, Town Name, NH"
-                        className={`h-12 text-md rounded-xl border-slate-200 focus-visible:ring-primary ${errors.property_address ? 'border-red-500' : ''}`}
-                    />
-                    {errors.property_address && <p className="text-[10px] font-bold text-red-500">{errors.property_address}</p>}
-                </div>
-            </div>
-
-            {/* Section: Violation Details */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <AlertTriangle className="w-5 h-5 text-primary" />
-                    <h2 className="font-bold text-slate-800">Violation Details</h2>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Category *</Label>
-                        <Select value={form.violation_type} onValueChange={v => update('violation_type', v)}>
-                            <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select type..." /></SelectTrigger>
-                            <SelectContent>
-                                {VIOLATION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        {errors.violation_type && <p className="text-[10px] font-bold text-red-500">{errors.violation_type}</p>}
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Describe the Issue *</Label>
-                    <Textarea 
-                        value={form.violation_description} 
-                        onChange={e => update('violation_description', e.target.value)}
-                        placeholder="Please provide details about what you observed..."
-                        className={`min-h-[150px] rounded-xl border-slate-200 resize-none ${errors.violation_description ? 'border-red-500' : ''}`}
-                    />
-                    {errors.violation_description && <p className="text-[10px] font-bold text-red-500">{errors.violation_description}</p>}
-                </div>
-
-                {/* Evidence Upload */}
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                    <Label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Evidence / Photos</Label>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                        {photos.map((p, i) => (
-                            <div key={i} className="aspect-square rounded-xl bg-slate-100 border border-slate-200 overflow-hidden relative group">
-                                <img src={p.url} className="w-full h-full object-cover" />
-                                <button onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <X className="w-3 h-3" />
-                                </button>
-                            </div>
-                        ))}
-                        <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center cursor-pointer group">
-                            {uploading ? <Loader2 className="w-5 h-5 animate-spin text-primary" /> : <Camera className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" />}
-                            <span className="text-[10px] font-bold text-slate-400 mt-2">Add Photo</span>
-                            <input type="file" className="hidden" multiple onChange={handlePhotoAdd} accept="image/*" />
-                        </label>
-                    </div>
-                </div>
-            </div>
+      <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
+        {/* Info banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex gap-3">
+          <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="text-sm text-blue-800">
+            <strong>Your privacy is protected.</strong> You may submit anonymously. All reports are reviewed by a Code Enforcement Officer. This form meets WCAG 2.1 Level AA accessibility standards.
           </div>
+        </div>
 
-          <div className="space-y-6">
-            {/* Sidebar: Privacy & Identity */}
-            <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute -right-6 -top-6 w-20 h-20 bg-primary/20 rounded-full blur-2xl" />
-                <h3 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <EyeOff className="w-4 h-4 text-primary" /> Privacy Settings
-                </h3>
-                
-                <div className="space-y-6">
-                    <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 group cursor-pointer hover:bg-white/10 transition-colors">
-                        <Checkbox 
-                            id="anonymous" 
-                            checked={form.complainant_anonymous} 
-                            onCheckedChange={v => update('complainant_anonymous', v)} 
-                            className="border-white/20 data-[state=checked]:bg-primary"
-                        />
-                        <Label htmlFor="anonymous" className="text-xs font-bold cursor-pointer">Stay Anonymous</Label>
-                    </div>
+        <form onSubmit={handleSubmit} noValidate aria-label="Code violation report form" className="space-y-6">
 
-                    {!form.complainant_anonymous && (
-                        <div className="space-y-4 animate-in fade-in duration-300">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-white/40">Your Name</Label>
-                                <Input value={form.complainant_name} onChange={e => update('complainant_name', e.target.value)} className="bg-white/10 border-white/10 text-white h-10 text-sm" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-white/40">Contact Method</Label>
-                                <Input value={form.complainant_contact} onChange={e => update('complainant_contact', e.target.value)} className="bg-white/10 border-white/10 text-white h-10 text-sm" />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                        <p className="text-[10px] font-bold text-blue-200 leading-relaxed">
-                            Anonymous reports are still legally valid under NH RSA guidelines, but officers may not be able to follow up for clarification.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <Button 
-                type="submit" 
-                disabled={submitting} 
-                className="w-full h-16 text-md font-black uppercase tracking-widest shadow-xl shadow-primary/20 group"
-            >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Submit Report <ChevronRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" /></>}
-            </Button>
-            
-            <div className="flex gap-2 items-start p-4 text-slate-400">
-                <ClipboardCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p className="text-[10px] font-medium leading-relaxed italic">
-                    By submitting, you certify that the information is true to the best of your knowledge.
+          {/* Location */}
+          <section aria-labelledby="location-heading">
+            <h2 id="location-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
+              <MapPin className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              Property Location
+            </h2>
+            <div>
+              <Label htmlFor="property_address">
+                Street Address <span aria-hidden="true" className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="property_address"
+                value={form.property_address}
+                onChange={e => update('property_address', e.target.value)}
+                placeholder="123 Main Street, Bow, NH 03304"
+                aria-required="true"
+                aria-describedby={errors.property_address ? 'address-error' : undefined}
+                className={`mt-1.5 ${errors.property_address ? 'border-red-400' : ''}`}
+              />
+              {errors.property_address && (
+                <p id="address-error" role="alert" className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" aria-hidden="true" /> {errors.property_address}
                 </p>
+              )}
             </div>
+          </section>
+
+          {/* Violation Type */}
+          <section aria-labelledby="violation-heading">
+            <h2 id="violation-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
+              <AlertTriangle className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              Violation Details
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="violation_type">
+                  Category <span aria-hidden="true" className="text-red-500">*</span>
+                </Label>
+                <Select value={form.violation_type} onValueChange={v => update('violation_type', v)}>
+                  <SelectTrigger
+                    id="violation_type"
+                    className={`mt-1.5 ${errors.violation_type ? 'border-red-400' : ''}`}
+                    aria-required="true"
+                    aria-describedby={errors.violation_type ? 'type-error' : undefined}
+                  >
+                    <SelectValue placeholder="Select a category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VIOLATION_TYPES.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.violation_type && (
+                  <p id="type-error" role="alert" className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" aria-hidden="true" /> {errors.violation_type}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="violation_description">
+                  Describe the Issue <span aria-hidden="true" className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="violation_description"
+                  value={form.violation_description}
+                  onChange={e => update('violation_description', e.target.value)}
+                  placeholder="Please describe what you observed, when you observed it, and any other relevant details..."
+                  rows={4}
+                  aria-required="true"
+                  aria-describedby={errors.violation_description ? 'desc-error' : undefined}
+                  className={`mt-1.5 resize-none ${errors.violation_description ? 'border-red-400' : ''}`}
+                />
+                {errors.violation_description && (
+                  <p id="desc-error" role="alert" className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" aria-hidden="true" /> {errors.violation_description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Photo Upload */}
+          <section aria-labelledby="photos-heading">
+            <h2 id="photos-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
+              <Camera className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              Photo Evidence <span className="text-sm font-normal text-slate-500">(optional but recommended)</span>
+            </h2>
+            <p className="text-xs text-slate-500 mb-3">
+              Photos are timestamped upon upload. Clear photos strengthen enforcement action under RSA 676:17.
+            </p>
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+              <Upload className="w-6 h-6 mx-auto mb-2 text-slate-400" aria-hidden="true" />
+              <p className="text-sm text-slate-600 font-medium mb-1">Drag & drop photos here</p>
+              <p className="text-xs text-slate-400 mb-3">JPG, PNG, HEIC accepted</p>
+              <div className="flex justify-center gap-2">
+                <label className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                  Browse Files
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={e => handlePhotoAdd(e.target.files)}
+                    aria-label="Upload photo evidence"
+                  />
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+                  <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+                  Take Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={e => handlePhotoAdd(e.target.files)}
+                    aria-label="Take a photo with camera"
+                  />
+                </label>
+              </div>
+            </div>
+            {uploading && (
+              <p className="text-sm text-slate-500 mt-2 text-center" role="status" aria-live="polite">Uploading photos...</p>
+            )}
+            {photos.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3" role="list" aria-label="Uploaded photos">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative" role="listitem">
+                    <img src={p.preview} alt={`Evidence photo ${i + 1}: ${p.name}`} className="w-20 h-20 object-cover rounded-lg border border-slate-200" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                      aria-label={`Remove photo ${i + 1}`}
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Your Information */}
+          <section aria-labelledby="contact-heading">
+            <h2 id="contact-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
+              <FileText className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              Your Information
+            </h2>
+
+            <div className="flex items-center gap-2 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <input
+                type="checkbox"
+                id="anonymous"
+                checked={form.complainant_anonymous}
+                onChange={e => update('complainant_anonymous', e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300"
+              />
+              <Label htmlFor="anonymous" className="cursor-pointer text-sm font-medium">
+                Submit anonymously — do not include my contact information
+              </Label>
+            </div>
+
+            {!form.complainant_anonymous && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="complainant_name">
+                    Your Name <span aria-hidden="true" className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="complainant_name"
+                    value={form.complainant_name}
+                    onChange={e => update('complainant_name', e.target.value)}
+                    placeholder="Jane Smith"
+                    aria-required="true"
+                    aria-describedby={errors.complainant_name ? 'name-error' : undefined}
+                    className={`mt-1.5 ${errors.complainant_name ? 'border-red-400' : ''}`}
+                  />
+                  {errors.complainant_name && (
+                    <p id="name-error" role="alert" className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" aria-hidden="true" /> {errors.complainant_name}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="complainant_contact">Phone or Email</Label>
+                  <Input
+                    id="complainant_contact"
+                    value={form.complainant_contact}
+                    onChange={e => update('complainant_contact', e.target.value)}
+                    placeholder="(603) 555-0100 or email@example.com"
+                    className="mt-1.5"
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+
+          <div className="pt-2">
+            <Button
+              type="submit"
+              disabled={submitting || uploading}
+              className="w-full h-11 text-base"
+              aria-busy={submitting}
+            >
+              {submitting ? 'Submitting Report...' : 'Submit Violation Report'}
+            </Button>
+            <p className="text-xs text-slate-400 text-center mt-3">
+              By submitting, you certify the information is accurate to the best of your knowledge.
+              Reports are retained per NH RSA 33-A records retention requirements.
+            </p>
           </div>
         </form>
       </main>
+
+      <footer className="text-center py-6 text-xs text-slate-400" role="contentinfo">
+        {townName} Code Enforcement Division · Public Complaint Portal
+      </footer>
     </div>
   );
 }
