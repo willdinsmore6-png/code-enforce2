@@ -291,31 +291,37 @@ export default function SuperAdminDashboard() {
             const caseCount = systemMetrics.activityHeatmap[t.id] || 0;
             const trend = systemMetrics.townTrends[t.id] || Array(7).fill(0);
             return (
-              <div key={t.id} className={`bg-white border rounded-xl p-5 shadow-sm transition-all flex flex-col ${!t.is_active ? 'border-orange-200 bg-orange-50/20 grayscale-[0.3]' : 'hover:border-blue-400'}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center border shadow-inner">
-                    {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-cover" /> : <Building2 className="w-6 h-6 text-slate-400" />}
-                  </div>
-                  <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-md border shadow-sm">
-                    <Checkbox checked={t.is_active} onCheckedChange={() => setConfirmingTown(t)} />
-                    <Label className="text-[10px] font-bold uppercase cursor-pointer">{t.is_active ? 'Active' : 'Inactive'}</Label>
-                  </div>
-                </div>
-                <h3 className="font-bold text-lg leading-tight mb-1">{t.town_name}</h3>
-                <p className="text-[10px] font-mono text-slate-400 mb-4">{t.id}</p>
+              <div key={t.id} className={`bg-white border rounded-xl p-5 shadow-sm transition-all flex flex-col relative isolate ${!t.is_active ? 'border-orange-200 bg-orange-50/20 grayscale-[0.3]' : 'hover:border-blue-400'}`}>
+  <div className="flex justify-between items-start mb-4">
+    <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center border shadow-inner">
+      {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-cover" /> : <Building2 className="w-6 h-6 text-slate-400" />}
+    </div>
+    <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-md border shadow-sm">
+      <Checkbox checked={t.is_active} onCheckedChange={() => setConfirmingTown(t)} />
+      <Label className="text-[10px] font-bold uppercase cursor-pointer">{t.is_active ? 'Active' : 'Inactive'}</Label>
+    </div>
+  </div>
+  <h3 className="font-bold text-lg leading-tight mb-1">{t.town_name}</h3>
+  <p className="text-[10px] font-mono text-slate-400 mb-4">{t.id}</p>
 
-                {/* MINI ACTIVITY GRAPH */}
-                <div className="mb-4">
-                  <div className="flex justify-between items-end mb-1.5 px-0.5 text-[10px] font-bold text-slate-400 uppercase">
-                    <span>Activity Heat</span>
-                    <span className="text-blue-600">{caseCount} Cases</span>
-                  </div>
-                  <div className="flex items-end gap-0.5 h-8 bg-slate-50 rounded-md p-1 border">
-                    {trend.map((v, i) => (
-                      <div key={i} className="flex-1 bg-blue-400 rounded-t-[1px]" style={{ height: `${Math.max((v / (Math.max(...trend) || 1)) * 100, 5)}%` }} />
-                    ))}
-                  </div>
-                </div>
+  {/* FIXED MINI ACTIVITY GRAPH */}
+  <div className="mb-4 relative isolate">
+    <div className="flex justify-between items-end mb-1.5 px-0.5 text-[10px] font-bold text-slate-400 uppercase">
+      <span>Activity Heat</span>
+      <span className="text-blue-600">{caseCount} Cases</span>
+    </div>
+    {/* overflow-hidden and isolate prevent the blue bars from escaping this box */}
+    <div className="flex items-end gap-0.5 h-8 bg-slate-50 rounded-md p-1 border overflow-hidden">
+      {trend.map((v, i) => (
+        <div 
+          key={i} 
+          className="flex-1 bg-blue-500/40 rounded-t-[1px] pointer-events-none" 
+          style={{ height: `${Math.max((v / (Math.max(...trend) || 1)) * 100, 5)}%` }} 
+        />
+      ))}
+    </div>
+  </div>
+
 
                 <div className="mt-auto space-y-3">
                   <div className="flex items-center justify-between bg-slate-100/50 rounded-lg px-3 py-2 border">
