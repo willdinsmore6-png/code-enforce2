@@ -1,78 +1,27 @@
 import React from 'react';
-import { ShieldAlert, LogOut, Mail, RefreshCw, ChevronRight, Lock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
 
 const UserNotRegisteredError = () => {
-  const handleRefreshLogin = async () => {
-    await base44.auth.logout();
-    window.location.href = '/login';
-  };
-
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center p-6 font-sans selection:bg-blue-500/30 overflow-hidden relative">
-      
-      {/* Background Security Glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50%] h-[50%] bg-orange-500/5 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="max-w-md w-full bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-[40px] p-10 shadow-2xl text-center relative z-10 animate-in fade-in zoom-in-95 duration-700">
-        
-        {/* Animated Warning Icon */}
-        <div className="relative w-20 h-20 mx-auto mb-8">
-            <div className="absolute inset-0 bg-orange-500 rounded-2xl animate-ping opacity-10" />
-            <div className="relative w-full h-full bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-xl shadow-orange-900/40">
-                <ShieldAlert className="w-10 h-10 text-white" />
-            </div>
-        </div>
-        
-        <h1 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent leading-tight">
-            Access Restricted
-        </h1>
-        <p className="text-slate-400 mb-10 leading-relaxed text-sm font-medium">
-            Your current account credentials are not authorized for the **CodeEnforce Pro** environment.
-        </p>
-
-        {/* Diagnostic Box */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 text-left space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-500 flex items-center gap-2">
-                <Lock className="w-3 h-3" /> Security Protocol
-            </h3>
-            <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1.5" />
-                    <p className="text-[11px] text-slate-400 leading-normal">Ensure you are using your official <strong>.gov</strong> or municipal email address.</p>
-                </div>
-                <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1.5" />
-                    <p className="text-[11px] text-slate-400 leading-normal">New accounts must be manually whitelisted by a Super Administrator.</p>
-                </div>
-            </div>
-        </div>
-
-        <div className="space-y-3">
-            <Button 
-                onClick={handleRefreshLogin} 
-                className="w-full h-14 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-bold gap-2 group shadow-lg"
-            >
-                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" /> 
-                Try Different Account
-            </Button>
-            
-            <Button 
-                variant="ghost" 
-                className="w-full h-12 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 font-bold gap-2"
-                onClick={() => window.location.href = 'mailto:support@code-enforce.com'}
-            >
-                <Mail className="w-4 h-4" /> Contact Support
-            </Button>
-        </div>
-
-        {/* System Identifier */}
-        <div className="mt-10 pt-8 border-t border-slate-800/50 flex items-center justify-center gap-2 text-slate-600">
-            <ShieldAlert className="w-3 h-3" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Error Code: 403_UNAUTHORIZED</span>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-50">
+      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg border border-slate-100">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-orange-100">
+            <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-4">Access Restricted</h1>
+          <p className="text-slate-600 mb-8">
+            You are not registered to use this application. Please contact the app administrator to request access.
+          </p>
+          <div className="p-4 bg-slate-50 rounded-md text-sm text-slate-600">
+            <p>If you believe this is an error, you can:</p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>Verify you are logged in with the correct account</li>
+              <li>Contact the app administrator for access</li>
+              <li>Try logging out and back in again</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
