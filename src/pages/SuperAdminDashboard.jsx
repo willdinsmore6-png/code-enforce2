@@ -5,12 +5,20 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from '@/components/ui/dialog';
 import {
   Building2, Users, Plus, LogIn, Trash2, Shield, FileText,
-  AlertTriangle, CheckCircle, Loader2, UserPlus, X, Edit, Globe, Copy
+  AlertTriangle, CheckCircle, Loader2, UserPlus, X, Edit, Globe, Copy, Calendar
 } from 'lucide-react';
 
 const StatCard = ({ icon: Icon, label, value, color }) => {
@@ -39,6 +47,11 @@ export default function SuperAdminDashboard() {
   const [allUsers, setAllUsers] = useState([]);
   const [allCases, setAllCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Subscription Tracking State
+  const [confirmingTown, setConfirmingTown] = useState(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
   const [addTownOpen, setAddTownOpen] = useState(false);
   const [editTown, setEditTown] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -71,7 +84,32 @@ export default function SuperAdminDashboard() {
     setLoading(false);
   }
 
-  // --- RESTORED INTERACTIVE FUNCTIONS ---
+  // Helper to calculate days active based on created_date
+  const getDaysActive = (createdDate) => {
+    if (!createdDate) return 0;
+    const start = new Date(createdDate);
+    const now = new Date();
+    const diffTime = Math.abs(now - start);
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  async function handleToggleActive() {
+    if (!confirmingTown) return;
+    setIsUpdatingStatus(true);
+    try {
+      const newStatus = !confirmingTown.is_active;
+      await base44.entities.TownConfig.update(confirmingTown.id, { is_active: newStatus });
+      
+      setTowns(prev => prev.map(t => t.id === confirmingTown.id ? { ...t, is_active: newStatus } : t));
+      setConfirmingTown(null);
+    } catch (err) {
+      console.error("Status update failed:", err);
+      alert("Failed to update town status.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
+
   async function handleRoleChange(userId, newRole) {
     await base44.functions.invoke('updateUserRole', { userId, role: newRole });
     setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
@@ -119,7 +157,6 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* ... Stats Section ... */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon={Building2} label="Total Towns" value={towns.length} color="purple" />
         <StatCard icon={Users} label="Total Users" value={allUsers.length} color="blue" />
@@ -135,26 +172,54 @@ export default function SuperAdminDashboard() {
         </TabsList>
 
         <TabsContent value="towns" className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {towns.map(t => (
-            <div key={t.id} className="bg-white border rounded-xl p-5 shadow-sm">
-              <div className="flex justify-between items-start mb-4">
-                {/* RESTORED LOGO */}
-                <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
-                  {t.logo_url ? <img src={t.logo_url} alt="Logo" className="w-full h-full object-cover" /> : <Building2 className="w-6 h-6 text-slate-400" />}
+          {towns.map(t => {
+            const daysActive = getDaysActive(t.created_date);
+            return (
+              <div key={t.id} className={`bg-white border rounded-xl p-5 shadow-sm transition-all ${!t.is_active ? 'border-orange-200 bg-orange-50/20 grayscale-[0.5]' : ''}`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border">
+                    {t.logo_url ? <img src={t.logo_url} alt="Logo" className="w-full h-full object-cover" /> : <Building2 className="w-6 h-6 text-slate-400" />}
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2">
+                    {/* Subscription Status Toggle */}
+                    <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-md border shadow-sm">
+                      <Checkbox 
+                        id={`status-${t.id}`} 
+                        checked={t.is_active} 
+                        onCheckedChange={() => setConfirmingTown(t)}
+                      />
+                      <Label htmlFor={`status-${t.id}`} className="text-[10px] font-bold uppercase cursor-pointer">
+                        {t.is_active ? 'Active' : 'Inactive'}
+                      </Label>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(t.id)}><Copy className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}><LogIn className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => copyToClipboard(t.id)}><Copy className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => navigate('/')}><LogIn className="w-4 h-4" /></Button>
+
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="font-bold text-lg">{t.town_name}</h3>
+                  {/* --- NEW: DAYS ACTIVE BADGE --- */}
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[10px] font-bold">
+                    <Calendar className="w-3 h-3" />
+                    {daysActive} Days
+                  </div>
                 </div>
+                
+                <p className="text-xs text-muted-foreground mb-4">{t.state}</p>
+                <Button onClick={() => impersonateMunicipality(t)} className={`w-full ${t.is_active ? 'bg-slate-800' : 'bg-orange-600'}`}>
+                  {t.is_active ? 'Enter Town' : 'Troubleshoot Town'}
+                </Button>
               </div>
-              <h3 className="font-bold text-lg">{t.town_name}</h3>
-              <p className="text-xs text-muted-foreground mb-4">{t.state}</p>
-              <Button onClick={() => impersonateMunicipality(t)} className="w-full bg-slate-800">Enter Town</Button>
-            </div>
-          ))}
+            );
+          })}
         </TabsContent>
 
         <TabsContent value="users">
+          {/* ... existing users table code ... */}
           <div className="bg-white border rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b">
@@ -170,21 +235,27 @@ export default function SuperAdminDashboard() {
                   <tr key={u.id} className="hover:bg-slate-50/50">
                     <td className="p-4 font-medium">{u.email}</td>
                     <td className="p-4">
-                      {/* RESTORED TOWN ASSIGNMENT */}
-                      <Select value={u.town_id || 'none'} onValueChange={(val) => handleTownAssign(u.id, val === 'none' ? null : val)}>
-                        <SelectTrigger className="w-[180px] h-8 text-xs">
-                          <SelectValue placeholder="Assign Town" />
+                      <Select 
+                        value={u.town_id || "Null"} 
+                        onValueChange={(val) => handleTownAssign(u.id, val === "Null" ? null : val)}
+                      >
+                        <SelectTrigger className="h-8 w-[180px]">
+                          <SelectValue placeholder="No Town" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Unassigned</SelectItem>
-                          {towns.map(t => <SelectItem key={t.id} value={t.id}>{t.town_name}</SelectItem>)}
+                          <SelectItem value="Null">None (Unassigned)</SelectItem>
+                          {towns.map(t => (
+                            <SelectItem key={t.id} value={t.id}>{t.town_name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </td>
                     <td className="p-4">
-                      {/* RESTORED ROLE CHANGE */}
-                      <Select value={u.role || 'user'} onValueChange={(val) => handleRoleChange(u.id, val)}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs capitalize">
+                      <Select 
+                        value={u.role} 
+                        onValueChange={(val) => handleRoleChange(u.id, val)}
+                      >
+                        <SelectTrigger className="h-8 w-[120px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -195,7 +266,14 @@ export default function SuperAdminDashboard() {
                       </Select>
                     </td>
                     <td className="p-4 text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(u.id, u.email)} className="text-red-500 h-8 w-8"><Trash2 className="w-4 h-4" /></Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 h-8 w-8"
+                        onClick={() => handleRemoveUser(u.id, u.email)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -204,50 +282,87 @@ export default function SuperAdminDashboard() {
           </div>
         </TabsContent>
 
-        {/* RESTORED INVITE TAB */}
         <TabsContent value="invite">
-          <div className="max-w-md bg-white border rounded-xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><UserPlus className="w-5 h-5" /> Invite Global User</h2>
+          {/* ... existing invite form code ... */}
+          <div className="max-w-md bg-white border rounded-xl p-6">
+            <h2 className="text-lg font-bold mb-4">Invite New User</h2>
             <form onSubmit={handleInvite} className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Email Address</Label>
-                <Input type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="name@municipality.gov" />
+                <Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="officer@town.gov" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Role</Label>
+                <div className="space-y-1.5">
+                  <Label>Initial Role</Label>
                   <Select value={inviteRole} onValueChange={setInviteRole}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">User</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="superadmin">Superadmin</SelectItem>
+                      <SelectItem value="superadmin">SuperAdmin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Town</Label>
+                <div className="space-y-1.5">
+                  <Label>Assign Town</Label>
                   <Select value={inviteTownId} onValueChange={setInviteTownId}>
-                    <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select Town" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
+                      <SelectItem value="Null">None</SelectItem>
                       {towns.map(t => <SelectItem key={t.id} value={t.id}>{t.town_name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <Button type="submit" disabled={inviting} className="w-full bg-purple-700 hover:bg-purple-800">
-                {inviting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />} Invite User
+              <Button type="submit" className="w-full" disabled={inviting}>
+                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Invitation"}
               </Button>
               {inviteResult && (
-                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${inviteResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {inviteResult.success ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {inviteResult.message}
+                <div className={`p-3 rounded-lg text-sm ${inviteResult.success ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                  {inviteResult.message}
                 </div>
               )}
             </form>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Safety Prompt Dialog */}
+      <Dialog open={!!confirmingTown} onOpenChange={() => setConfirmingTown(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Confirm Status Change
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-slate-600">
+              You are about to {confirmingTown?.is_active ? <span className="text-red-600 font-bold">DEACTIVATE</span> : <span className="text-emerald-600 font-bold">ACTIVATE</span>} <strong>{confirmingTown?.town_name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="bg-slate-50 p-4 rounded-lg text-xs space-y-2 border">
+            {confirmingTown?.is_active ? (
+              <p>🚨 <strong>Warning:</strong> All users in this town will be locked out of their dashboards immediately and redirected to the subscription page.</p>
+            ) : (
+              <p>✅ <strong>Action:</strong> This will restore dashboard access for all authorized municipal staff.</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="ghost" onClick={() => setConfirmingTown(null)} disabled={isUpdatingStatus}>
+              Cancel
+            </Button>
+            <Button 
+              variant={confirmingTown?.is_active ? "destructive" : "default"} 
+              onClick={handleToggleActive}
+              disabled={isUpdatingStatus}
+            >
+              {isUpdatingStatus && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirm Change
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
