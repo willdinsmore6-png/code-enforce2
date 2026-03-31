@@ -18,16 +18,11 @@ export const AuthProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    if (window.location.pathname.includes('public-portal')) {
-      setIsLoadingAuth(false);
-      setIsLoadingPublicSettings(false);
-      setAuthError(null);
-      return;
-    }
     checkAppState();
   }, []);
 
   const checkAppState = async () => {
+    // Skip auth logic for public portals
     if (window.location.pathname.includes('public-portal')) {
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
@@ -47,6 +42,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       try {
+        // This is where maintenance status (is_maintenance_active) is fetched
         const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
         setAppPublicSettings(publicSettings);
 
@@ -85,15 +81,14 @@ export const AuthProvider = ({ children }) => {
       const config = await base44.entities.TownConfig.get(u.town_id);
       
       if (config) {
-        // ROBUST CHECK: Handles both boolean true and string "true"
         const isActuallyActive = String(config.is_active).toLowerCase() === 'true' || config.is_active === true;
-        
         const updatedConfig = { ...config, is_active: isActuallyActive };
         setMunicipality(updatedConfig);
 
         const path = window.location.pathname;
         const isPublicRoute = ['/public-portal', '/report', '/subscribe', '/success'].some(r => path.startsWith(r));
 
+        // Redirect logic for inactive towns (SuperAdmins are exempt)
         if (!isActuallyActive && !isPublicRoute && u.role !== 'superadmin') {
           window.location.href = '/subscribe';
         }
