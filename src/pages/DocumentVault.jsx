@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
-import { useAuth } from '@/lib/AuthContext'; // 1. ADDED: Import Auth context
+import { useAuth } from '@/lib/AuthContext'; // 1. Added this import
 
 export default function DocumentVault() {
-  const { user } = useAuth(); // 2. ADDED: Access the current user object
+  const { user } = useAuth(); // 2. Access the current user context
   const [documents, setDocuments] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,36 +18,28 @@ export default function DocumentVault() {
 
   useEffect(() => {
     async function load() {
-      // 3. ADDED: Safety check to ensure town_id exists before fetching
+      // 3. Safety check: If there's no town_id, don't fetch (prevents showing "all" data)
       if (!user?.town_id) {
-        if (user) setLoading(false); 
+        if (user) setLoading(false);
         return;
       }
 
       try {
-        // 4. UPDATED: Pass the town_id filter as the first argument to the list methods
+        // 4. Filter the list requests by the active user's town_id
         const [docs, c] = await Promise.all([
-          base44.entities.Document.list(
-            { town_id: user.town_id }, // Filter object
-            '-created_date', 
-            100
-          ),
-          base44.entities.Case.list(
-            { town_id: user.town_id }, // Filter object
-            '-created_date', 
-            100
-          ),
+          base44.entities.Document.list({ town_id: user.town_id }, '-created_date', 100),
+          base44.entities.Case.list({ town_id: user.town_id }, '-created_date', 100),
         ]);
         setDocuments(docs);
         setCases(c);
       } catch (error) {
-        console.error("Failed to load vaulted documents:", error);
+        console.error("Vault load error:", error);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user?.town_id]); // 5. UPDATED: Re-run if the user switches towns (impersonation)
+  }, [user?.town_id]); // 5. Added town_id as a dependency so it refreshes when you switch towns
 
   const caseMap = {};
   cases.forEach(c => { caseMap[c.id] = c; });
@@ -68,7 +60,6 @@ export default function DocumentVault() {
     return matchesSearch && matchesType;
   });
 
-  // Group by property address
   const grouped = {};
   filtered.forEach(doc => {
     const linkedCase = caseMap[doc.case_id];
@@ -152,7 +143,7 @@ export default function DocumentVault() {
         ))}
         {Object.keys(grouped).length === 0 && (
           <div className="text-center py-16 text-sm text-muted-foreground bg-card rounded-xl border border-border">
-            No documents found for your municipality.
+            No documents found for this municipality.
           </div>
         )}
       </div>
