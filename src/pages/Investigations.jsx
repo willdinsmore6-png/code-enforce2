@@ -7,86 +7,56 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { 
-  Plus, 
-  Camera, 
-  Upload, 
-  Pencil, 
-  X, 
-  FileText, 
-  Trash2, 
-  ShieldCheck, 
-  MapPin, 
-  CloudSun, 
-  User, 
-  Gavel,
-  ChevronRight,
-  ClipboardCheck,
-  Eye,
-  Loader2
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Camera, Upload, Pencil, X, FileText, Trash2 } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
 
-// --- PHOTO DROP ZONE COMPONENT ---
 function PhotoDropZone({ photos, setPhotos }) {
   const [dragging, setDragging] = useState(false);
 
   function onFileChange(e) {
-    if (e.target.files) {
-      setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
-    }
+    setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
     e.target.value = '';
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={e => { 
-          e.preventDefault(); 
-          setDragging(false); 
-          const files = Array.from(e.dataTransfer.files); 
-          if (files.length) setPhotos(prev => [...prev, ...files]); 
-        }}
-        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
-          dragging ? 'border-primary bg-primary/5 scale-[0.99]' : 'border-slate-200 hover:border-primary/40 hover:bg-slate-50'
-        }`}
+        onDrop={e => { e.preventDefault(); setDragging(false); const files = Array.from(e.dataTransfer.files); if (files.length) setPhotos(prev => [...prev, ...files]); }}
+        className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}
       >
-        <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <Camera className="w-6 h-6 text-slate-400" />
-        </div>
-        <p className="text-sm font-bold text-slate-700">Evidence Upload</p>
-        <p className="text-xs text-slate-500 mt-1 mb-5">Drag photos or field documents here</p>
-        
-        <div className="flex justify-center gap-3">
-          <label className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all cursor-pointer shadow-sm">
-            <Upload className="w-3.5 h-3.5 text-primary" /> Browse Files
-            <input type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.heic,.heif" className="hidden" onChange={onFileChange} />
+        <Camera className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm font-medium">Drag & drop photos or documents here</p>
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Images (JPG, PNG, HEIC), PDFs, Word docs, and more</p>
+        <div className="flex justify-center gap-2">
+          <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+          <Upload className="w-3.5 h-3.5" /> Browse Files
+          <input type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.heic,.heif" className="hidden" onChange={onFileChange} />
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+            <Camera className="w-3.5 h-3.5" /> Take Photo
+            <input type="file" accept="image/*" className="hidden" onChange={onFileChange} />
           </label>
         </div>
       </div>
-
       {photos.length > 0 && (
-        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 animate-in fade-in duration-300">
+        <div className="flex flex-wrap gap-2 mt-2">
           {photos.map((f, i) => (
-            <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm group">
+            <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
               {f.type.startsWith('image/') ? (
                 <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center p-1">
-                  <FileText className="w-6 h-6 text-slate-300" />
-                  <span className="text-[8px] font-bold text-slate-400 truncate w-full text-center">{f.name}</span>
+                <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-0.5">
+                  <FileText className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-[9px] text-muted-foreground truncate w-14 text-center px-1">{f.name}</span>
                 </div>
               )}
-              <button 
-                type="button" 
-                onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
-                className="absolute top-1 right-1 w-5 h-5 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-3 h-3" />
+              <button type="button" onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white">
+                <X className="w-2.5 h-2.5" />
               </button>
             </div>
           ))}
@@ -96,292 +66,389 @@ function PhotoDropZone({ photos, setPhotos }) {
   );
 }
 
-// --- EDIT MODAL COMPONENT ---
 function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({ ...inv });
   const [newPhotos, setNewPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  async function handleDelete() {
+    setDeleting(true);
+    await base44.entities.Investigation.delete(inv.id);
+    onDelete(inv.id);
+  }
   const update = (field, val) => setForm(p => ({ ...p, [field]: val }));
 
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
-    try {
-        const uploadedUrls = [];
-        for (const photo of newPhotos) {
-          const { file_url } = await base44.integrations.Core.UploadFile({ file: photo });
-          uploadedUrls.push(file_url);
-        }
-        const updatedPhotos = [...(form.photos || []), ...uploadedUrls];
-        const updated = await base44.entities.Investigation.update(inv.id, {
-          ...form,
-          photos: updatedPhotos,
-        });
-        onSave({ ...form, photos: updatedPhotos });
-        onClose();
-    } catch (err) {
-        alert("Failed to save changes.");
-    } finally {
-        setSaving(false);
+    const uploadedUrls = [];
+    for (const photo of newPhotos) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: photo });
+      uploadedUrls.push(file_url);
     }
+    const updatedPhotos = [...(form.photos || []), ...uploadedUrls];
+    const updated = await base44.entities.Investigation.update(inv.id, {
+      investigation_date: form.investigation_date,
+      officer_name: form.officer_name,
+      field_notes: form.field_notes,
+      evidence_summary: form.evidence_summary,
+      site_conditions: form.site_conditions,
+      weather_conditions: form.weather_conditions,
+      violation_confirmed: form.violation_confirmed,
+      warrant_required: form.warrant_required,
+      warrant_reference: form.warrant_reference,
+      visible_from_public_row: form.visible_from_public_row,
+      photos: updatedPhotos,
+    });
+    onSave({ ...form, photos: updatedPhotos });
+    setSaving(false);
+    onClose();
   }
 
-  async function handleDelete() {
-    if (!window.confirm("Delete this investigation record permanently?")) return;
-    setDeleting(true);
-    await base44.entities.Investigation.delete(inv.id);
-    onDelete(inv.id);
-    onClose();
+  function removeExistingPhoto(url) {
+    setForm(p => ({ ...p, photos: (p.photos || []).filter(u => u !== url) }));
   }
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
-        <div className="bg-slate-900 p-6 text-white">
-            <DialogHeader>
-                <DialogTitle className="text-xl font-black flex items-center gap-2">
-                    <Pencil className="w-5 h-5 text-primary" /> Edit Investigation Entry
-                </DialogTitle>
-                <p className="text-white/40 text-xs font-medium">Updating log for Case #{inv.case_id?.slice(0,8)}</p>
-            </DialogHeader>
-        </div>
-        
-        <form onSubmit={handleSave} className="p-8 space-y-8 bg-white">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Investigation Date</Label>
-              <Input type="date" value={form.investigation_date} onChange={e => update('investigation_date', e.target.value)} required className="h-11 rounded-xl" />
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Edit Investigation</DialogTitle></DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Date *</Label>
+              <Input type="date" value={form.investigation_date} onChange={e => update('investigation_date', e.target.value)} required />
             </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reporting Officer</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <Input value={form.officer_name} onChange={e => update('officer_name', e.target.value)} required className="h-11 pl-10 rounded-xl" />
+            <div className="space-y-1.5">
+              <Label>Officer Name *</Label>
+              <Input value={form.officer_name} onChange={e => update('officer_name', e.target.value)} required />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Field Notes *</Label>
+            <Textarea value={form.field_notes} onChange={e => update('field_notes', e.target.value)} rows={4} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Evidence Summary</Label>
+            <Textarea value={form.evidence_summary || ''} onChange={e => update('evidence_summary', e.target.value)} rows={2} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Site Conditions</Label>
+              <Input value={form.site_conditions || ''} onChange={e => update('site_conditions', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Weather</Label>
+              <Input value={form.weather_conditions || ''} onChange={e => update('weather_conditions', e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Checkbox checked={!!form.violation_confirmed} onCheckedChange={v => update('violation_confirmed', v)} id="ec" />
+              <Label htmlFor="ec" className="text-sm cursor-pointer">Violation confirmed</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={!!form.warrant_required} onCheckedChange={v => update('warrant_required', v)} id="ew" />
+              <Label htmlFor="ew" className="text-sm cursor-pointer">Warrant required</Label>
+            </div>
+          </div>
+          {/* Existing photos/docs */}
+          {form.photos?.length > 0 && (
+          <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos & Documents</Label>
+              <div className="flex flex-wrap gap-2">
+                {form.photos.map((url, i) => {
+                const isImage = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(url);
+                return (
+                  <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="w-full h-full block">
+                      {isImage ? (
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-0.5 p-1">
+                          <FileText className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-[9px] text-muted-foreground truncate w-14 text-center">{url.split('/').pop()?.slice(0,15)}</span>
+                        </div>
+                      )}
+                    </a>
+                    <button type="button" onClick={() => removeExistingPhoto(url)}
+                      className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
               </div>
             </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>Add Photos & Documents</Label>
+            <PhotoDropZone photos={newPhotos} setPhotos={setNewPhotos} />
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Field Notes</Label>
-            <Textarea value={form.field_notes} onChange={e => update('field_notes', e.target.value)} rows={4} required className="rounded-xl border-slate-200" placeholder="Describe your observations..." />
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Checkbox checked={!!form.violation_confirmed} onCheckedChange={v => update('violation_confirmed', v)} id="edit-vc" />
-                  <Label htmlFor="edit-vc" className="text-sm font-bold text-slate-700 cursor-pointer">Violation confirmed</Label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Checkbox checked={!!form.visible_from_public_row} onCheckedChange={v => update('visible_from_public_row', v)} id="edit-vr" />
-                  <Label htmlFor="edit-vr" className="text-sm font-bold text-slate-700 cursor-pointer">Visible from public way</Label>
-                </div>
-            </div>
-            <div className="space-y-3 border-l border-slate-200 pl-6">
-                <div className="flex items-center gap-3">
-                  <Checkbox checked={!!form.warrant_required} onCheckedChange={v => update('warrant_required', v)} id="edit-wr" />
-                  <Label htmlFor="edit-wr" className="text-sm font-bold text-slate-700 cursor-pointer">Warrant required</Label>
-                </div>
-                {form.warrant_required && (
-                    <Input 
-                        placeholder="Warrant Ref #" 
-                        value={form.warrant_reference || ''} 
-                        onChange={e => update('warrant_reference', e.target.value)} 
-                        className="h-8 text-xs rounded-lg"
-                    />
-                )}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Evidence Documentation</Label>
-             <PhotoDropZone photos={newPhotos} setPhotos={setNewPhotos} />
-             
-             {form.photos?.length > 0 && (
-                <div className="pt-4">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Current Files ({form.photos.length})</p>
-                    <div className="grid grid-cols-6 gap-2">
-                        {form.photos.map((url, i) => (
-                            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 group">
-                                <img src={url} className="w-full h-full object-cover" />
-                                <button 
-                                    type="button" 
-                                    onClick={() => setForm(p => ({ ...p, photos: p.photos.filter(u => u !== url) }))}
-                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <X className="w-2 h-2" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-             )}
-          </div>
-
-          <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-             <Button type="button" variant="ghost" className="text-red-500 hover:bg-red-50 font-bold" onClick={handleDelete} disabled={deleting}>
-                <Trash2 className="w-4 h-4 mr-2" /> Delete Record
-             </Button>
-             <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={onClose} className="rounded-xl font-bold">Cancel</Button>
-                <Button type="submit" disabled={saving} className="rounded-xl px-8 font-black uppercase tracking-widest shadow-lg shadow-primary/20">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+          {confirmDelete ? (
+            <div className="flex items-center justify-between gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700 font-medium">Delete this investigation permanently?</p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>No, keep it</Button>
+                <Button type="button" variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                  {deleting ? 'Deleting...' : 'Yes, delete'}
                 </Button>
-             </div>
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" /> Delete Investigation
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
+            </div>
+          )}
         </form>
       </DialogContent>
     </Dialog>
   );
 }
 
-// --- MAIN PAGE COMPONENT ---
 export default function Investigations() {
-  const { municipality } = useAuth();
+  const { impersonatedMunicipality } = useAuth();
   const [investigations, setInvestigations] = useState([]);
+  const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingInv, setEditingInv] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [editInv, setEditInv] = useState(null);
+  const [form, setForm] = useState({
+    case_id: '',
+    investigation_date: format(new Date(), 'yyyy-MM-dd'),
+    officer_name: '',
+    field_notes: '',
+    visible_from_public_row: false,
+    warrant_required: false,
+    warrant_reference: '',
+    violation_confirmed: false,
+    site_conditions: '',
+    weather_conditions: '',
+    evidence_summary: '',
+  });
+
+  const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   useEffect(() => {
     async function load() {
-      if (!municipality?.id) return;
-      const data = await base44.entities.Investigation.filter({ town_id: municipality.id }, '-investigation_date', 100);
-      setInvestigations(data);
+      const townFilter = impersonatedMunicipality ? { town_id: impersonatedMunicipality.id } : null;
+      const [inv, c] = await Promise.all([
+        townFilter ? base44.entities.Investigation.filter(townFilter, '-created_date', 50) : base44.entities.Investigation.list('-created_date', 50),
+        townFilter ? base44.entities.Case.filter(townFilter, '-created_date', 100) : base44.entities.Case.list('-created_date', 100),
+      ]);
+      setInvestigations(inv);
+      setCases(c);
       setLoading(false);
     }
     load();
-  }, [municipality]);
+  }, [impersonatedMunicipality]);
 
-  if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    const photoUrls = [];
+    for (const photo of photos) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: photo });
+      photoUrls.push(file_url);
+    }
+    const inv = await base44.entities.Investigation.create({ ...form, photos: photoUrls });
+    setInvestigations(prev => [inv, ...prev]);
+    if (form.case_id) {
+      await base44.entities.Case.update(form.case_id, {
+        status: 'investigation',
+        visible_from_public_row: form.visible_from_public_row,
+        warrant_required: form.warrant_required,
+      });
+    }
+    setOpen(false);
+    setSaving(false);
+    setPhotos([]);
+    setForm(prev => ({ ...prev, field_notes: '', evidence_summary: '', site_conditions: '', weather_conditions: '' }));
+  }
+
+  const caseMap = {};
+  cases.forEach(c => { caseMap[c.id] = c; });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Investigation Logs" 
-        description="Comprehensive field records and evidence documentation."
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+      {editInv && (
+        <EditInvestigationModal
+          inv={editInv}
+          onClose={() => setEditInv(null)}
+          onSave={updated => {
+            setInvestigations(prev => prev.map(i => i.id === updated.id ? updated : i));
+            setEditInv(null);
+          }}
+          onDelete={id => {
+            setInvestigations(prev => prev.filter(i => i.id !== id));
+            setEditInv(null);
+          }}
+        />
+      )}
+
+      <PageHeader
+        title="Investigations"
+        description="Field investigations and site inspection records"
         actions={
-            <div className="flex gap-2 text-xs font-bold bg-slate-100 px-4 py-2 rounded-full border border-slate-200 text-slate-500">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary" /> {investigations.length} Records Filed
-            </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-1.5"><Plus className="w-4 h-4" /> New Investigation</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Log Investigation</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Case *</Label>
+                    <Select value={form.case_id} onValueChange={v => update('case_id', v)} required>
+                      <SelectTrigger><SelectValue placeholder="Select case..." /></SelectTrigger>
+                      <SelectContent>
+                        {cases.filter(c => !['resolved', 'closed'].includes(c.status)).map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.case_number || c.id.slice(0, 8)} — {c.property_address?.slice(0, 30)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Date *</Label>
+                    <Input type="date" value={form.investigation_date} onChange={e => update('investigation_date', e.target.value)} required />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Officer Name *</Label>
+                  <Input value={form.officer_name} onChange={e => update('officer_name', e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Field Notes *</Label>
+                  <Textarea value={form.field_notes} onChange={e => update('field_notes', e.target.value)} rows={4} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Evidence Summary</Label>
+                  <Textarea value={form.evidence_summary} onChange={e => update('evidence_summary', e.target.value)} rows={2} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Site Conditions</Label>
+                    <Input value={form.site_conditions} onChange={e => update('site_conditions', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Weather</Label>
+                    <Input value={form.weather_conditions} onChange={e => update('weather_conditions', e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={form.visible_from_public_row} onCheckedChange={v => update('visible_from_public_row', v)} id="row" />
+                    <Label htmlFor="row" className="text-sm cursor-pointer">Visible from public right-of-way</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={form.warrant_required} onCheckedChange={v => update('warrant_required', v)} id="warrant" />
+                    <Label htmlFor="warrant" className="text-sm cursor-pointer">Administrative warrant required (RSA 595-B)</Label>
+                  </div>
+                  {form.warrant_required && (
+                    <div className="space-y-1.5 ml-6">
+                      <Label>Warrant Reference</Label>
+                      <Input value={form.warrant_reference} onChange={e => update('warrant_reference', e.target.value)} placeholder="Warrant # or reference" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={form.violation_confirmed} onCheckedChange={v => update('violation_confirmed', v)} id="confirmed" />
+                    <Label htmlFor="confirmed" className="text-sm cursor-pointer">Violation confirmed</Label>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Photos & Documents</Label>
+                  <PhotoDropZone photos={photos} setPhotos={setPhotos} />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Log Investigation'}</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         }
       />
 
-      <div className="space-y-6 relative">
-        {/* Timeline Path Line */}
-        <div className="absolute left-[31px] top-4 bottom-4 w-0.5 bg-slate-100 hidden sm:block" />
-
-        {investigations.map((inv, idx) => (
-          <div key={inv.id} className="relative pl-0 sm:pl-16 group">
-            {/* Timeline Circle */}
-            <div className="absolute left-[20px] top-6 w-6 h-6 rounded-full bg-white border-4 border-slate-100 z-10 hidden sm:flex items-center justify-center group-hover:border-primary/20 transition-colors">
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-primary transition-colors" />
-            </div>
-
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                <div className="p-6 sm:p-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-primary/5 p-3 rounded-2xl">
-                                <ClipboardCheck className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-800 leading-tight">Site Visit: {format(new Date(inv.investigation_date), 'MMMM d, yyyy')}</h3>
-                                <p className="text-xs text-slate-400 font-bold flex items-center gap-1.5 mt-1 uppercase tracking-tighter">
-                                    <User className="w-3 h-3" /> Reported by {inv.officer_name}
-                                </p>
-                            </div>
-                        </div>
-                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-100" onClick={() => setEditingInv(inv)}>
-                            <Pencil className="w-4 h-4 text-slate-400" />
-                        </Button>
-                    </div>
-
-                    <div className="grid md:grid-cols-3 gap-8">
-                        <div className="md:col-span-2 space-y-4">
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Observations & Notes</p>
-                                <p className="text-sm text-slate-600 leading-relaxed italic border-l-2 border-slate-100 pl-4">
-                                    "{inv.field_notes}"
-                                </p>
-                            </div>
-                            
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {inv.violation_confirmed && (
-                                    <span className="bg-red-50 text-red-700 text-[10px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1 border border-red-100">
-                                        <ShieldCheck className="w-3 h-3" /> Violation Confirmed
-                                    </span>
-                                )}
-                                {inv.visible_from_public_row && (
-                                    <span className="bg-blue-50 text-blue-700 text-[10px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1 border border-blue-100">
-                                        <Eye className="w-3 h-3" /> Publicly Visible
-                                    </span>
-                                )}
-                                {inv.warrant_required && (
-                                    <span className="bg-purple-50 text-purple-700 text-[10px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1 border border-purple-100">
-                                        <Gavel className="w-3 h-3" /> Warrant Utilized
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Site Snapshot</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Conditions</p>
-                                    <p className="text-xs font-bold text-slate-700 truncate">{inv.site_conditions || 'Not Logged'}</p>
-                                </div>
-                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Weather</p>
-                                    <p className="text-xs font-bold text-slate-700 truncate">{inv.weather_conditions || 'Clear'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {inv.photos?.length > 0 && (
-                        <div className="mt-8 pt-6 border-t border-slate-100">
-                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Evidence Gallery ({inv.photos.length})</p>
-                            <div className="flex flex-wrap gap-3">
-                                {inv.photos.map((url, i) => (
-                                    <a key={idx+i} href={url} target="_blank" rel="noreferrer" className="block relative w-16 h-16 rounded-xl overflow-hidden border border-slate-100 hover:border-primary transition-all group">
-                                        <img src={url} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Eye className="w-4 h-4 text-white" />
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+      <div className="space-y-3">
+        {investigations.map(inv => {
+          const linkedCase = caseMap[inv.case_id];
+          return (
+            <div key={inv.id} className="bg-card rounded-xl border border-border p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-5 h-5 text-purple-600" />
                 </div>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold">{inv.officer_name}</p>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">{inv.investigation_date ? format(new Date(inv.investigation_date), 'MMM d, yyyy') : ''}</span>
+                      {inv.violation_confirmed && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700">Violation Confirmed</span>
+                      )}
+                    </div>
+                    <button onClick={() => setEditInv(inv)} className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-primary/10 flex-shrink-0" title="Edit">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {linkedCase && (
+                    <p className="text-xs text-primary mt-0.5">{linkedCase.case_number} — {linkedCase.property_address}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-2">{inv.field_notes}</p>
+                  {inv.photos?.length > 0 && (
+                    <div className="flex gap-2 mt-3 overflow-x-auto flex-wrap">
+                      {inv.photos.map((url, i) => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(url);
+                        return (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" title={url.split('/').pop()}>
+                            {isImage ? (
+                              <img src={url} alt={`Photo ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
+                            ) : (
+                              <div className="w-20 h-20 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-1 hover:bg-accent transition-colors">
+                                <FileText className="w-6 h-6 text-muted-foreground" />
+                                <span className="text-[9px] text-muted-foreground truncate w-16 text-center px-1">{url.split('/').pop()?.slice(0,20)}</span>
+                              </div>
+                            )}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
-
+          );
+        })}
         {investigations.length === 0 && (
-            <div className="text-center py-24 bg-card rounded-[40px] border-2 border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FileText className="w-8 h-8 text-slate-300" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900">No Field Entries</h3>
-                <p className="text-sm text-slate-500 max-w-xs mx-auto mt-2">
-                    Create a new investigation log within a specific case file to begin building your evidence history.
-                </p>
-            </div>
+          <div className="text-center py-16 text-sm text-muted-foreground bg-card rounded-xl border border-border">
+            No investigations recorded yet.
+          </div>
         )}
       </div>
-
-      {editingInv && (
-        <EditInvestigationModal 
-          inv={editingInv} 
-          onClose={() => setEditingInv(null)} 
-          onSave={(updated) => setInvestigations(prev => prev.map(i => i.id === updated.id ? updated : i))}
-          onDelete={(id) => setInvestigations(prev => prev.filter(i => i.id !== id))}
-        />
-      )}
     </div>
   );
 }
