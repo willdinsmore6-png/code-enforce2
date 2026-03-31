@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import PageHeader from '../components/shared/PageHeader';
 import { 
   KeyRound, 
@@ -52,7 +53,7 @@ export default function AdminTools() {
   const [muniForm, setMuniForm] = useState({
     name: '', short_name: '', municipality_type: 'town', state: 'NH',
     address: '', contact_email: '', contact_phone: '', website: '',
-    tagline: '', logo_url: '',
+    tagline: '', logo_url: '', allow_public_reports: false,
   });
   const [savingMuni, setSavingMuni] = useState(false);
   const [muniSaved, setMuniSaved] = useState(false);
@@ -70,6 +71,7 @@ export default function AdminTools() {
         contact_phone: municipality.contact_phone || '',
         website: municipality.website || '',
         address: municipality.address || '',
+        allow_public_reports: municipality.allow_public_reports || false,
       });
     }
   }, [municipality]);
@@ -178,6 +180,7 @@ export default function AdminTools() {
         contact_phone: muniForm.contact_phone,
         website: muniForm.website,
         address: muniForm.address,
+        allow_public_reports: muniForm.allow_public_reports,
       });
     setSavingMuni(false);
     setMuniSaved(true);
@@ -229,7 +232,6 @@ export default function AdminTools() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TEAM MANAGEMENT */}
         <TabsContent value="team" className="space-y-8 outline-none">
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
@@ -332,8 +334,7 @@ export default function AdminTools() {
           </div>
         </TabsContent>
 
-        {/* TOWN BRANDING */}
-        <TabsContent value="branding" className="outline-none">
+        <TabsContent value="branding" className="outline-none space-y-6">
             <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <div className="p-8 border-b border-border bg-muted/30">
                     <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -406,9 +407,26 @@ export default function AdminTools() {
                     </div>
                 </div>
             </div>
+
+            {/* NEW: PUBLIC PORTAL CONTROLS */}
+            <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-primary" /> Public Portal Configuration
+                </h3>
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border">
+                    <div className="space-y-1">
+                        <p className="text-sm font-bold text-foreground">Enable Public Reporting</p>
+                        <p className="text-xs text-muted-foreground">When active, citizens will see a "Report a Violation" link on the public portal.</p>
+                    </div>
+                    <Checkbox 
+                        checked={muniForm.allow_public_reports} 
+                        onCheckedChange={(checked) => setMuniForm({...muniForm, allow_public_reports: checked})}
+                        className="h-6 w-6"
+                    />
+                </div>
+            </div>
         </TabsContent>
 
-        {/* AUDIT LOGS */}
         <TabsContent value="logs" className="space-y-6 outline-none">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="relative w-full max-w-sm">
