@@ -245,25 +245,28 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* 2. STAT CARDS & ANALYTICS */}
-      <div className="grid lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard icon={Building2} label="Towns" value={towns.length} color="purple" />
-          <StatCard icon={Users} label="Users" value={allUsers.length} color="blue" />
-          <StatCard icon={FileText} label="Total Cases" value={allCases.length} color="slate" />
-          <StatCard icon={Zap} label="Growth" value={`+${towns.filter(t => new Date(t.created_date) > new Date(Date.now() - 30*24*60*60*1000)).length}`} color="orange" />
-        </div>
-        <div className="bg-white border rounded-xl p-4 shadow-sm flex flex-col h-full min-h-[140px]">
-          <div className="flex items-center justify-between mb-4"><span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Case Volume Trend</span><TrendingUp className="w-3.5 h-3.5 text-blue-500" /></div>
-          <div className="flex items-end justify-between h-full gap-1.5 px-2">
-            {systemMetrics.caseHistory.map(([month, count]) => (
-              <div key={month} className="flex-1 bg-blue-500/10 border-t border-blue-500/30 rounded-t-sm group relative" style={{ height: `${(count / (Math.max(...systemMetrics.caseHistory.map(s => s)) || 1)) * 100}%` }}>
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap">{count}</div>
-              </div>
-            ))}
-          </div>
+     {/* 2. STAT CARDS & ANALYTICS */}
+<div className="bg-white border rounded-xl p-4 shadow-sm flex flex-col h-full min-h-[140px]">
+  <div className="flex items-center justify-between mb-4">
+    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Case Volume Trend</span>
+    <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+  </div>
+  <div className="flex items-end justify-between h-full gap-1.5 px-2">
+    {systemMetrics.caseHistory.map(([month, count]) => (
+      /* ADD pointer-events-none TO THE DIV BELOW */
+      <div 
+        key={month} 
+        className="flex-1 bg-blue-500/10 border-t border-blue-500/30 rounded-t-sm group relative pointer-events-none" 
+        style={{ height: `${(count / (Math.max(...systemMetrics.caseHistory.map(s => s)) || 1)) * 100}%` }}
+      >
+        {/* If you want the tooltip to still show on hover, move pointer-events-auto here */}
+        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap pointer-events-auto">
+          {count}
         </div>
       </div>
+    ))}
+  </div>
+</div>
 
       {/* 3. TABS NAVIGATION */}
       <Tabs defaultValue="towns">
