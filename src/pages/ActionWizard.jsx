@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { Wand2, ArrowRight, CheckCircle, AlertTriangle, FileText, Scale, Clock, Compass } from 'lucide-react';
+import { 
+  Wand2, 
+  ArrowRight, 
+  CheckCircle, 
+  AlertTriangle, 
+  FileText, 
+  Scale, 
+  Clock, 
+  Compass, 
+  ChevronRight,
+  Info,
+  ShieldCheck,
+  Gavel
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
@@ -25,8 +38,10 @@ function buildRecommendations(config) {
         'Document findings with photographs and field notes',
       ],
       nextAction: 'Move to Investigation status and log the site visit',
+      actionPath: '/cases', 
       icon: FileText,
-      color: 'bg-blue-50 text-blue-700 border-blue-200',
+      color: 'border-blue-200 bg-blue-50/50 text-blue-900',
+      accent: 'bg-blue-600'
     },
     investigation: {
       title: 'Investigation Complete — Issue Notice of Violation',
@@ -37,8 +52,10 @@ function buildRecommendations(config) {
         'Send via Certified Mail AND First Class Mail to ensure legal service',
       ],
       nextAction: 'Create a Notice of Violation from the case detail page',
+      actionPath: '/cases',
       icon: AlertTriangle,
-      color: 'bg-amber-50 text-amber-700 border-amber-200',
+      color: 'border-amber-200 bg-amber-50/50 text-amber-900',
+      accent: 'bg-amber-600'
     },
     notice_sent: {
       title: 'Notice Sent — Monitor for Response',
@@ -49,8 +66,10 @@ function buildRecommendations(config) {
         'Document any partial compliance or communication',
       ],
       nextAction: 'Update status to "Awaiting Response" once delivery is confirmed',
+      actionPath: '/cases',
       icon: Clock,
-      color: 'bg-orange-50 text-orange-700 border-orange-200',
+      color: 'border-orange-200 bg-orange-50/50 text-orange-900',
+      accent: 'bg-orange-600'
     },
     awaiting_response: {
       title: 'Response Period Active — Evaluate Compliance',
@@ -61,8 +80,10 @@ function buildRecommendations(config) {
         'Choose enforcement path: Path A (Citation) or Path B (Superior Court)',
       ],
       nextAction: 'Select a compliance path on the case detail page',
+      actionPath: '/cases',
       icon: Scale,
-      color: 'bg-purple-50 text-purple-700 border-purple-200',
+      color: 'border-purple-200 bg-purple-50/50 text-purple-900',
+      accent: 'bg-purple-600'
     },
     citation_issued: {
       title: 'Citation Issued (Path A: RSA 676:17-b)',
@@ -73,8 +94,10 @@ function buildRecommendations(config) {
         'Prepare for court appearance — gather all evidence and documentation',
       ],
       nextAction: 'File a Court Action to track the District Court proceedings',
-      icon: Scale,
-      color: 'bg-red-50 text-red-700 border-red-200',
+      actionPath: '/court-actions',
+      icon: Gavel,
+      color: 'border-red-200 bg-red-50/50 text-red-900',
+      accent: 'bg-red-600'
     },
     court_action: {
       title: 'Court Action in Progress',
@@ -85,8 +108,10 @@ function buildRecommendations(config) {
         'Monitor for compliance or further court orders',
       ],
       nextAction: 'Update court action status as proceedings advance',
-      icon: Scale,
-      color: 'bg-rose-50 text-rose-700 border-rose-200',
+      actionPath: '/court-actions',
+      icon: ShieldCheck,
+      color: 'border-rose-200 bg-rose-50/50 text-rose-900',
+      accent: 'bg-rose-600'
     },
     in_compliance: {
       title: 'Property in Compliance — Verify and Close',
@@ -97,14 +122,17 @@ function buildRecommendations(config) {
         'Upload proof of abatement to the Document Vault',
       ],
       nextAction: 'Update case status to Resolved',
+      actionPath: '/cases',
       icon: CheckCircle,
-      color: 'bg-green-50 text-green-700 border-green-200',
+      color: 'border-green-200 bg-green-50/50 text-green-900',
+      accent: 'bg-green-600'
     },
   };
 }
 
 export default function ActionWizard() {
   const { municipality } = useAuth();
+  const navigate = useNavigate();
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,8 +148,8 @@ export default function ActionWizard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
@@ -130,107 +158,142 @@ export default function ActionWizard() {
   const rec = selectedCase ? recommendations[selectedCase.status] : null;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <PageHeader
         title="Action Wizard"
-        description={municipality ? `Guidance for ${municipality.town_name}, ${municipality.state} — ${municipality.compliance_days_zoning}-day abatement · ${municipality.zba_appeal_days}-day ZBA window` : 'Get step-by-step guidance based on NH statutes for your enforcement cases'}
+        description="Statutory enforcement guidance and procedural next steps"
         actions={
           <Link to="/compass">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Compass className="w-3.5 h-3.5" /> Ask Compass AI
+            <Button variant="outline" size="sm" className="gap-2 shadow-sm">
+              <Compass className="w-4 h-4 text-primary" /> Ask Compass AI
             </Button>
           </Link>
         }
       />
 
-      <div className="bg-card rounded-xl border border-border p-6 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Wand2 className="w-5 h-5 text-primary" />
+      {/* Municipality Parameters Bar */}
+      {municipality && (
+        <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3">
+                <div className="bg-white/10 p-2 rounded-lg">
+                    <Info className="w-4 h-4 text-blue-300" />
+                </div>
+                <div>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-white/40 leading-none mb-1">Jurisdiction Rules</p>
+                    <p className="text-sm font-bold">{municipality.town_name}, {municipality.state}</p>
+                </div>
+            </div>
+            <div className="flex gap-6">
+                <div>
+                    <p className="text-[10px] uppercase font-bold text-white/40 leading-none mb-1">Abatement</p>
+                    <p className="text-xs font-mono">{municipality.compliance_days_zoning} Days</p>
+                </div>
+                <div>
+                    <p className="text-[10px] uppercase font-bold text-white/40 leading-none mb-1">ZBA Window</p>
+                    <p className="text-xs font-mono">{municipality.zba_appeal_days} Days</p>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Case Selector */}
+      <div className="bg-card rounded-2xl border border-border p-8 shadow-sm relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform pointer-events-none">
+            <Wand2 className="w-24 h-24 text-primary" />
+        </div>
+        
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Wand2 className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h2 className="font-semibold">What is the status of the violation?</h2>
-            <p className="text-sm text-muted-foreground">Select a case to get recommended next steps</p>
+            <h2 className="text-xl font-bold">Select Active Case</h2>
+            <p className="text-sm text-muted-foreground">Select a file to generate a customized legal roadmap</p>
           </div>
         </div>
 
         <Select value={selectedCase?.id || ''} onValueChange={id => setSelectedCase(cases.find(c => c.id === id))}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a case..." />
+          <SelectTrigger className="h-12 text-md shadow-sm border-slate-200">
+            <SelectValue placeholder="Search case number or address..." />
           </SelectTrigger>
           <SelectContent>
             {cases.map(c => (
               <SelectItem key={c.id} value={c.id}>
-                {c.case_number || c.id.slice(0, 8)} — {c.property_address} ({c.status.replace(/_/g, ' ')})
+                {c.case_number || c.id.slice(0, 8)} — {c.property_address}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {selectedCase && rec && (
-        <div className="space-y-6">
-          <div className={`rounded-xl border p-6 ${rec.color}`}>
-            <div className="flex items-center gap-3 mb-4">
-              <rec.icon className="w-6 h-6" />
-              <h3 className="text-lg font-bold">{rec.title}</h3>
-            </div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium">Current Status:</span>
-              <StatusBadge status={selectedCase.status} />
-            </div>
-          </div>
-
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h4 className="font-semibold mb-4">Recommended Steps</h4>
-            <div className="space-y-3">
-              {rec.steps.map((step, i) => (
-                <div key={i} className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-xs font-bold text-primary">{i + 1}</span>
-                  </div>
-                  <p className="text-sm leading-relaxed">{step}</p>
+      {/* Recommended Content */}
+      {selectedCase && rec ? (
+        <div className="space-y-6 animate-in zoom-in-95 duration-300">
+          <div className={`rounded-2xl border-2 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 ${rec.color}`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm bg-white`}>
+                <rec.icon className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black leading-tight">{rec.title}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                    <StatusBadge status={selectedCase.status} />
+                    <span className="text-[10px] uppercase font-bold opacity-50 tracking-tighter">Current Lifecycle Stage</span>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
 
-          <div className="bg-primary/5 rounded-xl border border-primary/20 p-5 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-primary">Next Action</p>
-              <p className="text-sm text-muted-foreground">{rec.nextAction}</p>
+          <div className="grid md:grid-cols-5 gap-8">
+            <div className="md:col-span-3 bg-card rounded-2xl border border-border p-8 shadow-sm">
+                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-6 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> Procedural Checklist
+                </h4>
+                <div className="space-y-6 relative">
+                    {/* Vertical connector line */}
+                    <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-slate-100" />
+                    
+                    {rec.steps.map((step, i) => (
+                        <div key={i} className="flex gap-4 relative z-10 group">
+                            <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center flex-shrink-0 group-hover:border-primary transition-colors">
+                                <span className="text-xs font-bold text-slate-500 group-hover:text-primary">{i + 1}</span>
+                            </div>
+                            <p className="text-sm font-medium leading-relaxed text-slate-700 pt-1.5">{step}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
-            <Link to={`/cases/${selectedCase.id}`}>
-              <Button size="sm" className="gap-1.5">Go to Case <ArrowRight className="w-3.5 h-3.5" /></Button>
-            </Link>
+
+            <div className="md:col-span-2 space-y-6">
+                <div className="bg-primary rounded-2xl p-8 text-white shadow-lg shadow-primary/20 relative overflow-hidden">
+                    <ArrowRight className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10" />
+                    <h4 className="text-xs font-black uppercase tracking-widest text-white/60 mb-2">Primary Next Action</h4>
+                    <p className="text-lg font-bold leading-tight mb-6">{rec.nextAction}</p>
+                    <Button 
+                        variant="secondary" 
+                        className="w-full font-bold shadow-sm group"
+                        onClick={() => navigate(rec.actionPath === '/cases' ? `/cases/${selectedCase.id}` : rec.actionPath)}
+                    >
+                        Execute Now <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Legal Context</h5>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                        This guidance is based on <strong>NH RSA 676</strong> and standard municipal due process. Ensure all notices are documented in the Document Vault.
+                    </p>
+                </div>
+            </div>
           </div>
-
-          {/* Special info based on status */}
-          {selectedCase.status === 'awaiting_response' && selectedCase.abatement_deadline && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <p className="text-sm font-semibold text-amber-800 mb-1">⏱ Abatement Deadline Info</p>
-              <p className="text-sm text-amber-700">
-                Deadline: {format(new Date(selectedCase.abatement_deadline), 'MMMM d, yyyy')} •{' '}
-                {differenceInDays(new Date(selectedCase.abatement_deadline), new Date())} days remaining
-              </p>
-              {differenceInDays(new Date(selectedCase.abatement_deadline), new Date()) < 0 && (
-                <p className="text-sm font-semibold text-red-700 mt-2">
-                  ⚠ The abatement deadline has passed. Consider issuing a Second Notice or moving to enforcement.
-                </p>
-              )}
-            </div>
-          )}
         </div>
-      )}
-
-      {!selectedCase && cases.length === 0 && (
-        <div className="text-center py-16 bg-card rounded-xl border border-border">
-          <p className="text-muted-foreground text-sm">No open cases. File a complaint to get started.</p>
-          <Link to="/new-complaint">
-            <Button className="mt-4">File a Complaint</Button>
-          </Link>
+      ) : selectedCase ? (
+        <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
+          <Info className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+          <h3 className="text-lg font-bold">Status Not Mapped</h3>
+          <p className="text-sm text-muted-foreground italic">We don't have specific guidance for the "{selectedCase.status}" status yet.</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
