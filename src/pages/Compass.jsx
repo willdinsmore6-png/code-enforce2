@@ -4,7 +4,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { 
+  Compass, 
+  Send, 
+  Upload, 
+  Settings, 
+  MessageSquare, 
+  Loader2, 
+  Building2, 
+  FileText, 
+  Trash2, 
+  CheckCircle, 
+  RotateCcw,
+  Sparkles,
+  Gavel,
+  ShieldCheck,
+  ChevronRight,
+  Plus,
+  Info,
+  X,
+  Search
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -16,11 +36,14 @@ export default function CompassPage() {
   const [sending, setSending] = useState(false);
   const [townConfig, setTownConfig] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
-  const [configForm, setConfigForm] = useState({ town_name: '', state: 'NH', compliance_days_zoning: 30, compliance_days_building: 30, zba_appeal_days: 30, penalty_first_offense: 275, penalty_subsequent: 550, specific_regulations: '', notes: '' });
+  const [configForm, setConfigForm] = useState({ 
+    town_name: '', state: 'NH', compliance_days_zoning: 30, compliance_days_building: 30, 
+    zba_appeal_days: 30, penalty_first_offense: 275, penalty_subsequent: 550, 
+    specific_regulations: '', notes: '' 
+  });
   const [savingConfig, setSavingConfig] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadedDocNames, setUploadedDocNames] = useState([]);
-  const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
   const [docsSharedWithAgent, setDocsSharedWithAgent] = useState(false);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
@@ -35,7 +58,7 @@ export default function CompassPage() {
     } else {
       setShowConfig(isAdmin);
     }
-  }, [municipality]);
+  }, [municipality, isAdmin]);
 
   useEffect(() => {
     base44.entities.Case.list('-created_date', 100).then(c => {
@@ -61,7 +84,6 @@ export default function CompassPage() {
             return;
           }
         } catch (e) {
-          // Conversation expired or belongs to another user — clear and create new
           sessionStorage.removeItem('compass_conversation_id');
           sessionStorage.removeItem('compass_messages');
         }
@@ -80,7 +102,6 @@ export default function CompassPage() {
   }, []);
 
   useEffect(() => {
-    // Listen for updates from the background subscriber (CompassBackground component)
     const handler = (e) => setMessages(e.detail.messages || []);
     window.addEventListener('compass_update', handler);
     return () => window.removeEventListener('compass_update', handler);
@@ -91,6 +112,7 @@ export default function CompassPage() {
   }, [messages]);
 
   async function startNewChat() {
+    if (!window.confirm("Start a fresh legal consultation? Previous messages in this session will be cleared.")) return;
     sessionStorage.removeItem('compass_conversation_id');
     sessionStorage.removeItem('compass_messages');
     setConversation(null);
@@ -108,9 +130,9 @@ export default function CompassPage() {
     const msg = input.trim();
     setInput('');
     setSending(true);
-    const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
+    const caseContext = selectedCase ? ` [Context: Analyzing case file for ${cases.find(c => c.id === selectedCase)?.property_address}]` : '';
     const messagePayload = { role: 'user', content: msg + caseContext };
-    // Only attach ordinance docs on the first message so the agent learns them once
+    
     const docUrls = townConfig?.ordinance_docs || [];
     if (docUrls.length > 0 && !docsSharedWithAgent) {
       messagePayload.file_urls = docUrls;
@@ -120,29 +142,10 @@ export default function CompassPage() {
     setSending(false);
   }
 
-  async function saveConfig(e) {
-    e.preventDefault();
-    setSavingConfig(true);
-    if (townConfig?.id) {
-      const updated = await base44.entities.TownConfig.update(townConfig.id, configForm);
-      setTownConfig(updated);
-    } else {
-      const created = await base44.entities.TownConfig.create({ ...configForm, is_active: true });
-      setTownConfig(created);
-    }
-    setSavingConfig(false);
-    setShowConfig(false);
-  }
-
   async function handleDocUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    if (!townConfig?.id) {
-      alert('Please save the town configuration first before uploading documents.');
-      return;
-    }
     setUploadingDoc(true);
-    setLastUploadedDoc(null);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     const existingDocs = townConfig.ordinance_docs || [];
     const existingNames = townConfig.ordinance_doc_names || [];
@@ -152,276 +155,222 @@ export default function CompassPage() {
       ordinance_doc_names: [...existingNames, newDocEntry],
     });
     setTownConfig(updated);
-    const newNames = [...existingNames, newDocEntry];
-    setUploadedDocNames(newNames);
-    setLastUploadedDoc(file.name);
-    setTimeout(() => setLastUploadedDoc(null), 4000);
+    setUploadedDocNames([...existingNames, newDocEntry]);
     setUploadingDoc(false);
   }
 
-  async function removeDocument(index) {
-    if (!townConfig?.id) return;
-    const docNames = townConfig.ordinance_doc_names || [];
-    const docs = townConfig.ordinance_docs || [];
-    const newDocNames = docNames.filter((_, i) => i !== index);
-    const newDocs = docs.filter((_, i) => i !== index);
-    const updated = await base44.entities.TownConfig.update(townConfig.id, {
-      ordinance_docs: newDocs,
-      ordinance_doc_names: newDocNames,
-    });
-    setTownConfig(updated);
-    setUploadedDocNames(newDocNames);
-  }
-
-  async function askWithCase() {
-    if (!selectedCase) return;
-    const c = cases.find(ca => ca.id === selectedCase);
-    if (!c) return;
-    setInput(`Please analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Review the investigation notes and any photos, then tell me: (1) Does a violation exist? (2) What specific RSA or local ordinance applies? (3) What is the recommended enforcement path given the current status of "${c.status.replace(/_/g, ' ')}"?`);
-  }
-
-  const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
+  const isThinking = sending || (messages.length > 0 && messages[messages.length - 1].role === 'user');
 
   return (
-    <div className="flex flex-col h-full max-h-screen overflow-hidden">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap max-w-5xl mx-auto">
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+      {/* --- PREMIUM HEADER --- */}
+      <header className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 shadow-sm z-30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Compass className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
+              <Compass className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">Compass AI</h1>
-              <p className="text-xs text-muted-foreground">
-                NH Land Use & Zoning Enforcement Advisor
-                {townConfig && <span className="text-indigo-600 font-medium"> · {townConfig.town_name}, {townConfig.state}</span>}
-              </p>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">Compass AI</h1>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Statutory Guidance Agent</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {townConfig && (
-              <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-1.5">
-                <span>Zoning: {townConfig.compliance_days_zoning}d</span>
-                <span>ZBA Appeal: {townConfig.zba_appeal_days}d</span>
-                <span>Penalty: ${townConfig.penalty_first_offense}/day</span>
-              </div>
-            )}
-            <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5 text-muted-foreground hover:text-destructive" title="Start a new chat">
-              <RotateCcw className="w-3.5 h-3.5" /> New Chat
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={startNewChat} className="rounded-xl font-bold gap-2 text-slate-600">
+              <RotateCcw className="w-3.5 h-3.5" /> Reset Chat
             </Button>
             {isAdmin && (
-              <div className="flex items-center gap-1.5">
-                {uploadedDocNames.length > 0 ? (
-                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium border border-green-200">
-                    ✓ {uploadedDocNames.length} doc{uploadedDocNames.length !== 1 ? 's' : ''} learned
-                  </span>
-                ) : (
-                  <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-medium border border-amber-200">
-                    Unlearned
-                  </span>
-                )}
-                <label className="cursor-pointer">
-                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
-                  <div className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
-                    {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    {uploadingDoc ? 'AI Learning...' : 'AI Learning'}
+              <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="rounded-xl font-bold gap-2">
+                <Settings className="w-3.5 h-3.5" /> Town Rules
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden max-w-7xl mx-auto w-full">
+        {/* --- MAIN CHAT AREA --- */}
+        <main className="flex-1 flex flex-col bg-white relative">
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin">
+            {messages.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-6 animate-in fade-in duration-1000">
+                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center">
+                    <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">How can I assist your enforcement today?</h2>
+                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                        I have access to {municipality?.town_name}'s specific regulations and New Hampshire RSAs. Ask me about a case, a statute, or procedural next steps.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 w-full">
+                    <Button variant="ghost" onClick={() => setInput("What are the daily penalty limits under RSA 676:17?")} className="text-xs justify-start hover:bg-slate-50 border border-slate-100 rounded-xl py-6 px-4">
+                        "What are the daily penalty limits under RSA 676:17?"
+                    </Button>
+                    <Button variant="ghost" onClick={() => setInput("Generate a draft checklist for a junk vehicle investigation.")} className="text-xs justify-start hover:bg-slate-50 border border-slate-100 rounded-xl py-6 px-4">
+                        "Draft a checklist for a junk vehicle investigation."
+                    </Button>
+                </div>
+              </div>
+            )}
+
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
+                <div className={`max-w-[85%] rounded-3xl p-5 ${
+                  m.role === 'user' 
+                  ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/10' 
+                  : 'bg-slate-50 border border-slate-100 text-slate-800'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2 opacity-50">
+                    {m.role === 'user' ? <User className="w-3 h-3" /> : <Compass className="w-3 h-3" />}
+                    <span className="text-[10px] font-black uppercase tracking-widest">{m.role === 'user' ? 'Officer' : 'Compass Agent'}</span>
                   </div>
-                </label>
-                <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5">
-                  <Settings className="w-3.5 h-3.5" />
-                  {townConfig ? 'Town Settings' : 'Setup Town'}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Town Config Panel */}
-        {showConfig && isAdmin && (
-          <div className="mt-4 max-w-5xl mx-auto bg-indigo-50 border border-indigo-200 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Building2 className="w-4 h-4 text-indigo-600" />
-              <h3 className="font-semibold text-indigo-900">Town Configuration — Train Compass AI</h3>
-            </div>
-            <form onSubmit={saveConfig} className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Town Name *</Label>
-                  <Input value={configForm.town_name} onChange={e => setConfigForm(f => ({ ...f, town_name: e.target.value }))} required placeholder="Bow" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">State</Label>
-                  <Input value={configForm.state} onChange={e => setConfigForm(f => ({ ...f, state: e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Zoning Compliance (days)</Label>
-                  <Input type="number" value={configForm.compliance_days_zoning} onChange={e => setConfigForm(f => ({ ...f, compliance_days_zoning: +e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">ZBA Appeal Window (days)</Label>
-                  <Input type="number" value={configForm.zba_appeal_days} onChange={e => setConfigForm(f => ({ ...f, zba_appeal_days: +e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">First Offense Penalty/day</Label>
-                  <Input type="number" value={configForm.penalty_first_offense} onChange={e => setConfigForm(f => ({ ...f, penalty_first_offense: +e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Subsequent Penalty/day</Label>
-                  <Input type="number" value={configForm.penalty_subsequent} onChange={e => setConfigForm(f => ({ ...f, penalty_subsequent: +e.target.value }))} />
+                  <div className="prose prose-sm max-w-none prose-slate leading-relaxed">
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Town-Specific Regulations (paste ordinance text for AI training)</Label>
-                <Textarea rows={4} value={configForm.specific_regulations} onChange={e => setConfigForm(f => ({ ...f, specific_regulations: e.target.value }))} placeholder="Paste relevant zoning ordinance sections here — Compass will use this to give town-specific guidance..." />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Additional Notes</Label>
-                <Input value={configForm.notes} onChange={e => setConfigForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Contact Town Counsel at..." />
-              </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Button type="submit" disabled={savingConfig} size="sm">{savingConfig ? 'Saving...' : 'Save Configuration'}</Button>
-                {townConfig?.id && (
-                  <label className="cursor-pointer">
-                    <input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocUpload} />
-                    <div className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent transition-colors">
-                      {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      {uploadingDoc ? 'Uploading...' : 'Upload Ordinance Doc'}
-                    </div>
-                  </label>
-                )}
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowConfig(false)}>Done</Button>
-              </div>
-            </form>
-
-            {/* Learned Documents List */}
-            {uploadedDocNames.length > 0 && (
-              <div className="mt-4 border-t border-indigo-200 pt-4">
-                <p className="text-xs font-semibold text-indigo-800 mb-2 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Learned Documents ({uploadedDocNames.length})</p>
-                <div className="space-y-1.5">
-                  {uploadedDocNames.map((doc, i) => (
-                    <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-indigo-100">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                        <span className="text-xs font-medium truncate">{doc.name || doc}</span>
-                        {doc.uploaded_at && <span className="text-[10px] text-muted-foreground flex-shrink-0">{new Date(doc.uploaded_at).toLocaleDateString()}</span>}
-                      </div>
-                      <button onClick={() => removeDocument(i)} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 ml-2">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Upload success toast */}
-        {lastUploadedDoc && (
-          <div className="mt-3 max-w-5xl mx-auto flex items-center gap-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2.5">
-            <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            <span><strong>{lastUploadedDoc}</strong> has been uploaded and Compass AI is now learning from it.</span>
-          </div>
-        )}
-
-        {/* Case Selector for Analysis */}
-        <div className="mt-3 max-w-5xl mx-auto flex items-center gap-2 flex-wrap">
-          <select
-            value={selectedCase}
-            onChange={e => setSelectedCase(e.target.value)}
-            className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">— Analyze a specific case (optional) —</option>
-            {cases.map(c => (
-              <option key={c.id} value={c.id}>{c.case_number || c.id.slice(0,8)} — {c.property_address?.slice(0, 40)}</option>
             ))}
-          </select>
-          {selectedCase && (
-            <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs gap-1">
-              <MessageSquare className="w-3 h-3" /> Analyze This Case
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 max-w-5xl mx-auto w-full">
-        {messages.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Compass className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Welcome to Compass AI</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
-              I'm your NH Land Use & Zoning Enforcement advisor. Ask me about RSA statutes, violation analysis, enforcement procedures, or select a case above for a full analysis.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-2 max-w-lg mx-auto">
-              {[
-                'Does a junkyard violation require a warrant under RSA 595-B?',
-                'What is the penalty for a first-offense zoning violation in NH?',
-                'Walk me through Path A vs Path B enforcement',
-                'What notice requirements apply under RSA 676:17-a?',
-              ].map(q => (
-                <button key={q} onClick={() => setInput(q)} className="text-left text-xs bg-muted hover:bg-muted/80 rounded-lg p-3 transition-colors border border-border">
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.map((msg, i) => {
-          if (!msg.content) return null;
-          const isUser = msg.role === 'user';
-          return (
-            <div key={i} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-              {!isUser && (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Compass className="w-3.5 h-3.5 text-white" />
+            {isThinking && (
+              <div className="flex justify-start animate-pulse">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Analyzing Regulations...</span>
                 </div>
-              )}
-              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isUser ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}>
-                {isUser ? (
-                  <p className="text-sm leading-relaxed">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</p>
-                ) : (
-                  <ReactMarkdown className="text-sm prose prose-sm prose-slate max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                    {msg.content}
-                  </ReactMarkdown>
-                )}
               </div>
-            </div>
-          );
-        })}
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-        {(isLoading || sending) && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <Compass className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="bg-card border border-border rounded-2xl px-4 py-3">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          {/* --- STICKY INPUT BAR --- */}
+          <div className="p-6 bg-white border-t border-slate-100 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)]">
+            <form onSubmit={sendMessage} className="flex gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-primary transition-all">
+                <Input 
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={selectedCase ? "Ask about this case..." : "Ask a legal or procedural question..."}
+                    className="flex-1 bg-transparent border-none shadow-none focus-visible:ring-0 text-md h-12"
+                />
+                <Button type="submit" disabled={isThinking || !input.trim()} className="h-12 w-12 rounded-xl shadow-lg shadow-primary/20">
+                    <Send className="w-5 h-5" />
+                </Button>
+            </form>
+            <div className="flex items-center gap-4 mt-3 px-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Encrypted Town Data
+                </p>
+                {docsSharedWithAgent && (
+                    <p className="text-[10px] font-bold text-green-500 uppercase flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Local Ordinances Linked
+                    </p>
+                )}
             </div>
           </div>
-        )}
-        <div ref={messagesEndRef} />
+        </main>
+
+        {/* --- CONTEXT SIDEBAR --- */}
+        <aside className="w-80 border-l border-slate-100 bg-slate-50/50 hidden lg:block overflow-y-auto p-6 space-y-8">
+            <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <Gavel className="w-4 h-4" /> Active Case Focus
+                </h3>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <Select value={selectedCase} onValueChange={setSelectedCase}>
+                        <SelectTrigger className="bg-slate-50 border-none h-10 text-xs font-bold rounded-xl">
+                            <SelectValue placeholder="Select a case..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">No case selected</SelectItem>
+                            {cases.map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.property_address}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {selectedCase && selectedCase !== 'none' && (
+                        <Button variant="default" size="sm" onClick={askWithCase} className="w-full text-[10px] font-black uppercase tracking-widest py-5 rounded-xl">
+                            Analyze Selected Case
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <FileText className="w-4 h-4" /> Knowledge Base
+                    </h3>
+                    <label className="cursor-pointer group">
+                        <Plus className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
+                        <input type="file" className="hidden" onChange={handleDocUpload} />
+                    </label>
+                </div>
+                <div className="space-y-2">
+                    {uploadedDocNames.map((doc, idx) => (
+                        <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between group">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="w-3.5 h-3.5 text-primary" />
+                                <span className="text-[11px] font-bold text-slate-600 truncate">{doc.name}</span>
+                            </div>
+                            <button onClick={() => removeDocument(idx)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    {uploadedDocNames.length === 0 && (
+                        <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-2xl">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">No Local Laws Uploaded</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-2 mb-2 text-primary">
+                    <Info className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">AI Accuracy</span>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                    Compass uses RAG (Retrieval-Augmented Generation) to prioritize your town's uploaded documents over general knowledge.
+                </p>
+            </div>
+        </aside>
       </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 border-t border-border bg-card px-4 sm:px-6 py-4">
-        <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto">
-          <Input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Ask Compass about NH land use law, violations, enforcement procedures..."
-            className="flex-1"
-            disabled={sending || !conversation}
-          />
-          <Button type="submit" disabled={sending || !input.trim() || !conversation} size="icon">
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
-        </form>
-      </div>
+      {/* Town Config Modal (Internal Settings) */}
+      {showConfig && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-[40px] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-10 space-y-8 animate-in zoom-in-95">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                        <Settings className="w-8 h-8 text-primary" /> Town Statutory Rules
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={() => setShowConfig(false)}><X className="w-6 h-6" /></Button>
+                </div>
+                
+                <form onSubmit={saveConfig} className="grid grid-cols-2 gap-6">
+                    <div className="col-span-2 space-y-2">
+                        <Label className="text-xs font-black uppercase text-slate-400">Town Name</Label>
+                        <Input value={configForm.town_name} onChange={e => setConfigForm({...configForm, town_name: e.target.value})} className="h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-xs font-black uppercase text-slate-400">Abatement Days</Label>
+                        <Input type="number" value={configForm.compliance_days_zoning} onChange={e => setConfigForm({...configForm, compliance_days_zoning: e.target.value})} className="h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-xs font-black uppercase text-slate-400">Penalty Rate ($)</Label>
+                        <Input type="number" value={configForm.penalty_first_offense} onChange={e => setConfigForm({...configForm, penalty_first_offense: e.target.value})} className="h-12 rounded-xl" />
+                    </div>
+                    <div className="col-span-2 pt-6 flex justify-end gap-3">
+                        <Button type="button" variant="ghost" onClick={() => setShowConfig(false)} className="font-bold">Cancel</Button>
+                        <Button type="submit" disabled={savingConfig} className="px-10 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+                            {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply Rules"}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
