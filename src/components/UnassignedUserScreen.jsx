@@ -1,49 +1,93 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { Building2, LogOut, UserCheck } from 'lucide-react';
+import { Building2, LogOut, UserCheck, Mail, ArrowRight, Copy, Check } from 'lucide-react';
 
 export default function UnassignedUserScreen() {
+  const [copied, setCopied] = useState(false);
+  const supportEmail = "support@code-enforce.com";
+  
+  const handleContactSupport = () => {
+    window.location.href = `mailto:${supportEmail}?subject=Onboarding%20Request&body=Hello,%20I%20need%20help%20setting%20up%20my%20town%20on%20CodeEnforce.`;
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(supportEmail);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset icon after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy email:', err);
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-        <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-6">
-          <Building2 className="w-8 h-8" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+        
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center mx-auto mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
+            <Building2 className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2 tracking-tight">Account Not Linked</h1>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Your account isn't associated with a municipality yet.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-3">Account Not Linked</h1>
-        <p className="text-slate-500 text-sm mb-8">
-          Your account isn't associated with a municipality yet. You can set up a new town and subscribe, or wait for your administrator to invite you.
-        </p>
 
-        <div className="space-y-3">
-          <Button
-            className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
-            onClick={() => { window.location.href = '/subscribe?new=true'; }}
-          >
-            <Building2 className="w-4 h-4" />
-            Set Up New Town & Subscribe
-          </Button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
+        <div className="space-y-4">
+          {/* Option 1: Existing Town */}
+          <div className="bg-slate-800/40 border border-white/5 rounded-xl p-5 text-sm text-slate-300">
+            <div className="flex items-start gap-3">
+              <UserCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-100">Joining an existing town?</p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Please reach out to your <strong>Town Supervisor</strong>. They can add you as a user and link your account via the Admin panel.
+                </p>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs text-slate-400 bg-white px-2">or</div>
           </div>
 
-          <div className="bg-slate-50 rounded-xl p-4 text-left text-sm text-slate-600">
-            <div className="flex items-start gap-2">
-              <UserCheck className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-              <p>Ask your municipal administrator to invite you via the Admin Tools → Users panel. They'll assign you to the correct town.</p>
+          <div className="relative py-2 flex items-center gap-4">
+            <div className="flex-grow border-t border-white/10" />
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">OR</span>
+            <div className="flex-grow border-t border-white/10" />
+          </div>
+
+          {/* Option 2: New Town / Support */}
+          <div className="space-y-3">
+            <p className="text-center text-xs text-slate-400 px-4">
+              If you haven't set up your town for onboarding yet, contact our team to get started:
+            </p>
+            
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 h-14 gap-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 group"
+                onClick={handleContactSupport}
+              >
+                <Mail className="w-5 h-5" />
+                Email Support
+                <ArrowRight className="w-4 h-4 ml-auto opacity-50 group-hover:translate-x-1 transition-transform" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-14 w-14 border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl flex items-center justify-center shrink-0"
+                onClick={copyToClipboard}
+                title="Copy email address"
+              >
+                {copied ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
+              </Button>
             </div>
           </div>
 
           <Button
             variant="ghost"
-            className="w-full gap-2 text-slate-500 mt-2"
+            className="w-full gap-2 text-slate-500 hover:text-white hover:bg-white/5 mt-4 transition-colors"
             onClick={() => base44.auth.logout()}
           >
-            <LogOut className="w-4 h-4" /> Log Out
+            <LogOut className="w-4 h-4" /> Sign Out
           </Button>
         </div>
       </div>
