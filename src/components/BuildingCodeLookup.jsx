@@ -15,11 +15,9 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
   const fileInputRef = useRef(null);
 
   async function handleReview(e) {
-    // CRITICAL: Prevent default form submission and check loading state
     if (e) e.preventDefault();
     if (loading) return;
     
-    // Validate that we have at least something to process
     if (!question.trim() && !selectedFile) {
       toast({
         title: "Input Required",
@@ -33,7 +31,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
     setAnswer('');
 
     try {
-      // 1. Permanent Storage logic
+      // 1. Permanent Storage (Only if Save to Vault is checked)
       if (selectedFile && shouldSaveToVault) {
         await base44.entities.Document.create({
           name: `Plan Review: ${selectedFile.name}`,
@@ -43,8 +41,8 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
         });
       }
 
-      // 2. The Registrar's Execution Logic
-      // Passing the file as an attachment if ephemeral, otherwise just the message
+      // 2. The Registrar Execution
+      // Uses the specialized Compass agent to process the vault + new attachment
       const result = await base44.agents.compass.chat({
         message: selectedFile 
           ? `Perform a formal plan review of the attached document: ${selectedFile.name}. ${question}`
@@ -55,24 +53,17 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
           town_name: townName,
           mode: "plan_reviewer",
           is_ephemeral: !shouldSaveToVault,
-          instruction_override: `
-            Act as the Municipal Building Official (The Registrar) for ${townName}. 
-            Provide a technical, 'no-fluff' plan review memo citing IBC, IRC, and NH RSA Title LXIV.
-            Structure your response with clear headings: 
-            ### COMPLIANCE SUMMARY
-            ### CODE DISCREPANCIES
-            ### REQUIRED ACTIONS
-          `
+          instruction_override: "Act as the Municipal Building Official (The Registrar). Provide a technical, 'no-fluff' plan review memo. Cite IBC, IRC, and NH RSA sections."
         }
       });
       
-      if (result && result.reply) {
+      if (result?.reply) {
         setAnswer(result.reply);
       } else {
-        throw new Error("No response from Compass agent.");
+        throw new Error("No response from Compass.");
       }
 
-      // Cleanup on success
+      // Cleanup
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       
@@ -80,7 +71,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
       console.error("Execution failed:", error);
       toast({ 
         title: "Review Execution Failed", 
-        description: "The Registrar could not reach the Compass agent. Check your tool permissions.", 
+        description: "Compass could not be reached. Ensure the Document tool is enabled in Agent Settings.", 
         variant: "destructive" 
       });
     } finally {
@@ -95,13 +86,12 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
 
   return (
     <div className="mb-8 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      {/* Header Panel */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-slate-900 text-white">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
             <HardHat className="w-4 h-4 text-slate-900" />
           </div>
-          <div>
+          <div className="text-left">
             <p className="text-sm font-bold uppercase tracking-wider">The Registrar: Plan Review</p>
             <p className="text-[10px] text-slate-400 font-mono">Jurisdiction: {townName || 'Bow, NH'}</p>
           </div>
@@ -109,7 +99,6 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
       </div>
 
       <div className="p-5 space-y-5">
-        {/* Upload Interface */}
         <div className="space-y-3">
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left block">Target Document</label>
           <div 
@@ -118,35 +107,24 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
               selectedFile ? 'border-amber-500 bg-amber-50/30' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
             }`}
           >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-              accept=".pdf,.png,.jpg,.jpeg"
-            />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => setSelectedFile(e.target.files[0])} accept=".pdf,.png,.jpg,.jpeg" />
             {selectedFile ? (
               <div className="flex items-center gap-3">
                 <FileText className="w-5 h-5 text-amber-600" />
                 <span className="text-sm font-medium text-slate-700">{selectedFile.name}</span>
-                <button 
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} 
-                  className="p-1 hover:bg-amber-100 rounded-full"
-                >
+                <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="p-1 hover:bg-amber-100 rounded-full">
                   <X className="w-4 h-4 text-amber-700" />
                 </button>
               </div>
             ) : (
               <>
                 <FileUp className="w-6 h-6 text-slate-400 mb-2" />
-                <p className="text-xs text-slate-500 font-medium">Click to attach plans for review</p>
+                <p className="text-xs text-slate-500 font-medium text-center">Click to attach plans for review</p>
               </>
             )}
           </div>
         </div>
 
-        {/* Form Controls */}
         <div className="space-y-4">
           <textarea
             value={question}
@@ -157,31 +135,19 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
           
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="vault-save" 
-                checked={shouldSaveToVault} 
-                onCheckedChange={setShouldSaveToVault} 
-              />
-              <label htmlFor="vault-save" className="text-xs font-medium text-slate-600 cursor-pointer">
-                Save to Town Vault
-              </label>
+              <Checkbox id="vault-save" checked={shouldSaveToVault} onCheckedChange={setShouldSaveToVault} />
+              <label htmlFor="vault-save" className="text-xs font-medium text-slate-600 cursor-pointer">Save to Town Vault</label>
             </div>
-
-            <Button 
-              onClick={handleReview}
-              disabled={loading} 
-              className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm min-w-[160px]"
-            >
+            <Button onClick={handleReview} disabled={loading} className="bg-amber-600 hover:bg-amber-700 text-white min-w-[160px]">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
               {loading ? 'Consulting Code...' : 'Execute Review'}
             </Button>
           </div>
         </div>
 
-        {/* Results Window */}
         {answer && (
           <div className="mt-4 bg-white rounded-lg border border-slate-200 shadow-lg text-left">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50 rounded-t-lg">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50">
               <span className="text-[10px] font-bold text-amber-700 uppercase tracking-tighter">Compliance Result</span>
               <Button variant="ghost" size="sm" onClick={copyToClipboard} className="h-7 text-[10px] gap-1">
                 <ClipboardCheck className="w-3 h-3" /> Copy Memo
