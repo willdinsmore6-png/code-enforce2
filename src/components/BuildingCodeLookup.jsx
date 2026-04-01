@@ -16,27 +16,25 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
 
   async function handleReview(e) {
     e.preventDefault();
-    if (loading) return;
+    // THE FIX: Ensure button triggers and checks for content
+    if (loading || (!question.trim() && !selectedFile)) return;
+    
     setLoading(true);
     setAnswer('');
 
     try {
-      let fileContext = null;
-
-      // 1. Conditional Storage Logic
+      // 1. Storage Logic: Only save if explicitly requested
       if (selectedFile && shouldSaveToVault) {
-        // PERMANENT: Upload to the Document Entity
-        const uploadResult = await base44.entities.Document.create({
+        await base44.entities.Document.create({
           name: `Plan Review: ${selectedFile.name}`,
           town_id: townId,
           category: 'plan_review',
           file: selectedFile
         });
-        fileContext = `[File ID: ${uploadResult.id}]`;
       }
 
-      // 2. Execute Review via Compass
-      // If NOT saving to vault, we pass the file directly in the message payload
+      // 2. The Registrar Execution:
+      // Uses the compass agent and passes ephemeral attachments if not saving
       const result = await base44.agents.compass.chat({
         message: selectedFile 
           ? `Perform a formal plan review of the attached document: ${selectedFile.name}. ${question}`
@@ -50,7 +48,6 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
           instruction_override: `
             Act as the Municipal Building Official (The Registrar) for ${townName}. 
             Provide a technical, 'no-fluff' plan review memo.
-            If is_ephemeral is true, do not reference database IDs.
             Structure:
             1. PROJECT COMPLIANCE SUMMARY
             2. DISCREPANCIES (Cite IBC/IRC/RSA)
@@ -67,7 +64,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
       console.error("Plan review failed:", error);
       toast({ 
         title: "Review Error", 
-        description: "The Registrar was unable to process the request.", 
+        description: "The Registrar was unable to process the request. Ensure the Document tool is active.", 
         variant: "destructive" 
       });
     } finally {
