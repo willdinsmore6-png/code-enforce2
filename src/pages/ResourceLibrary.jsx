@@ -1,237 +1,173 @@
-import { useState, useEffect, useRef } from 'react';
-import BuildingCodeLookup from '../components/BuildingCodeLookup';
+import { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, Send, Loader2, X, RefreshCw } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import PageHeader from '../components/shared/PageHeader';
+import { Checkbox } from '@/components/ui/checkbox';
+import { HardHat, Send, Loader2, FileUp, ClipboardCheck, X, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
-const DEFAULT_RESOURCES = [
-  { category: 'Key Statutes', term: 'RSA 676:15 — Injunctive Relief', definition: 'Allows a municipality to seek a court injunction in Superior Court to stop a land use violation and require abatement (cleanup).', tip: 'Use this for serious violations where a court order is needed to compel compliance.', sort_order: 1 },
-  { category: 'Key Statutes', term: 'RSA 676:17 — Fines and Penalties', definition: 'Civil penalties for land use violations. Fines are $275/day for first offense and $550/day for subsequent offenses.', tip: 'Penalties accrue daily once a citation is issued.', sort_order: 2 },
-  { category: 'Key Statutes', term: 'RSA 676:17-a — Cease and Desist', definition: 'Authorizes immediate stop-work orders for ongoing violations.', tip: 'A powerful tool to halt activity before formal court action.', sort_order: 3 },
-  { category: 'Land Use Terms', term: 'Abatement', definition: 'The act of eliminating or correcting a violation (e.g., removing an illegal structure).', tip: 'The NOV should clearly describe the steps for abatement.', sort_order: 13 },
-  { category: 'Land Use Terms', term: 'Setback', definition: 'The minimum required distance between a building and a property line.', tip: 'Setback violations are the most common issue in NH towns.', sort_order: 15 }
-];
+export default function BuildingCodeLookup({ townName, state, townId }) {
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [shouldSaveToVault, setShouldSaveToVault] = useState(false);
+  const fileInputRef = useRef(null);
 
-export default function ResourceLibrary() {
-  const { user, municipality } = useAuth();
-  const [resources, setResources] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedItems, setExpandedItems] = useState({});
-  const [showAI, setShowAI] = useState(false);
-  
-  const currentTownId = municipality?.id || user?.municipality_id;
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-
-  useEffect(() => {
-    if (currentTownId) loadResources();
-  }, [currentTownId]);
-
-  async function loadResources() {
-    setLoading(true);
-    try {
-      let existing = await base44.entities.Resource.filter({ 
-        municipality_id: currentTownId,
-        is_active: true 
+  async function handleReview(e) {
+    if (e) e.preventDefault();
+    if (loading) return;
+    
+    // Validate input
+    if (!question.trim() && !selectedFile) {
+      toast({
+        title: "Input Required",
+        description: "Please enter a question or attach a document to review.",
+        variant: "destructive"
       });
+      return;
+    }
 
-      if (existing.length === 0 && currentTownId) {
-        const seeded = await base44.entities.Resource.bulkCreate(
-          DEFAULT_RESOURCES.map(r => ({ 
-            ...r, 
-            municipality_id: currentTownId, 
-            state: municipality?.state || 'NH', 
-            is_active: true 
-          }))
-        );
-        existing = seeded;
+    setLoading(true);
+    setAnswer('');
+
+    try {
+      // 1. Permanent Storage logic
+      if (selectedFile && shouldSaveToVault) {
+        await base44.entities.Document.create({
+          name: `Plan Review: ${selectedFile.name}`,
+          town_id: townId,
+          category: 'plan_review',
+          file: selectedFile
+        });
       }
-      setResources(existing);
-    } catch (err) {
-      console.error("Resource load error:", err);
+
+      // 2. The Registrar Execution Logic
+      const result = await base44.agents.compass.chat({
+        message: selectedFile 
+          ? `Perform a formal plan review of the attached document: ${selectedFile.name}. ${question}`
+          : question,
+        attachments: (!shouldSaveToVault && selectedFile) ? [selectedFile] : [],
+        context: {
+          town_id: townId,
+          town_name: townName || "Bow",
+          mode: "plan_reviewer",
+          is_ephemeral: !shouldSaveToVault,
+          instruction_override: `
+            Act as the Municipal Building Official (The Registrar). 
+            Provide a technical, 'no-fluff' plan review memo citing IBC, IRC, and NH RSA Title LXIV.
+            Structure:
+            ### COMPLIANCE SUMMARY
+            ### CODE DISCREPANCIES
+            ### REQUIRED ACTIONS
+          `
+        }
+      });
+      
+      if (result?.reply) {
+        setAnswer(result.reply);
+      } else {
+        throw new Error("No response from Compass.");
+      }
+
+      // Cleanup
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      
+    } catch (error) {
+      console.error("Execution failed:", error);
+      toast({ 
+        title: "Review Failed", 
+        description: "The Registrar could not reach Compass. Verify your townId and permissions.", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
   }
 
-  const toggleItem = (key) => setExpandedItems(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const grouped = resources
-    .filter(r => !searchTerm || r.term?.toLowerCase().includes(searchTerm.toLowerCase()) || r.definition?.toLowerCase().includes(searchTerm.toLowerCase()))
-    .reduce((acc, r) => {
-      if (!acc[r.category]) acc[r.category] = [];
-      acc[r.category].push(r);
-      return acc;
-    }, {});
-
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-      <PageHeader
-        title="Resource Library"
-        description="Technical code definitions and NH planning statutes."
-        actions={
-          isAdmin && (
-            <Button onClick={() => setShowAI(true)} className="gap-2 bg-slate-900 text-white hover:bg-slate-800 border-0">
-              <Sparkles className="w-4 h-4 text-amber-400" /> AI Curator
-            </Button>
-          )
-        }
-      />
-
-      {showAI && (
-        <AICuratePanel 
-          onClose={() => { setShowAI(false); loadResources(); }} 
-          municipality={municipality}
-          townId={currentTownId}
-        />
-      )}
-
-      <BuildingCodeLookup 
-        townName={municipality?.town_name || municipality?.name} 
-        state={municipality?.state} 
-        townId={currentTownId}
-      />
-
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search library..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-      ) : (
-        <div className="space-y-8">
-          {Object.entries(grouped).map(([category, items]) => (
-            <div key={category}>
-              <h2 className="text-xs font-bold mb-4 flex items-center gap-2 uppercase tracking-tighter text-slate-400">
-                <BookOpen className="w-3 h-3" /> {category}
-              </h2>
-              <div className="space-y-2">
-                {items.map(item => (
-                  <div key={item.id} className="bg-card rounded-xl border border-border overflow-hidden">
-                    <button
-                      onClick={() => toggleItem(item.id)}
-                      className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="text-sm font-semibold">{item.term}</span>
-                      {expandedItems[item.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                    {expandedItems[item.id] && (
-                      <div className="px-5 pb-4 space-y-3">
-                        <p className="text-sm text-muted-foreground leading-relaxed font-mono">{item.definition}</p>
-                        {item.tip && (
-                          <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3">
-                            <p className="text-[10px] font-bold text-amber-700 uppercase mb-1">Field Note</p>
-                            <p className="text-xs text-amber-900/80">{item.tip}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AICuratePanel({ onClose, municipality, townId }) {
-  const [conversation, setConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    base44.agents.createConversation({ 
-      agent_name: 'resource_curator', 
-      metadata: { town_id: townId, town_name: municipality?.name } 
-    }).then(conv => {
-      setConversation(conv);
-      setMessages(conv.messages || []);
-    });
-  }, [townId]);
-
-  useEffect(() => {
-    if (!conversation) return;
-    return base44.agents.subscribeToConversation(conversation.id, data => setMessages(data.messages || []));
-  }, [conversation?.id]);
-
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-  async function sendMessage(e, customMsg = null) {
-    if (e) e.preventDefault();
-    const msg = customMsg || input.trim();
-    if (!msg || !conversation || sending) return;
-    
-    if (!customMsg) setInput('');
-    setSending(true);
-
-    // INSTRUCTION: Hard-limit the agent to the current Town ID
-    await base44.agents.addMessage(conversation, { 
-      role: 'user', 
-      content: `${msg} (STRICT CONSTRAINT: Only create/update resources for ${municipality?.name}, ID: ${townId})` 
-    });
-    setSending(false);
-  }
-
-  const handleAutoCurate = () => {
-    const prompt = `Review the library for ${municipality?.name}. Ensure all NH RSA references are up to date and add 3 common land-use terms relevant to our town.`;
-    sendMessage(null, prompt);
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(answer);
+    toast({ title: "Memo Copied", description: "Technical summary added to clipboard." });
   };
 
   return (
-    <div className="mb-6 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xl">
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-[10px] uppercase tracking-widest">Registrar Curator: {municipality?.name}</span>
-        </div>
+    <div className="mb-8 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-slate-900 text-white">
         <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleAutoCurate} 
-            className="h-7 text-[10px] bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 gap-1"
-          >
-            <RefreshCw className={`w-3 h-3 ${sending ? 'animate-spin' : ''}`} /> Auto-Curate
-          </Button>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
+            <HardHat className="w-4 h-4 text-slate-900" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold uppercase tracking-wider">The Registrar: Plan Review</p>
+            <p className="text-[10px] text-slate-400 font-mono">Jurisdiction: {townName || 'Bow, NH'}</p>
+          </div>
         </div>
       </div>
-      <div className="h-64 overflow-y-auto px-4 py-3 space-y-3 bg-slate-50 font-mono text-[11px]">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] rounded-lg px-3 py-2 ${msg.role === 'user' ? 'bg-slate-200' : 'bg-white border border-slate-200 shadow-sm'}`}>
-              <ReactMarkdown className="prose prose-xs">{msg.content}</ReactMarkdown>
+
+      <div className="p-5 space-y-5">
+        <div className="space-y-3">
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left block">Target Document</label>
+          <div 
+            onClick={() => !selectedFile && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-all ${
+              selectedFile ? 'border-amber-500 bg-amber-50/30' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
+            }`}
+          >
+            <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => setSelectedFile(e.target.files[0])} accept=".pdf,.png,.jpg,.jpeg" />
+            {selectedFile ? (
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-amber-600" />
+                <span className="text-sm font-medium text-slate-700">{selectedFile.name}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="p-1 hover:bg-amber-100 rounded-full">
+                  <X className="w-4 h-4 text-amber-700" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <FileUp className="w-6 h-6 text-slate-400 mb-2" />
+                <p className="text-xs text-slate-500 font-medium">Click to attach plans for review</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <textarea
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            placeholder="e.g. Verify side-yard setbacks for this ADU plan..."
+            className="w-full p-3 rounded-md border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-amber-500 outline-none min-h-[100px] block"
+          />
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="vault-save" checked={shouldSaveToVault} onCheckedChange={setShouldSaveToVault} />
+              <label htmlFor="vault-save" className="text-xs font-medium text-slate-600 cursor-pointer text-left">Save to Town Vault</label>
+            </div>
+            <Button onClick={handleReview} disabled={loading} className="bg-amber-600 hover:bg-amber-700 text-white min-w-[160px]">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              {loading ? 'Consulting Code...' : 'Execute Review'}
+            </Button>
+          </div>
+        </div>
+
+        {answer && (
+          <div className="mt-4 bg-white rounded-lg border border-slate-200 shadow-lg text-left">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50">
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-tighter">Compliance Result</span>
+              <Button variant="ghost" size="sm" onClick={copyToClipboard} className="h-7 text-[10px] gap-1">
+                <ClipboardCheck className="w-3 h-3" /> Copy Memo
+              </Button>
+            </div>
+            <div className="p-5 overflow-auto max-h-[500px]">
+              <ReactMarkdown className="prose prose-sm prose-slate max-w-none text-slate-800 text-left">
+                {answer}
+              </ReactMarkdown>
             </div>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
+        )}
       </div>
-      <form onSubmit={sendMessage} className="flex gap-2 px-4 py-3 border-t bg-white">
-        <Input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Command the Curator..."
-          className="flex-1 h-8 text-xs border-slate-200"
-          disabled={sending}
-        />
-        <Button type="submit" size="sm" className="bg-slate-900 h-8" disabled={sending}><Send className="w-3 h-3" /></Button>
-      </form>
     </div>
   );
 }
