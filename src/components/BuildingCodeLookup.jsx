@@ -18,6 +18,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
     if (e) e.preventDefault();
     if (loading) return;
     
+    // Validate input
     if (!question.trim() && !selectedFile) {
       toast({
         title: "Input Required",
@@ -31,7 +32,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
     setAnswer('');
 
     try {
-      // 1. Permanent Storage (Only if Save to Vault is checked)
+      // 1. Permanent Storage logic
       if (selectedFile && shouldSaveToVault) {
         await base44.entities.Document.create({
           name: `Plan Review: ${selectedFile.name}`,
@@ -41,8 +42,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
         });
       }
 
-      // 2. The Registrar Execution
-      // Uses the specialized Compass agent to process the vault + new attachment
+      // 2. The Registrar Execution Logic
       const result = await base44.agents.compass.chat({
         message: selectedFile 
           ? `Perform a formal plan review of the attached document: ${selectedFile.name}. ${question}`
@@ -50,10 +50,17 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
         attachments: (!shouldSaveToVault && selectedFile) ? [selectedFile] : [],
         context: {
           town_id: townId,
-          town_name: townName,
+          town_name: townName || "Bow",
           mode: "plan_reviewer",
           is_ephemeral: !shouldSaveToVault,
-          instruction_override: "Act as the Municipal Building Official (The Registrar). Provide a technical, 'no-fluff' plan review memo. Cite IBC, IRC, and NH RSA sections."
+          instruction_override: `
+            Act as the Municipal Building Official (The Registrar). 
+            Provide a technical, 'no-fluff' plan review memo citing IBC, IRC, and NH RSA Title LXIV.
+            Structure:
+            ### COMPLIANCE SUMMARY
+            ### CODE DISCREPANCIES
+            ### REQUIRED ACTIONS
+          `
         }
       });
       
@@ -70,8 +77,8 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
     } catch (error) {
       console.error("Execution failed:", error);
       toast({ 
-        title: "Review Execution Failed", 
-        description: "Compass could not be reached. Ensure the Document tool is enabled in Agent Settings.", 
+        title: "Review Failed", 
+        description: "The Registrar could not reach Compass. Verify your townId and permissions.", 
         variant: "destructive" 
       });
     } finally {
@@ -119,7 +126,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
             ) : (
               <>
                 <FileUp className="w-6 h-6 text-slate-400 mb-2" />
-                <p className="text-xs text-slate-500 font-medium text-center">Click to attach plans for review</p>
+                <p className="text-xs text-slate-500 font-medium">Click to attach plans for review</p>
               </>
             )}
           </div>
@@ -136,7 +143,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Checkbox id="vault-save" checked={shouldSaveToVault} onCheckedChange={setShouldSaveToVault} />
-              <label htmlFor="vault-save" className="text-xs font-medium text-slate-600 cursor-pointer">Save to Town Vault</label>
+              <label htmlFor="vault-save" className="text-xs font-medium text-slate-600 cursor-pointer text-left">Save to Town Vault</label>
             </div>
             <Button onClick={handleReview} disabled={loading} className="bg-amber-600 hover:bg-amber-700 text-white min-w-[160px]">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
