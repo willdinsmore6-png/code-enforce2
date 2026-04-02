@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, MapPin, Download, Pencil, Trash2, Loader2, User, AlertTriangle, Clock, MessageSquare, Bell, FileText, Scale } from 'lucide-react';
+import { ArrowLeft, MapPin, Download, Pencil, Trash2, Loader2, User, AlertTriangle, Clock, MessageSquare, Bell, FileText } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
@@ -100,7 +100,6 @@ export default function CaseDetail() {
     try {
       const response = await base44.functions.invoke('getCourtFilePDF', { document_id: generatedDocId });
       if (response.data.signed_url) {
-        // Opens in new tab to allow easy "Back" navigation on mobile
         window.open(response.data.signed_url, '_blank');
       }
     } catch (err) { 
@@ -111,25 +110,20 @@ export default function CaseDetail() {
   }
 
   if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div>;
-  if (!caseData) return <div className="p-20 text-center">Case not found.</div>;
+  if (!caseData) return <div className="p-20 text-center">Case record not found.</div>;
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
-      {/* Top Header Actions */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <Link to="/cases" className="text-xs text-muted-foreground flex items-center gap-1 mb-2 hover:text-primary transition-colors">
             <ArrowLeft className="w-3 h-3" /> Back to Cases
           </Link>
-          <h2 className="text-2xl font-bold">{caseData.case_number || 'Case Details'}</h2>
+          <h2 className="text-2xl font-bold">{caseData.case_number || 'Case View'}</h2>
           <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
             <MapPin className="w-3.5 h-3.5" /> {caseData.property_address}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
           <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading}>
-            {exportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <FileText className="w-3.5 h-3.5 mr-2" />}
-            {exportLoading ? 'Generating...' : 'Generate PDF'}
-          </Button>
-          {generatedDocId && (
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadLoading} className="border-
+            {exportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <FileText className="w-3.5 h
