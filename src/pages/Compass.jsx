@@ -42,7 +42,6 @@ export default function CompassPage() {
     }
   }, [municipality, isAdmin]);
 
-  // Persistent town-specific filtering for Super Admins
   useEffect(() => {
     async function loadCases() {
       const activeTownId = municipality?.id || user?.town_id;
@@ -60,6 +59,8 @@ export default function CompassPage() {
   useEffect(() => {
     async function initConversation() {
       const savedId = sessionStorage.getItem('compass_conversation_id');
+      const activeTownId = municipality?.id || user?.town_id;
+
       if (savedId) {
         try {
           const existing = await base44.agents.getConversation(savedId);
@@ -74,13 +75,20 @@ export default function CompassPage() {
           sessionStorage.removeItem('compass_conversation_id');
         }
       }
-      const conv = await base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } });
+      
+      const conv = await base44.agents.createConversation({ 
+        agent_name: 'compass', 
+        metadata: { 
+          name: 'Compass Session',
+          town_id: activeTownId 
+        } 
+      });
       sessionStorage.setItem('compass_conversation_id', conv.id);
       setConversation(conv);
       setMessages(conv.messages || []);
     }
     initConversation();
-  }, []);
+  }, [municipality, user]);
 
   useEffect(() => {
     const handler = (e) => setMessages(e.detail.messages || []);
@@ -98,7 +106,15 @@ export default function CompassPage() {
     setConversation(null);
     setMessages([]);
     setDocsSharedWithAgent(false);
-    const conv = await base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } });
+    
+    const activeTownId = municipality?.id || user?.town_id;
+    const conv = await base44.agents.createConversation({ 
+      agent_name: 'compass', 
+      metadata: { 
+        name: 'Compass Session',
+        town_id: activeTownId 
+      } 
+    });
     sessionStorage.setItem('compass_conversation_id', conv.id);
     setConversation(conv);
   }
@@ -255,14 +271,36 @@ export default function CompassPage() {
             </div>
           </div>
         ))}
-        {isLoading && <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />}
+        
+        {isLoading && (
+          <div className="flex justify-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-card border border-indigo-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              <div className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+              </div>
+              <span className="text-sm text-indigo-700 font-medium">
+                Compass is searching case files...
+              </span>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
       <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4">
         <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto">
-          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Compass..." className="flex-1" disabled={sending} />
-          <Button type="submit" disabled={sending || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
+          <Input 
+            value={input} 
+            onChange={e => setInput(e.target.value)} 
+            placeholder={isLoading ? "Compass is thinking..." : "Ask Compass..."} 
+            className="flex-1" 
+            disabled={sending || isLoading} 
+          />
+          <Button type="submit" disabled={sending || isLoading || !input.trim()} size="icon">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
         </form>
       </div>
     </div>
