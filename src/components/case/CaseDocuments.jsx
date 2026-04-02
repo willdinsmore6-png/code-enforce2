@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, FileText, Image, Download, Trash2, Eye, Upload, Camera, X } from 'lucide-react';
 import DocumentPreview from './DocumentPreview';
 import { format } from 'date-fns';
-import { useToast } from '@/components/ui/use-toast';
 
 const ACCEPT = 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif';
 
@@ -31,7 +30,6 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [form, setForm] = useState({ title: '', document_type: 'complaint', description: '' });
-  const { toast } = useToast();
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -53,7 +51,7 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   }
 
   async function handleDelete(docId) {
-    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    if (!window.confirm('Are you sure?')) return;
     await base44.entities.Document.delete(docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
   }
@@ -64,36 +62,29 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
     setSaving(true);
     
     try {
-      // Pull current user to get their town_id
       const { data: { user } } = await base44.auth.getUser();
       const newDocs = [];
 
       for (const f of files) {
-        // Upload the physical file
         const { file_url } = await base44.integrations.Core.UploadFile({ file: f });
-        
-        // Save the reference to the database
         const title = form.title || f.name.replace(/\.[^.]+$/, '');
         const doc = await base44.entities.Document.create({
           ...form,
           title,
           case_id: caseId,
-          town_id: user.town_id, // Mandatory for RLS
+          town_id: user.town_id,
           file_url,
           version: 1,
         });
         newDocs.push(doc);
       }
-      
       setDocuments(prev => [...prev, ...newDocs]);
-      toast({ title: "Success", description: "Documents uploaded and saved." });
       setOpen(false);
       setSaving(false);
       setFiles([]);
       setForm({ title: '', document_type: 'complaint', description: '' });
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "Failed to upload documents.", variant: "destructive" });
       setSaving(false);
     }
   }
@@ -115,22 +106,18 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                 <form onSubmit={handleUpload} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Title</Label>
-                    <Input value={form.title} onChange={e => update('title', e.target.value)} placeholder="Auto-filled from filename" />
+                    <Input value={form.title} onChange={e => update('title', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Document Type</Label>
                     <Select value={form.document_type} onValueChange={v => update('document_type', v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(typeLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                        {Object.entries(typeLabels).map(([val, label]) => (
+                          <SelectItem key={val} value={val}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Description</Label>
-                    <Input value={form.description} onChange={e => update('description', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>File(s) *</Label>
@@ -141,17 +128,10 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                       className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${dragging ? 'border-primary bg-primary/5' : 'border-border'}`}
                     >
                       <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm font-medium text-muted-foreground">Drag & drop files here</p>
                       <div className="flex justify-center gap-2 mt-3">
                         <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
                           <Upload className="w-3.5 h-3.5" /> Browse Files
-                          <input type="file" multiple accept={ACCEPT} className="hidden"
-                            onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
-                        </label>
-                        <label className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                          <Camera className="w-3.5 h-3.5" /> Take Photo
-                          <input type="file" accept="image/*" className="hidden"
-                            onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+                          <input type="file" multiple accept={ACCEPT} className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                         </label>
                       </div>
                     </div>
@@ -159,30 +139,20 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                       <div className="flex flex-wrap gap-2 mt-2">
                         {files.map((f, i) => (
                           <div key={i} className="relative">
-                            <div className="w-16 h-16 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-1">
+                            <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center">
                                 <FileText className="w-5 h-5 text-muted-foreground" />
-                                <span className="text-[9px] text-muted-foreground truncate w-14 text-center px-1">{f.name}</span>
                             </div>
-                            <button type="button" onClick={() => removeFile(i)}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white">
-                              <X className="w-2.5 h-2.5" />
-                            </button>
+                            <button type="button" onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 rounded-full text-white"><X className="w-2.5 h-2.5" /></button>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={saving || !files.length}>
-                      {saving ? 'Saving...' : `Upload (${files.length})`}
-                    </Button>
-                  </div>
+                  <Button type="submit" className="w-full" disabled={saving || !files.length}>{saving ? 'Saving...' : 'Upload'}</Button>
                 </form>
               </DialogContent>
             </Dialog>
         </div>
-
         <div className="grid sm:grid-cols-2 gap-3">
           {documents.map(doc => {
             const Icon = typeIcons[doc.document_type] || FileText;
