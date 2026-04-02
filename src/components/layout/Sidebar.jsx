@@ -35,8 +35,26 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { municipality, user, logout } = useAuth();
 
-  function renderNavItem(item, activeClass, inactiveClass, iconActiveClass) {
+  // --- THE COMMAND CENTER GATEKEEPER ---
+  // If Superadmin is at the top level and no town is selected, hide the sidebar entirely.
+  const activeTownId = localStorage.getItem('activeTownId');
+  const isGlobalSuperAdmin = user?.role === 'superadmin' && !activeTownId;
+
+  if (isGlobalSuperAdmin) {
+    return null;
+  }
+
+  function renderNavItem(item) {
     const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+    
+    // Style sets for standard and Super Admin sections
+    const isSuperSection = superAdminNavItems.some(s => s.path === item.path);
+    const activeClass = isSuperSection ? "bg-purple-800/40 text-purple-300" : "bg-sidebar-accent text-sidebar-primary";
+    const inactiveClass = isSuperSection 
+      ? "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30" 
+      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50";
+    const iconClass = isSuperSection ? "text-purple-300" : "text-sidebar-primary";
+
     return (
       <Link
         key={item.path}
@@ -46,7 +64,7 @@ export default function Sidebar() {
           isActive ? activeClass : inactiveClass
         )}
       >
-        <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && iconActiveClass)} />
+        <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && iconClass)} />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     );
@@ -54,9 +72,10 @@ export default function Sidebar() {
 
   return (
     <aside className={cn(
-      "hidden md:flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 border-r border-sidebar-border",
+      "hidden md:flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 border-r border-sidebar-border shadow-xl",
       collapsed ? "w-[68px]" : "w-[260px]"
     )}>
+      {/* HEADER / LOGO */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-sidebar-border/30">
           {municipality?.logo_url
@@ -64,64 +83,55 @@ export default function Sidebar() {
             : <Shield className="w-5 h-5 text-sidebar-primary" />}
         </div>
         {!collapsed && (
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">{municipality?.short_name || municipality?.town_name || 'CodeEnforce'}</span>
-            <span className="text-[11px] text-sidebar-foreground/60 truncate">{municipality?.tagline || (municipality ? `${municipality.state} Code Enforcement` : 'Municipal Compliance System')}</span>
+          <div className="flex flex-col min-w-0 text-left">
+            <span className="text-sm font-bold truncate tracking-tight">{municipality?.town_name || 'CodeEnforce'}</span>
+            <span className="text-[10px] uppercase font-bold text-sidebar-foreground/40 truncate tracking-widest">
+              {municipality?.state ? `${municipality.state} Jurisdiction` : 'Registrar Mode'}
+            </span>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
-        {navItems.map(item => renderNavItem(
-          item,
-          "bg-sidebar-accent text-sidebar-primary",
-          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-          "text-sidebar-primary"
-        ))}
+      {/* NAVIGATION */}
+      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto" aria-label="Main navigation">
+        {navItems.map(item => renderNavItem(item))}
 
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>}
-            {adminNavItems.map(item => renderNavItem(
-              item,
-              "bg-sidebar-accent text-sidebar-primary",
-              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-              "text-sidebar-primary"
-            ))}
+            {!collapsed && <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 pt-6 pb-2">Management</p>}
+            {adminNavItems.map(item => renderNavItem(item))}
           </>
         )}
 
+        {/* BACK TO GLOBAL (Superadmin only) */}
         {user?.role === 'superadmin' && (
           <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-400 px-3 pt-4 pb-1">Super Admin</p>}
-            {superAdminNavItems.map(item => renderNavItem(
-              item,
-              "bg-purple-800/40 text-purple-300",
-              "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30",
-              "text-purple-300"
-            ))}
+            {!collapsed && <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-purple-400 px-3 pt-6 pb-2">System Admin</p>}
+            {superAdminNavItems.map(item => renderNavItem(item))}
           </>
         )}
       </nav>
 
-      <button
-        onClick={() => logout()}
-        aria-label="Logout"
-        className={cn(
-          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-          "text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent/50"
-        )}
-      >
-        <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-        {!collapsed && <span className="truncate">Logout</span>}
-      </button>
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+      {/* FOOTER ACTIONS */}
+      <div className="p-2 border-t border-sidebar-border space-y-1">
+        <button
+          onClick={() => logout()}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left",
+            "text-sidebar-foreground/70 hover:text-red-400 hover:bg-red-400/10"
+          )}
+        >
+          <LogOut className="w-[18px] h-[18px]" />
+          {!collapsed && <span>Logout Session</span>}
+        </button>
+        
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-center h-10 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      </div>
     </aside>
   );
 }
