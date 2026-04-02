@@ -1,29 +1,38 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
-import { Search, FolderOpen, FileText, Image, Download, Loader2 } from 'lucide-react';
+import { Search, FolderOpen, FileText, Image, Download, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
 import { format } from 'date-fns';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function DocumentVault() {
+  const { user, municipality } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const { toast } = useToast();
 
   useEffect(() => {
     async function load() {
+      // FIX: Identify the active town context
+      const activeTownId = municipality?.id || user?.town_id;
+      if (!activeTownId) return;
+
       try {
+        setLoading(true);
+        // FIX: Use filter instead of list to enforce town boundaries for SuperAdmins
         const [docs, c] = await Promise.all([
-          base44.entities.Document.list('-created_date', 200),
-          base44.entities.Case.list('-created_date', 200),
+          base44.entities.Document.filter({ town_id: activeTownId }),
+          base44.entities.Case.filter({ town_id: activeTownId }),
         ]);
-        setDocuments(docs);
-        setCases(c);
+        setDocuments(docs || []);
+        setCases(c || []);
       } catch (err) {
         console.error("Vault load error:", err);
       } finally {
@@ -31,22 +40,19 @@ export default function DocumentVault() {
       }
     }
     load();
-  }, []);
+  }, [municipality, user]);
 
   const handleDownload = (doc) => {
-    // FIX: Base44 Document entity uses 'url', not 'file_url'
-    const targetUrl = doc.url || doc.file_url;
-
+    const targetUrl = doc.file_url || doc.url;
     if (!targetUrl) {
       toast({
         title: "Download Unavailable",
-        description: "The file path for this record is missing or invalid.",
+        description: "The file path for this record is missing.",
         variant: "destructive"
       });
       return;
     }
 
-    // Force browser download behavior
     const link = document.createElement('a');
     link.href = targetUrl;
     link.setAttribute('download', doc.title || 'document');
@@ -55,6 +61,33 @@ export default function DocumentVault() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // NEW: Delete function with safety warning for case-linked files
+  const handleDelete = async (doc) => {
+    const linkedCase = cases.find(c => c.id === doc.case_id);
+    const address = linkedCase?.property_address || 'Unlinked';
+    
+    const confirmDelete = window.confirm(
+      `WARNING: DATA DELETION\n\nYou are about to permanently delete "${doc.title}".\n\nThis document is a critical part of the record for: ${address}.\n\nDeleting this will remove it from the Case File history permanently. Do you wish to proceed?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await base44.entities.Document.delete(doc.id);
+      setDocuments(prev => prev.filter(d => d.id !== doc.id));
+      toast({
+        title: "Document Removed",
+        description: "The record has been purged from the vault."
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to delete document.",
+        variant: "destructive"
+      });
+    }
   };
 
   const caseMap = {};
@@ -97,7 +130,7 @@ export default function DocumentVault() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader 
         title="Document Vault" 
-        description="Municipal archive indexed by property and case number." 
+        description={`Archive for ${municipality?.town_name || 'Active Town'}. Indexed by property and case number.`} 
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -162,13 +195,22 @@ export default function DocumentVault() {
                     </p>
                   </div>
 
-                  <button 
-                    onClick={() => handleDownload(doc)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Download File"
-                  >
-                    <Download className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleDownload(doc)}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      title="Download File"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(doc)}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete Record"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
