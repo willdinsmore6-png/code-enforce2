@@ -28,13 +28,14 @@ export default function ResourceLibrary() {
   async function loadResources() {
     setLoading(true);
     try {
+      // Direct filter to match the Agent's write logic
       const existing = await base44.entities.Resource.filter({ 
         municipality_id: currentTownId,
-        is_active: true 
+        is_active: true
       });
       setResources(existing);
     } catch (err) { 
-      console.error("Library Sync Error:", err); 
+      console.error("Vault Sync Error:", err); 
     } finally {
       setLoading(false);
     }
@@ -45,61 +46,54 @@ export default function ResourceLibrary() {
   const grouped = resources
     .filter(r => !searchTerm || r.term?.toLowerCase().includes(searchTerm.toLowerCase()))
     .reduce((acc, r) => {
-      if (!acc[r.category]) acc[r.category] = [];
-      acc[r.category].push(r);
+      const cat = r.category || "General";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(r);
       return acc;
     }, {});
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-      
-      {/* 1. PLAN REVIEW TOOL (Absolute Top) */}
       <section>
-        <BuildingCodeLookup 
-          townName={townName} 
-          state={state} 
-          townId={currentTownId} 
-        />
+        <BuildingCodeLookup townName={townName} state={state} townId={currentTownId} />
       </section>
 
-      {/* 2. HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-100 pb-6 text-left">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 font-mono tracking-tight uppercase">Resource Library</h1>
           <p className="text-sm text-slate-500 font-medium">Jurisdiction: {townName}, {state}</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowAI(!showAI)} variant="outline" className="gap-2 text-xs h-9 border-slate-200">
+          <Button onClick={() => setShowAI(!showAI)} variant="outline" className="gap-2 text-xs h-9">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" /> 
             {showAI ? "Close Curator" : "Open AI Curator"}
           </Button>
         )}
       </div>
 
-      {/* 3. AI CURATOR (With Force-Write Prompt) */}
       {showAI && (
         <AICuratePanel 
           onClose={() => { setShowAI(false); loadResources(); }} 
+          municipality={municipality}
           townId={currentTownId}
           townName={townName}
           state={state}
         />
       )}
 
-      {/* 4. REFERENCE LIST */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-slate-400" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Database Records</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Reference Archive</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-48 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white border-slate-200" />
+              <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white" />
             </div>
-            <Button onClick={loadResources} variant="ghost" size="sm" className="h-8 w-8 p-0" title="Sync with database">
-               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <Button onClick={loadResources} variant="ghost" size="sm" className="h-8 w-8 p-0">
+               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
@@ -136,11 +130,6 @@ export default function ResourceLibrary() {
                 </div>
               </div>
             ))}
-            {Object.keys(grouped).length === 0 && (
-              <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-xl">
-                <p className="text-xs text-slate-400 font-mono italic">No records found for this jurisdiction. Run Curator to populate.</p>
-              </div>
-            )}
           </div>
         )}
       </section>
@@ -148,16 +137,29 @@ export default function ResourceLibrary() {
   );
 }
 
-function AICuratePanel({ onClose, townId, townName, state }) {
+function AICuratePanel({ onClose, townId, townName, state, municipality }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // We explicitly create the TownConfig object your Agent settings require
+  const townConfig = {
+    municipality_id: townId,
+    town_name: townName,
+    state: state,
+    regulations: municipality?.regulations || "Standard Zoning"
+  };
+
   useEffect(() => {
-    base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { town_id: townId } })
-      .then(conv => { setConversation(conv); setMessages(conv.messages || []); });
+    base44.agents.createConversation({ 
+      agent_name: 'resource_curator', 
+      metadata: { town_id: townId, TownConfig: townConfig } 
+    }).then(conv => { 
+      setConversation(conv); 
+      setMessages(conv.messages || []); 
+    });
   }, [townId]);
 
   useEffect(() => {
@@ -175,29 +177,22 @@ function AICuratePanel({ onClose, townId, townName, state }) {
     if (!customMsg) setInput('');
     setSending(true);
 
-    // THE SYNC AUDIT: Explicitly mapping the database fields for the AI
-    const constraint = `
-      COMMAND: Use your Resource Entity Tool to CREATE records.
-      REQUIRED FIELDS:
-      - term: (The word/RSA)
-      - definition: (Technical explanation)
-      - category: (State Statutes, Local Zoning, or Technical Terms)
-      - municipality_id: "${townId}" (CRITICAL: Do not use town_id or name)
-      - state: "${state}"
-      - is_active: true
+    // Provide the TownConfig in every message to reinforce the Agent's instructions
+    const systemPayload = `
+      [TownConfig Information]
+      Municipality ID: ${townConfig.municipality_id}
+      Town Name: ${townConfig.town_name}
+      State: ${townConfig.state}
       
-      CONTEXT: ${msg}
+      COMMAND: ${msg}
     `;
 
-    await base44.agents.addMessage(conversation, { 
-      role: 'user', 
-      content: constraint 
-    });
+    await base44.agents.addMessage(conversation, { role: 'user', content: systemPayload });
     setSending(false);
   }
 
   const handleAutoCurate = () => {
-    const prompt = `Perform a Registrar-level jurisdictional audit for ${townName}, ${state}. Identify 10+ technical definitions from ${state} statutes and local ordinances. Save them as new Resource records using your Entity Tool now.`;
+    const prompt = `Please perform a thorough review and update of our Resource Library as per your curator instructions. Build out at least 12 highly relevant resources for ${townName}, ${state}.`;
     sendMessage(null, prompt);
   };
 
@@ -225,7 +220,7 @@ function AICuratePanel({ onClose, townId, townName, state }) {
         <div ref={messagesEndRef} />
       </div>
       <form onSubmit={sendMessage} className="flex gap-2 p-4 border-t bg-white">
-        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Curate library..." className="flex-1 h-9 text-xs font-mono" />
+        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Task for the Curator..." className="flex-1 h-9 text-xs font-mono" />
         <Button type="submit" size="sm" className="bg-slate-900 h-9 px-4 uppercase text-[10px] font-bold" disabled={sending}>
            {sending ? "Syncing..." : "Execute"}
         </Button>
