@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
@@ -12,10 +12,12 @@ import EditCaseModal from '../components/case/EditCaseModal';
 import CaseNotes from '../components/case/CaseNotes';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function CaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [caseData, setCaseData] = useState(null);
   const [investigations, setInvestigations] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -77,14 +79,6 @@ export default function CaseDetail() {
     setCaseData(prev => ({ ...prev, status: newStatus }));
   }
 
-  async function updatePath(path) {
-    await base44.entities.Case.update(id, { 
-      compliance_path: path,
-      daily_penalty_rate: path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : caseData.daily_penalty_rate 
-    });
-    setCaseData(prev => ({ ...prev, compliance_path: path }));
-  }
-
   async function handleDeleteCase() {
     setDeleting(true);
     await base44.functions.invoke('deleteCaseWithChildren', { case_id: id });
@@ -99,38 +93,45 @@ export default function CaseDetail() {
       const { document_id } = response.data;
       if (!document_id) throw new Error('No document ID returned');
       setGeneratedDocId(document_id);
+      toast({ title: "PDF Generated", description: "The certified file is now available for download." });
     } catch (err) {
       console.error('PDF generation failed:', err);
-      alert(`Generation failed: ${err.message}`);
+      toast({ title: "Generation Error", description: err.message, variant: "destructive" });
     } finally {
       setExportLoading(false);
     }
   }
 
+  // FIXED: Handles secure download of Private PDF files via Signed URL
   async function handleDownloadPDF() {
     if (!generatedDocId) return;
     setDownloadLoading(true);
     try {
-      const response = await base44.functions.invoke('getCourtFilePDF', { document_id: generatedDocId });
+      const response = await base44.functions.invoke('getCourtFilePDF', { 
+        document_id: generatedDocId 
+      });
+      
       const { signed_url, filename } = response.data;
-      if (!signed_url) throw new Error('No download URL returned');
+      if (!signed_url) throw new Error('Secure access denied');
+
       const a = document.createElement('a');
       a.href = signed_url;
-      a.download = filename || `${caseData.case_number || 'case'}-court-file.pdf`;
-      a.target = '_blank';
+      a.download = filename || 'certified-court-file.pdf';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      
+      toast({ title: "Download Started", description: "Certified record is being saved to your device." });
     } catch (err) {
-      console.error('PDF download failed:', err);
-      alert(`Download failed: ${err.message}`);
+      console.error('Download error:', err);
+      toast({ title: "Download Failed", description: "Unable to retrieve private file.", variant: "destructive" });
     } finally {
       setDownloadLoading(false);
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full">Loading...</div>;
-  if (error || !caseData) return <div className="p-8 text-center">Error loading case.</div>;
+  if (loading) return <div className="flex items-center justify-center h-full py-20"><Loader2 className="animate-spin" /></div>;
+  if (error || !caseData) return <div className="p-8 text-center">Error loading case details.</div>;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
@@ -145,45 +146,30 @@ export default function CaseDetail() {
               <StatusBadge status={caseData.status} />
               <StatusBadge status={caseData.priority} type="priority" />
             </div>
-            <address className="text-muted-foreground flex items-center gap-1.5 not-italic mt-2">
+            <address className="text-muted-foreground flex items-center gap-1.5 not-italic mt-2 text-sm">
               <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> {caseData.property_address}
             </address>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
-              {exportLoading ? '...' : <Download className="w-3.5 h-3.5" />} {exportLoading ? 'Generating...' : 'Generate PDF'}
+              {exportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              {exportLoading ? 'Generating...' : 'Generate PDF'}
             </Button>
             {generatedDocId && (
               <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadLoading} className="gap-1.5 border-green-200 text-green-600 hover:bg-green-50">
-                <Download className="w-3.5 h-3.5" /> Download PDF
+                {downloadLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                Download PDF
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
-              <Pencil className="w-3.5 h-3.5" /> Edit Case
+              <Pencil className="w-3.5 h-3.5" /> Edit
             </Button>
-            {!deleteConfirm ? (
-              <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(true)} className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" /> Delete Case
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDeleteCase}>
-                  {deleting ? 'Deleting...' : 'Confirm'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
-              </div>
-            )}
             <Select value={caseData.status} onValueChange={updateStatus}>
               <SelectTrigger className="w-48"><SelectValue placeholder="Update status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="intake">Intake</SelectItem>
                 <SelectItem value="investigation">Investigation</SelectItem>
                 <SelectItem value="notice_sent">Notice Sent</SelectItem>
-                <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
-                <SelectItem value="in_compliance">In Compliance</SelectItem>
-                <SelectItem value="citation_issued">Citation Issued</SelectItem>
-                <SelectItem value="court_action">Court Action</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
@@ -192,122 +178,40 @@ export default function CaseDetail() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-card rounded-xl border border-border p-4">
-            <div className="flex items-center gap-2 mb-1.5">
-                <User className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Owner</span>
-            </div>
-            <p className="text-sm font-semibold capitalize">{caseData.property_owner_name || '—'}</p>
+        <div className="bg-card rounded-xl border p-4">
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Owner</span>
+            <p className="text-sm font-semibold">{caseData.property_owner_name || '—'}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-            <div className="flex items-center gap-2 mb-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Violation</span>
-            </div>
+        <div className="bg-card rounded-xl border p-4">
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Violation</span>
             <p className="text-sm font-semibold capitalize">{caseData.violation_type?.replace('_', ' ') || '—'}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-            <div className="flex items-center gap-2 mb-1.5">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Abatement Deadline</span>
-            </div>
-            <p className="text-sm font-semibold capitalize">{caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : '—'}</p>
+        <div className="bg-card rounded-xl border p-4">
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Deadline</span>
+            <p className="text-sm font-semibold">{caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : '—'}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-2 mb-1.5">
-            <User className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Assigned Officer</span>
-          </div>
-          <div>
-            <Select value={caseData.assigned_officer || ''} onValueChange={async (v) => {
-              await base44.entities.Case.update(id, { assigned_officer: v || null });
-              setCaseData(prev => ({ ...prev, assigned_officer: v || null }));
-            }}>
-              <SelectTrigger className="h-auto text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>— Unassigned —</SelectItem>
-                {users.map(u => (
-                  <SelectItem key={u.id} value={u.email}>{u.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="bg-card rounded-xl border p-4">
+          <span className="text-xs font-medium text-muted-foreground block mb-1">Assigned Officer</span>
+          <p className="text-sm font-semibold">{caseData.assigned_officer || 'Unassigned'}</p>
         </div>
       </div>
 
-      {caseData.public_access_code && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">Public Portal Access Code</p>
-              <p className="text-xs text-blue-600 mt-0.5">Share this code with the property owner</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
-              {caseData.public_access_code}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {caseData.compliance_path === 'none' && caseData.status !== 'intake' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-          <h3 className="font-semibold text-amber-800 mb-2">Select Compliance Path</h3>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" onClick={() => updatePath('citation_676_17b')} className="border-amber-300 hover:bg-amber-100">
-              Path A: Land Use Citation (RSA 676:17-b)
-            </Button>
-            <Button variant="outline" onClick={() => updatePath('superior_court_676_15')} className="border-amber-300 hover:bg-amber-100">
-              Path B: Superior Court (RSA 676:15)
-            </Button>
-          </div>
-        </div>
-      )}
-
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="bg-muted/50 p-1">
+        <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="notices">Notices ({notices.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold mb-3">Violation Description</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{caseData.violation_description}</p>
-          </div>
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold mb-3">Deadlines</h3>
-            <div className="space-y-2">
-              {deadlines.map(d => (
-                <div key={d.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{d.description}</p>
-                    <p className="text-xs text-muted-foreground">{d.deadline_type.replace('_', ' ')}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm">{format(new Date(d.due_date), 'MMM d, yyyy')}</p>
-                    <StatusBadge status={d.priority} type="priority" />
-                  </div>
-                </div>
-              ))}
-              {deadlines.length === 0 && <p className="text-sm text-muted-foreground">No deadlines set.</p>}
-            </div>
-          </div>
+        <TabsContent value="overview">
           <CaseNotes caseId={id} caseNumber={caseData.case_number} />
         </TabsContent>
-
         <TabsContent value="notices">
           <CaseNotices caseId={id} caseData={caseData} notices={notices} setNotices={setNotices} />
         </TabsContent>
-
         <TabsContent value="documents">
           <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
         </TabsContent>
-
         <TabsContent value="timeline">
           <CaseTimeline caseData={caseData} investigations={investigations} notices={notices} courtActions={courtActions} />
         </TabsContent>
