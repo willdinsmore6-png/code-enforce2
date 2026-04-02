@@ -93,8 +93,10 @@ export default function CaseDetail() {
     setExportLoading(true);
     try {
       const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
-      setGeneratedDocId(response.data.document_id);
-      toast({ title: "PDF Ready" });
+      if (response.data.document_id) {
+        setGeneratedDocId(response.data.document_id);
+        toast({ title: "PDF Ready" });
+      }
     } catch (err) { 
       toast({ title: "Error", variant: "destructive" }); 
     } finally { 
@@ -122,7 +124,7 @@ export default function CaseDetail() {
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
-      {/* Header & Main Actions */}
+      {/* Header Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
         <div>
           <Link to="/cases" className="text-xs text-muted-foreground flex items-center gap-1 mb-2 hover:text-primary transition-colors">
@@ -155,7 +157,7 @@ export default function CaseDetail() {
         </div>
       </div>
 
-      {/* Summary Info Cards */}
+      {/* Summary Stat Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-card border p-4 rounded-xl shadow-sm">
           <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Property Owner</label>
@@ -186,12 +188,12 @@ export default function CaseDetail() {
         </div>
       </div>
 
-      {/* Compliance Path Alert */}
+      {/* Compliance Path Indicator */}
       {caseData.compliance_path === 'none' && caseData.status !== 'closed' && (
         <div className="bg-slate-900 text-white rounded-xl p-5 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <h3 className="font-bold flex items-center gap-2 text-indigo-400"><Scale className="w-4 h-4" /> Compliance Path Required</h3>
-            <p className="text-xs text-slate-400">Select the legal track for this enforcement action.</p>
+            <p className="text-xs text-slate-400">Select legal track for this enforcement action.</p>
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => updatePath('citation_676_17b')}>RSA 676:17-b (Citation)</Button>
@@ -200,7 +202,18 @@ export default function CaseDetail() {
         </div>
       )}
 
-      {/* Tabs Container */}
+      {/* Public Portal Info */}
+      {caseData.public_access_code && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Globe className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Public Portal Access Code: <span className="font-mono text-lg ml-2">{caseData.public_access_code}</span></p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="overview">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="overview" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Overview</TabsTrigger>
@@ -218,7 +231,8 @@ export default function CaseDetail() {
               {caseData.violation_description || 'No description provided.'}
             </p>
           </div>
-          <CaseNotes caseId={id} caseNumber={caseData.case_number} />
+          {/* Add Notes Component with correct props */}
+          <CaseNotes caseId={id} caseNumber={caseData?.case_number} />
         </TabsContent>
 
         <TabsContent value="notices" className="mt-6">
