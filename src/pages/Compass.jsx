@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Loader2, Building2, RotateCcw, X, AlertCircle, Settings, FileText, Trash2, Upload } from 'lucide-react';
+import { Compass, Send, Loader2, Building2, RotateCcw, X, AlertCircle, Settings, FileText, Trash2, Upload, FileWarning } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
@@ -17,7 +17,13 @@ export default function CompassPage() {
   const [sending, setSending] = useState(false);
   const [townConfig, setTownConfig] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
-  const [configForm, setConfigForm] = useState({ town_name: '', state: 'NH', penalty_first_offense: 275, penalty_subsequent: 550 });
+  const [configForm, setConfigForm] = useState({ 
+    town_name: '', state: 'NH', penalty_first_offense: 275, penalty_subsequent: 550, 
+    specific_regulations: '', notes: '' 
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadedDocNames, setUploadedDocNames] = useState([]);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
@@ -27,11 +33,12 @@ export default function CompassPage() {
     if (municipality) {
       setTownConfig(municipality);
       setConfigForm(f => ({ ...f, ...municipality }));
-    }
-  }, [municipality]);
+      setUploadedDocNames(municipality.ordinance_doc_names || []);
+    } else { setShowConfig(isAdmin); }
+  }, [municipality, isAdmin]);
 
   useEffect(() => {
-    async function loadData() {
+    async function init() {
       const activeTownId = municipality?.id || user?.town_id;
       if (!activeTownId) return;
       const [cList, conv] = await Promise.all([
@@ -41,10 +48,39 @@ export default function CompassPage() {
       setCases(cList.filter(ca => ca.status !== 'closed'));
       setConversation(conv);
     }
-    loadData();
+    init();
   }, [municipality, user]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  async function handleDocUpload(e) {
+    const file = e.target.files[0];
+    if (!file || !townConfig?.id) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert(`The file "${file.name}" exceeds the 10MB limit. Please compress it before teaching Compass.`);
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const updated = await base44.entities.TownConfig.update(townConfig.id, {
+        ordinance_docs: [...(townConfig.ordinance_docs || []), file_url],
+        ordinance_doc_names: [...(townConfig.ordinance_doc_names || []), { name: file.name, url: file_url, size: file.size }]
+      });
+      setTownConfig(updated);
+      setUploadedDocNames(updated.ordinance_doc_names || []);
+    } finally { setUploadingDoc(false); }
+  }
+
+  async function removeDocument(index) {
+    const newDocNames = (townConfig.ordinance_doc_names || []).filter((_, i) => i !== index);
+    const newDocs = (townConfig.ordinance_docs || []).filter((_, i) => i !== index);
+    const updated = await base44.entities.TownConfig.update(townConfig.id, {
+      ordinance_docs: newDocs, ordinance_doc_names: newDocNames
+    });
+    setTownConfig(updated);
+    setUploadedDocNames(newDocNames);
+  }
 
   async function sendMessage(e) {
     e?.preventDefault();
@@ -55,7 +91,7 @@ export default function CompassPage() {
 
     const payload = { 
       role: 'user', 
-      content: selectedCase ? `${msg} [SYSTEM: Read all Documents for Case ID ${selectedCase} now.]` : msg 
+      content: selectedCase ? `${msg} [SYSTEM: Analyze Case ID ${selectedCase} and read all attachments.]` : msg 
     };
 
     if (selectedCase) {
@@ -67,10 +103,10 @@ export default function CompassPage() {
     setSending(false);
   }
 
-  async function startDeepAnalysis() {
+  async function deepEvaluate() {
     if (!selectedCase) return;
     const c = cases.find(ca => ca.id === selectedCase);
-    setInput(`Evaluate Case ${c.case_number} at ${c.property_address}. [SYSTEM: You are required to list and read EVERY PDF and photo attached to this case ID. Identify if a violation of Bow ordinances or NH RSA Title LXIV exists.]`);
+    setInput(`Deep Evaluation: ${c.property_address}. [SYSTEM: Read every PDF/photo attached to this case ID to identify Bow zoning violations based on Town Ordinances.]`);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
@@ -82,8 +118,8 @@ export default function CompassPage() {
           <div className="flex items-center gap-3">
             <Compass className="w-6 h-6 text-indigo-600" />
             <div>
-              <h1 className="text-lg font-bold leading-tight">Compass AI</h1>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bow Enforcement Advisor</p>
+              <h1 className="text-lg font-bold">Compass AI</h1>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Town of Bow Enforcement Advisor</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -92,13 +128,32 @@ export default function CompassPage() {
           </div>
         </div>
 
-        {showConfig && (
-          <div className="mt-4 max-w-5xl mx-auto p-4 bg-indigo-50 border border-indigo-100 rounded-lg animate-in slide-in-from-top-2">
-             <h3 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2"><Building2 className="w-4 h-4" /> Town Settings</h3>
-             <div className="grid grid-cols-2 gap-4 text-xs">
-                <div><Label>First Penalty ($)</Label><Input value={configForm.penalty_first_offense} readOnly /></div>
-                <div><Label>Subsequent ($)</Label><Input value={configForm.penalty_subsequent} readOnly /></div>
-             </div>
+        {showConfig && isAdmin && (
+          <div className="mt-4 max-w-5xl mx-auto p-5 bg-indigo-50 border border-indigo-200 rounded-xl animate-in slide-in-from-top-2">
+            <div className="flex items-center justify-between mb-4 text-indigo-900 font-bold">
+              <span className="flex items-center gap-2"><Building2 className="w-4 h-4" /> Town Configuration & Training</span>
+              <Button variant="ghost" size="sm" onClick={() => setShowConfig(false)}><X className="w-4 h-4" /></Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="space-y-1"><Label className="text-xs">Town Name</Label><Input value={configForm.town_name} readOnly className="h-8 text-xs bg-white" /></div>
+              <div className="space-y-1"><Label className="text-xs">Penalty ($)</Label><Input value={configForm.penalty_first_offense} readOnly className="h-8 text-xs bg-white" /></div>
+              <div className="space-y-1"><Label className="text-xs">Teach Compass (PDF)</Label>
+                <label className="flex items-center justify-center h-8 px-3 border border-dashed border-indigo-400 rounded bg-white hover:bg-indigo-100 cursor-pointer text-xs font-medium text-indigo-600">
+                  <Upload className="w-3 h-3 mr-1" /> {uploadingDoc ? 'Uploading...' : 'Upload Ordinance'}
+                  <input type="file" className="hidden" accept=".pdf" onChange={handleDocUpload} disabled={uploadingDoc} />
+                </label>
+              </div>
+            </div>
+            {uploadedDocNames.length > 0 && (
+              <div className="space-y-1 bg-white p-2 rounded border border-indigo-100 max-h-24 overflow-y-auto">
+                {uploadedDocNames.map((doc, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px] px-2 py-1 hover:bg-slate-50 rounded">
+                    <span className="flex items-center gap-2"><FileText className="w-3 h-3 text-indigo-500" /> {doc.name}</span>
+                    <button onClick={() => removeDocument(i)} className="text-red-500 hover:text-red-700"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -108,16 +163,22 @@ export default function CompassPage() {
               <option value="">— Select a case to evaluate —</option>
               {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
             </select>
-            {selectedCase && <Button size="sm" onClick={startDeepAnalysis} className="bg-indigo-600 hover:bg-indigo-700">Deep Evaluation</Button>}
+            {selectedCase && <Button size="sm" onClick={deepEvaluate} className="bg-indigo-600">Evaluate Files</Button>}
           </div>
 
-          {isLoading && (
-            <Alert className="bg-amber-50 border-amber-200 py-2">
+          {isLoading ? (
+            <Alert className="bg-amber-50 border-amber-200 py-2 animate-pulse shadow-sm">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-[11px] text-amber-700 font-medium">
-                Deep analysis of PDFs and photos takes time. Please be patient. It is safe to navigate away; your results are saved automatically.
+              <AlertTitle className="text-xs font-bold text-amber-800 uppercase">Analysis in Progress</AlertTitle>
+              <AlertDescription className="text-[11px] text-amber-700 leading-tight">
+                Deep analysis of PDFs and photos takes time. Please be patient. It is safe to navigate away.
+                <strong> Note:</strong> Files over 10MB are excluded from AI reading.
               </AlertDescription>
             </Alert>
+          ) : (
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1 italic">
+              <FileWarning className="w-3 h-3" /> PDFs/Images must be under 10MB for AI processing.
+            </div>
           )}
         </div>
       </div>
@@ -133,8 +194,8 @@ export default function CompassPage() {
           </div>
         ))}
         {isLoading && (
-          <div className="flex items-center gap-3 text-indigo-600 font-medium animate-pulse text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Compass is opening attached files...
+          <div className="flex items-center gap-3 text-indigo-600 font-semibold animate-pulse text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Compass is scanning case attachments and ordinances...
           </div>
         )}
         <div ref={messagesEndRef} />
