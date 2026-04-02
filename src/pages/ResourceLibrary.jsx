@@ -16,10 +16,9 @@ export default function ResourceLibrary() {
   const [expandedItems, setExpandedItems] = useState({});
   const [showAI, setShowAI] = useState(false);
   
-  // Dynamic identity anchoring
   const currentTownId = municipality?.id || user?.municipality_id;
   const townName = municipality?.town_name || municipality?.name || "Local Municipality";
-  const state = municipality?.state || "State";
+  const state = municipality?.state || "NH";
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
@@ -29,14 +28,13 @@ export default function ResourceLibrary() {
   async function loadResources() {
     setLoading(true);
     try {
-      // Strict filter by municipality_id ensures data isolation
       const existing = await base44.entities.Resource.filter({ 
         municipality_id: currentTownId,
         is_active: true 
       });
       setResources(existing);
     } catch (err) { 
-      console.error("Library Load Error:", err); 
+      console.error("Library Sync Error:", err); 
     } finally {
       setLoading(false);
     }
@@ -55,7 +53,7 @@ export default function ResourceLibrary() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
       
-      {/* 1. THE REGISTRAR: Universal Plan Review & Lookup */}
+      {/* 1. PLAN REVIEW TOOL (Absolute Top) */}
       <section>
         <BuildingCodeLookup 
           townName={townName} 
@@ -64,27 +62,21 @@ export default function ResourceLibrary() {
         />
       </section>
 
-      {/* 2. DYNAMIC HEADER SECTION */}
+      {/* 2. HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-100 pb-6 text-left">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 font-mono tracking-tight uppercase">Resource Library</h1>
-          <p className="text-sm text-slate-500 font-medium tracking-tight">
-            Active Jurisdiction: <span className="text-slate-900">{townName}, {state}</span>
-          </p>
+          <p className="text-sm text-slate-500 font-medium">Jurisdiction: {townName}, {state}</p>
         </div>
         {isAdmin && (
-          <Button 
-            onClick={() => setShowAI(!showAI)} 
-            variant="outline"
-            className="gap-2 text-xs h-9 border-slate-200 hover:bg-slate-50 shadow-sm"
-          >
+          <Button onClick={() => setShowAI(!showAI)} variant="outline" className="gap-2 text-xs h-9 border-slate-200">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" /> 
             {showAI ? "Close Curator" : "Open AI Curator"}
           </Button>
         )}
       </div>
 
-      {/* 3. AI CURATOR PANEL (With Schema-Forcing Logic) */}
+      {/* 3. AI CURATOR (With Force-Write Prompt) */}
       {showAI && (
         <AICuratePanel 
           onClose={() => { setShowAI(false); loadResources(); }} 
@@ -94,21 +86,21 @@ export default function ResourceLibrary() {
         />
       )}
 
-      {/* 4. MUNICIPAL ARCHIVE (Searchable List) */}
+      {/* 4. REFERENCE LIST */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-slate-400" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Technical Reference Archive</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Database Records</h2>
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input 
-              placeholder="Filter by term or keyword..." 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              className="pl-9 h-8 text-xs bg-white border-slate-200 rounded-md" 
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative w-48 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white border-slate-200" />
+            </div>
+            <Button onClick={loadResources} variant="ghost" size="sm" className="h-8 w-8 p-0" title="Sync with database">
+               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </div>
 
@@ -118,16 +110,11 @@ export default function ResourceLibrary() {
           <div className="space-y-8">
             {Object.entries(grouped).map(([category, items]) => (
               <div key={category} className="space-y-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-1 text-left">
-                  {category}
-                </p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-1 text-left font-mono">{category}</p>
                 <div className="grid gap-2">
                   {items.map(item => (
-                    <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-slate-300 transition-colors">
-                      <button 
-                        onClick={() => toggleItem(item.id)} 
-                        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
-                      >
+                    <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                      <button onClick={() => toggleItem(item.id)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors">
                         <span className="text-sm font-semibold text-slate-700">{item.term}</span>
                         {expandedItems[item.id] ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                       </button>
@@ -138,7 +125,7 @@ export default function ResourceLibrary() {
                           </div>
                           {item.tip && (
                             <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3">
-                              <p className="text-[10px] font-bold text-amber-700 uppercase mb-1">Registrar Field Note</p>
+                              <p className="text-[10px] font-bold text-amber-700 uppercase mb-1 font-mono">Registrar Field Note</p>
                               <p className="text-xs text-amber-900/80 leading-snug">{item.tip}</p>
                             </div>
                           )}
@@ -149,9 +136,9 @@ export default function ResourceLibrary() {
                 </div>
               </div>
             ))}
-            {Object.keys(grouped).length === 0 && !loading && (
-              <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-xl">
-                 <p className="text-sm text-slate-400 font-mono italic">No technical records found for this jurisdiction.</p>
+            {Object.keys(grouped).length === 0 && (
+              <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-xl">
+                <p className="text-xs text-slate-400 font-mono italic">No records found for this jurisdiction. Run Curator to populate.</p>
               </div>
             )}
           </div>
@@ -161,9 +148,6 @@ export default function ResourceLibrary() {
   );
 }
 
-/** * AI CURATOR PANEL COMPONENT
- * Handles the logic for auditing and updating the database.
- */
 function AICuratePanel({ onClose, townId, townName, state }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -172,14 +156,8 @@ function AICuratePanel({ onClose, townId, townName, state }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    // Isolated session with town metadata
-    base44.agents.createConversation({ 
-      agent_name: 'resource_curator', 
-      metadata: { town_id: townId, state: state } 
-    }).then(conv => { 
-      setConversation(conv); 
-      setMessages(conv.messages || []); 
-    });
+    base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { town_id: townId } })
+      .then(conv => { setConversation(conv); setMessages(conv.messages || []); });
   }, [townId]);
 
   useEffect(() => {
@@ -197,85 +175,58 @@ function AICuratePanel({ onClose, townId, townName, state }) {
     if (!customMsg) setInput('');
     setSending(true);
 
-    // THE REGISTRAR'S SCHEMA HANDSHAKE:
-    // This prompt forces the AI to write records that match the frontend filters.
-    const registrarAuthorityPrompt = `
-      AUTHORITY: Act as The Registrar for ${townName}, ${state}.
-      SCHEMA INSTRUCTION: When creating or updating 'Resource' entity records:
-      - 'municipality_id' MUST BE set to: "${townId}"
-      - 'state' MUST BE set to: "${state}"
-      - 'is_active' MUST BE set to true.
+    // THE SYNC AUDIT: Explicitly mapping the database fields for the AI
+    const constraint = `
+      COMMAND: Use your Resource Entity Tool to CREATE records.
+      REQUIRED FIELDS:
+      - term: (The word/RSA)
+      - definition: (Technical explanation)
+      - category: (State Statutes, Local Zoning, or Technical Terms)
+      - municipality_id: "${townId}" (CRITICAL: Do not use town_id or name)
+      - state: "${state}"
+      - is_active: true
       
-      TASK: ${msg}
+      CONTEXT: ${msg}
     `;
 
     await base44.agents.addMessage(conversation, { 
       role: 'user', 
-      content: registrarAuthorityPrompt
+      content: constraint 
     });
     setSending(false);
   }
 
   const handleAutoCurate = () => {
-    const prompt = `
-      Perform a professional "Registrar-Level" jurisdictional audit for ${townName}, ${state}.
-      1. JURISDICTIONAL AUDIT: Identify specific ${state} Statutes and Administrative Rules governing land use and enforcement.
-      2. MUNICIPAL SYNC: Cross-reference internal town documents in the vault to identify unique local zoning terms.
-      3. EXPANDED TERMS: Generate a list of at least 12 technical definitions (variances, hardships, setbacks, etc.) unique to ${state} law.
-      4. DATABASE SYNC: Create/Save these records to the Resource entity now.
-    `;
+    const prompt = `Perform a Registrar-level jurisdictional audit for ${townName}, ${state}. Identify 10+ technical definitions from ${state} statutes and local ordinances. Save them as new Resource records using your Entity Tool now.`;
     sendMessage(null, prompt);
   };
 
   return (
     <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xl">
       <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
-        <div className="flex items-center gap-2 text-left">
+        <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-[10px] uppercase tracking-widest leading-none">Registrar Curator: {townName}</span>
+          <span className="font-bold text-[10px] uppercase tracking-widest font-mono">Registrar Curator</span>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleAutoCurate} 
-            className="h-7 text-[10px] bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 gap-1 border border-amber-500/20"
-          >
+          <Button variant="ghost" size="sm" onClick={handleAutoCurate} className="h-7 text-[10px] bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 gap-1 border border-amber-500/20">
             <RefreshCw className={`w-3 h-3 ${sending ? 'animate-spin' : ''}`} /> Auto-Curate
           </Button>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-4 h-4" />
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
         </div>
       </div>
-      
       <div className="h-64 overflow-y-auto px-4 py-3 bg-slate-50 font-mono text-[10px] text-left">
         {messages.map((msg, i) => (
           <div key={i} className={`mb-3 ${msg.role === 'user' ? 'text-blue-600' : 'text-slate-700'}`}>
-            <span className="font-bold uppercase tracking-tighter">
-              {msg.role === 'user' ? '> REGISTRAR AUDIT: ' : '>> AGENT RESPONSE: '}
-            </span>
-            <div className="inline leading-relaxed ml-1">
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
-            </div>
+            <span className="font-bold uppercase tracking-tighter">{msg.role === 'user' ? '> AUDIT: ' : '>> SYNC: '}</span>
+            <div className="inline leading-relaxed ml-1"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
-
       <form onSubmit={sendMessage} className="flex gap-2 p-4 border-t bg-white">
-        <Input 
-          value={input} 
-          onChange={e => setInput(e.target.value)} 
-          placeholder={`Instructing Curator for ${townName}...`} 
-          className="flex-1 h-9 text-xs border-slate-200 focus:ring-slate-900" 
-        />
-        <Button 
-          type="submit" 
-          size="sm" 
-          className="bg-slate-900 hover:bg-black h-9 px-4 uppercase text-[10px] font-bold" 
-          disabled={sending}
-        >
+        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Curate library..." className="flex-1 h-9 text-xs font-mono" />
+        <Button type="submit" size="sm" className="bg-slate-900 h-9 px-4 uppercase text-[10px] font-bold" disabled={sending}>
            {sending ? "Syncing..." : "Execute"}
         </Button>
       </form>
