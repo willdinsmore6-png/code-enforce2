@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
-// --- HELPERS (PRESERVED) ---
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
   let binary = '';
@@ -27,14 +26,11 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return Response.json({ error: 'Unauthorized' }, { status: 403 });
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { case_id } = await req.json();
     const caseRecord = await base44.entities.Case.get(case_id);
-    const townConfig = await base44.asServiceRole.entities.TownConfig.get(caseRecord.town_id);
-    const townName = (townConfig?.town_name || 'Municipal').toUpperCase();
 
-    // FETCH EVERYTHING - ENSURE NO DATA IS LEFT BEHIND
     const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
       base44.asServiceRole.entities.Notice.filter({ case_id }),
@@ -45,12 +41,13 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.Violation.filter({ case_id }),
     ]);
 
-    // PHOTO CACHE (PRESERVED)
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
     const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
     const photoCache = {};
     allPhotoUrls.forEach((url, i) => {
-      if (photoResults[i].status === 'fulfilled' && photoResults[i].value) photoCache[url] = photoResults[i].value;
+      if (photoResults[i].status === 'fulfilled' && photoResults[i].value) {
+        photoCache[url] = photoResults[i].value;
+      }
     });
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -60,62 +57,58 @@ Deno.serve(async (req) => {
     const cw = pw - margin * 2;
     let y = margin;
 
-    // STYLING HELPERS
-    const addPageHeader = () => {
-      doc.setFont('Helvetica', 'bold').setFontSize(7).setTextColor(100);
-      doc.text(`TOWN OF ${townName} — OFFICIAL RECORD`, margin, margin - 5);
-      doc.text(`CASE: ${caseRecord.case_number}`, pw - margin, margin - 5, { align: 'right' });
-      doc.setDrawColor(200).line(margin, margin - 3, pw - margin, margin - 3);
+    // --- ORIGINAL STYLING FUNCTIONS RESTORED ---
+    const checkPageBreak = (needed = 10) => {
+      if (y + needed > ph - margin) { doc.addPage(); y = margin; }
     };
 
     const sectionTitle = (title) => {
-      if (y + 20 > ph - margin) { doc.addPage(); y = margin; addPageHeader(); }
-      doc.setFillColor(30, 58, 138).rect(margin, y, cw, 7, 'F');
-      doc.setFont('Helvetica', 'bold').setFontSize(9).setTextColor(255).text(title.toUpperCase(), margin + 3, y + 4.5);
-      y += 11;
+      checkPageBreak(15);
+      doc.setFillColor(30, 64, 175).roundedRect(margin, y, cw, 8, 1, 1, 'F');
+      doc.setFont('Helvetica', 'bold').setFontSize(10).setTextColor(255).text(title, margin + 3, y + 5.5);
+      doc.setTextColor(0); y += 11;
     };
 
     const fieldRow = (label, value) => {
+      checkPageBreak(8);
       doc.setFont('Helvetica', 'bold').setFontSize(8.5).setTextColor(80).text(label + ':', margin, y + 4);
-      doc.setFont('Helvetica', 'normal').setTextColor(0).text(String(value || '—'), margin + 50, y + 4);
+      doc.setFont('Helvetica', 'normal').setTextColor(0).text(String(value || '—'), margin + 55, y + 4);
       y += 6;
     };
 
-    // --- COVER PAGE ---
-    doc.setFont('Helvetica', 'bold').setFontSize(18).text(`TOWN OF ${townName}`, pw / 2, 40, { align: 'center' });
-    doc.setFontSize(24).text('CERTIFIED ENFORCEMENT FILE', pw / 2, 55, { align: 'center' });
-    y = 80;
-    fieldRow('Property Address', caseRecord.property_address);
+    // --- COVER PAGE (RESTORED ORIGINAL) ---
+    doc.setFillColor(30, 64, 175).rect(0, 0, pw, 60, 'F');
+    doc.setFont('Helvetica', 'bold').setFontSize(22).setTextColor(255).text('CODE ENFORCEMENT CASE FILE', pw / 2, 35, { align: 'center' });
+    doc.setTextColor(0); y = 75;
+    doc.setFontSize(12).text(caseRecord.property_address || '—', pw / 2, y, { align: 'center' });
+    y += 10;
+    fieldRow('Case Status', caseRecord.status.toUpperCase());
     fieldRow('Owner', caseRecord.property_owner_name);
-    fieldRow('Status', caseRecord.status.toUpperCase());
+    fieldRow('Assigned Officer', caseRecord.assigned_officer);
 
-    // --- SECTION 1: INVESTIGATIONS & PHOTOS ---
-    doc.addPage(); y = margin; addPageHeader();
-    sectionTitle('1. Field Investigations');
-    investigations.forEach((inv) => {
+    // --- SECTIONS (ALL RESTORED) ---
+    doc.addPage(); y = margin;
+    sectionTitle('1. INVESTIGATIONS');
+    investigations.forEach(inv => {
       fieldRow('Date', new Date(inv.investigation_date).toLocaleDateString());
-      fieldRow('Summary', inv.summary || inv.field_notes);
-      if (inv.photos?.length > 0) {
+      fieldRow('Notes', inv.summary || inv.field_notes);
+      if (inv.photos) {
         inv.photos.forEach(url => {
-          const img = photoCache[url];
-          if (img && y + 60 < ph) {
-            doc.addImage(img.data, img.format, margin, y + 2, 80, 60);
-            y += 65;
+          if (photoCache[url] && y + 50 < ph) {
+            doc.addImage(photoCache[url].data, photoCache[url].format, margin, y, 60, 45);
+            y += 50;
           }
         });
       }
-      y += 5;
     });
 
-    // --- SECTION 2: NOTICES & AUDITS ---
-    sectionTitle('2. Notices & Log');
-    notices.forEach(n => fieldRow(n.notice_type, `Sent: ${n.date_issued}`));
-    auditLogs.slice(0, 10).forEach(log => fieldRow(new Date(log.timestamp).toLocaleDateString(), log.action));
+    sectionTitle('2. NOTICES & LOGS');
+    notices.forEach(n => fieldRow(n.notice_type, n.date_issued));
 
-    // FINALIZE & STORE
+    // --- SAVE AS PRIVATE ---
     const pdfBuffer = doc.output('arraybuffer');
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ 
-      file: new File([pdfBuffer], `CASE_${caseRecord.case_number}.pdf`, { type: 'application/pdf' }) 
+      file: new File([pdfBuffer], `CASE_${case_id}.pdf`, { type: 'application/pdf' }) 
     });
 
     const docRecord = await base44.asServiceRole.entities.Document.create({
@@ -123,7 +116,7 @@ Deno.serve(async (req) => {
       town_id: caseRecord.town_id,
       title: `Certified Record — ${new Date().toLocaleDateString()}`,
       document_type: 'court_filing',
-      file_url: file_uri, // Store URI for getCourtFilePDF
+      file_url: file_uri,
       uploaded_by: user.email
     });
 
