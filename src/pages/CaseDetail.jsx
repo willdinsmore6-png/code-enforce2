@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, MapPin, User, AlertTriangle, Clock, Download, Pencil, Trash2, Globe, Copy } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, Scale, Bell, Clock, MapPin, User, AlertTriangle, Copy, Globe, Pencil, Trash2, Download } from 'lucide-react';
 import StatusBadge from '../components/shared/StatusBadge';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
@@ -19,12 +19,15 @@ export default function CaseDetail() {
   const [caseData, setCaseData] = useState(null);
   const [investigations, setInvestigations] = useState([]);
   const [notices, setNotices] = useState([]);
-  const [documents, setDocuments] = useState([]); // Persistent state
+  const [documents, setDocuments] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [courtActions, setCourtActions] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [generatedDocId, setGeneratedDocId] = useState(null);
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -33,7 +36,6 @@ export default function CaseDetail() {
     async function load() {
       try {
         setError(null);
-        // FETCHING FROM DATABASE
         const [c, inv, not, doc, dl, ca] = await Promise.all([
           base44.entities.Case.filter({ id }),
           base44.entities.Investigation.filter({ case_id: id }),
@@ -45,11 +47,12 @@ export default function CaseDetail() {
         setCaseData(c[0] || null);
         setInvestigations(inv || []);
         setNotices(not || []);
-        setDocuments(doc || []); // Now loaded from DB
+        setDocuments(doc || []);
         setDeadlines(dl || []);
         setCourtActions(ca || []);
         setLoading(false);
       } catch (err) {
+        console.error('Failed to load case data:', err);
         setError(err.message || 'Failed to load case details');
         setLoading(false);
       }
@@ -57,45 +60,116 @@ export default function CaseDetail() {
     load();
   }, [id]);
 
-  // ALL YOUR ORIGINAL FUNCTIONS (PDF, Delete, etc.)
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const response = await base44.functions.invoke('getUsers', {});
+        setUsers(response.data?.users || []);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    }
+    loadUsers();
+  }, []);
+
   async function updateStatus(newStatus) {
     await base44.entities.Case.update(id, { status: newStatus });
     setCaseData(prev => ({ ...prev, status: newStatus }));
   }
 
+  async function updatePath(path) {
+    await base44.entities.Case.update(id, { 
+      compliance_path: path,
+      daily_penalty_rate: path === 'citation_676_17b' ? (caseData.is_first_offense ? 275 : 550) : caseData.daily_penalty_rate 
+    });
+    setCaseData(prev => ({ ...prev, compliance_path: path }));
+  }
+
+  async function handleDeleteCase() {
+    setDeleting(true);
+    await base44.functions.invoke('deleteCaseWithChildren', { case_id: id });
+    navigate('/cases');
+  }
+
   async function handleGeneratePDF() {
     setExportLoading(true);
+    setGeneratedDocId(null);
     try {
       const response = await base44.functions.invoke('exportCaseCourtFile', { case_id: id });
-      setGeneratedDocId(response.data.document_id);
-    } catch (err) { alert(`Generation failed: ${err.message}`); }
-    finally { setExportLoading(false); }
+      const { document_id } = response.data;
+      if (!document_id) throw new Error('No document ID returned');
+      setGeneratedDocId(document_id);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert(`Generation failed: ${err.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  async function handleDownloadPDF() {
+    if (!generatedDocId) return;
+    setDownloadLoading(true);
+    try {
+      const response = await base44.functions.invoke('getCourtFilePDF', { document_id: generatedDocId });
+      const { signed_url, filename } = response.data;
+      if (!signed_url) throw new Error('No download URL returned');
+      const a = document.createElement('a');
+      a.href = signed_url;
+      a.download = filename || `${caseData.case_number || 'case'}-court-file.pdf`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download failed:', err);
+      alert(`Download failed: ${err.message}`);
+    } finally {
+      setDownloadLoading(false);
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-full">Loading...</div>;
+  if (error) return <div className="p-8 text-center text-destructive">{error}</div>;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
-        <Link to="/cases" className="text-sm text-muted-foreground flex items-center gap-1 mb-3">
+        <Link to="/cases" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-3">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to cases
         </Link>
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">{caseData.case_number}</h2>
-            <address className="text-muted-foreground not-italic"><MapPin className="w-3.5 h-3.5 inline mr-1" />{caseData.property_address}</address>
+            <h2 className="text-2xl font-bold">{caseData.case_number || `Case #${id.slice(0, 8)}`}</h2>
+            <div className="flex gap-2 mt-2">
+              <StatusBadge status={caseData.status} />
+              <StatusBadge status={caseData.priority} type="priority" />
+            </div>
+            <address className="text-muted-foreground flex items-center gap-1.5 not-italic mt-2">
+              <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> {caseData.property_address}
+            </address>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading}>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading} className="gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50">
+              {exportLoading ? <div className="animate-spin w-3 h-3 border-2 border-current rounded-full border-t-transparent" /> : <Download className="w-3.5 h-3.5" />}
               {exportLoading ? 'Generating...' : 'Generate PDF'}
             </Button>
+            {generatedDocId && (
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadLoading} className="gap-1.5 border-green-200 text-green-600 hover:bg-green-50">
+                <Download className="w-3.5 h-3.5" /> Download PDF
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5">
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </Button>
             <Select value={caseData.status} onValueChange={updateStatus}>
-               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="intake">Intake</SelectItem>
-                 <SelectItem value="investigation">Investigation</SelectItem>
-                 <SelectItem value="notice_sent">Notice Sent</SelectItem>
-               </SelectContent>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="intake">Intake</SelectItem>
+                <SelectItem value="investigation">Investigation</SelectItem>
+                <SelectItem value="notice_sent">Notice Sent</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
             </Select>
           </div>
         </div>
@@ -108,23 +182,21 @@ export default function CaseDetail() {
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview">
           <CaseNotes caseId={id} />
         </TabsContent>
-
         <TabsContent value="notices">
-          <CaseNotices caseId={id} notices={notices} setNotices={setNotices} />
+          <CaseNotices caseId={id} caseData={caseData} notices={notices} setNotices={setNotices} />
         </TabsContent>
-
         <TabsContent value="documents">
           <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
         </TabsContent>
-
         <TabsContent value="timeline">
           <CaseTimeline caseData={caseData} investigations={investigations} notices={notices} courtActions={courtActions} />
         </TabsContent>
       </Tabs>
+
+      <EditCaseModal caseData={caseData} open={editOpen} onClose={() => setEditOpen(false)} onSave={(updated) => setCaseData(updated)} />
     </div>
   );
 }
