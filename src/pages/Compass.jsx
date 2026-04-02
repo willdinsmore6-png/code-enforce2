@@ -4,20 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Compass, 
-  Send, 
-  Upload, 
-  Settings, 
-  Loader2, 
-  Building2, 
-  FileText, 
-  Trash2, 
-  RotateCcw, 
-  X, 
-  AlertCircle,
-  FileWarning
-} from 'lucide-react';
+import { Compass, Send, Loader2, Building2, RotateCcw, X, AlertCircle, Settings, FileText, Trash2, Upload } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
@@ -30,309 +17,133 @@ export default function CompassPage() {
   const [sending, setSending] = useState(false);
   const [townConfig, setTownConfig] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
-  const [configForm, setConfigForm] = useState({ 
-    town_name: '', state: 'NH', compliance_days_zoning: 30, 
-    compliance_days_building: 30, zba_appeal_days: 30, 
-    penalty_first_offense: 275, penalty_subsequent: 550, 
-    specific_regulations: '', notes: '' 
-  });
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadedDocNames, setUploadedDocNames] = useState([]);
+  const [configForm, setConfigForm] = useState({ town_name: '', state: 'NH', penalty_first_offense: 275, penalty_subsequent: 550 });
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
-  // Load municipality config
   useEffect(() => {
     if (municipality) {
       setTownConfig(municipality);
       setConfigForm(f => ({ ...f, ...municipality }));
-      setUploadedDocNames(municipality.ordinance_doc_names || []);
-    } else {
-      setShowConfig(isAdmin);
     }
-  }, [municipality, isAdmin]);
+  }, [municipality]);
 
-  // Load active cases for the dropdown
   useEffect(() => {
-    async function loadCases() {
+    async function loadData() {
       const activeTownId = municipality?.id || user?.town_id;
       if (!activeTownId) return;
-      try {
-        const c = await base44.entities.Case.filter({ town_id: activeTownId });
-        setCases(c.filter(ca => !['resolved', 'closed'].includes(ca.status)));
-      } catch (error) {
-        console.error('Error loading cases:', error);
-      }
-    }
-    loadCases();
-  }, [municipality, user]);
-
-  // Initialize or resume conversation
-  useEffect(() => {
-    async function initConversation() {
-      const savedId = sessionStorage.getItem('compass_conversation_id');
-      const activeTownId = municipality?.id || user?.town_id;
-
-      if (savedId) {
-        try {
-          const existing = await base44.agents.getConversation(savedId);
-          if (existing?.id) {
-            setConversation(existing);
-            const cached = sessionStorage.getItem('compass_messages');
-            setMessages(cached ? JSON.parse(cached) : (existing.messages || []));
-            return;
-          }
-        } catch (e) {
-          sessionStorage.removeItem('compass_conversation_id');
-        }
-      }
-      
-      const conv = await base44.agents.createConversation({ 
-        agent_name: 'compass', 
-        metadata: { town_id: activeTownId } 
-      });
-      sessionStorage.setItem('compass_conversation_id', conv.id);
+      const [cList, conv] = await Promise.all([
+        base44.entities.Case.filter({ town_id: activeTownId }),
+        base44.agents.createConversation({ agent_name: 'compass', metadata: { town_id: activeTownId } })
+      ]);
+      setCases(cList.filter(ca => ca.status !== 'closed'));
       setConversation(conv);
-      setMessages(conv.messages || []);
     }
-    initConversation();
+    loadData();
   }, [municipality, user]);
 
-  useEffect(() => {
-    const handler = (e) => setMessages(e.detail.messages || []);
-    window.addEventListener('compass_update', handler);
-    return () => window.removeEventListener('compass_update', handler);
-  }, []);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  async function startNewChat() {
-    sessionStorage.removeItem('compass_conversation_id');
-    sessionStorage.removeItem('compass_messages');
-    setConversation(null);
-    setMessages([]);
-    const activeTownId = municipality?.id || user?.town_id;
-    const conv = await base44.agents.createConversation({ 
-      agent_name: 'compass', 
-      metadata: { town_id: activeTownId } 
-    });
-    sessionStorage.setItem('compass_conversation_id', conv.id);
-    setConversation(conv);
-  }
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   async function sendMessage(e) {
     e?.preventDefault();
     if (!input.trim() || !conversation || sending) return;
-    
     const msg = input.trim();
     setInput('');
     setSending(true);
 
-    const messagePayload = { 
+    const payload = { 
       role: 'user', 
-      content: selectedCase ? `${msg} [Analyzing Case ID: ${selectedCase}]` : msg 
+      content: selectedCase ? `${msg} [SYSTEM: Read all Documents for Case ID ${selectedCase} now.]` : msg 
     };
 
     if (selectedCase) {
-      try {
-        const caseDocs = await base44.entities.Document.filter({ case_id: selectedCase });
-        if (caseDocs.length > 0) {
-          // Filter out files that are known to be over 10MB to prevent backend crashes
-          messagePayload.file_urls = caseDocs
-            .filter(d => (d.size || 0) < 10 * 1024 * 1024)
-            .map(d => d.url || d.file_url);
-        }
-      } catch (err) {
-        console.error("Error fetching docs for AI:", err);
-      }
+      const docs = await base44.entities.Document.filter({ case_id: selectedCase });
+      payload.file_urls = docs.filter(d => (d.size || 0) < 10485760).map(d => d.url || d.file_url);
     }
 
-    await base44.agents.addMessage(conversation, messagePayload);
+    await base44.agents.addMessage(conversation, payload);
     setSending(false);
   }
 
-  async function saveConfig(e) {
-    e.preventDefault();
-    setSavingConfig(true);
-    try {
-      if (townConfig?.id) {
-        const updated = await base44.entities.TownConfig.update(townConfig.id, configForm);
-        setTownConfig(updated);
-      } else {
-        const created = await base44.entities.TownConfig.create({ ...configForm, is_active: true });
-        setTownConfig(created);
-      }
-      setShowConfig(false);
-    } catch (err) { console.error(err); } finally { setSavingConfig(false); }
-  }
-
-  async function handleDocUpload(e) {
-    const file = e.target.files[0];
-    if (!file || !townConfig?.id) return;
-
-    // PRE-FLIGHT CHECK: 10MB Limit
-    if (file.size > 10 * 1024 * 1024) {
-      alert(`The file "${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Compass AI has a 10MB limit for document analysis. Please compress or split this file before uploading.`);
-      return;
-    }
-
-    setUploadingDoc(true);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const existingDocs = townConfig.ordinance_docs || [];
-      const existingNames = townConfig.ordinance_doc_names || [];
-      const newDocEntry = { 
-        url: file_url, 
-        name: file.name, 
-        size: file.size, 
-        uploaded_at: new Date().toISOString() 
-      };
-      const updated = await base44.entities.TownConfig.update(townConfig.id, {
-        ordinance_docs: [...existingDocs, file_url],
-        ordinance_doc_names: [...existingNames, newDocEntry],
-      });
-      setTownConfig(updated);
-      setUploadedDocNames(updated.ordinance_doc_names || []);
-    } catch (err) {
-      console.error("Upload error:", err);
-    } finally { setUploadingDoc(false); }
-  }
-
-  async function removeDocument(index) {
-    const newDocNames = (townConfig.ordinance_doc_names || []).filter((_, i) => i !== index);
-    const newDocs = (townConfig.ordinance_docs || []).filter((_, i) => i !== index);
-    const updated = await base44.entities.TownConfig.update(townConfig.id, {
-      ordinance_docs: newDocs,
-      ordinance_doc_names: newDocNames,
-    });
-    setTownConfig(updated);
-    setUploadedDocNames(newDocNames);
-  }
-
-  async function askWithCase() {
+  async function startDeepAnalysis() {
     if (!selectedCase) return;
     const c = cases.find(ca => ca.id === selectedCase);
-    if (!c) return;
-    setInput(`Perform a full analysis on ${c.property_address}. Please read every PDF and image under 10MB attached to this case to identify violations.`);
+    setInput(`Evaluate Case ${c.case_number} at ${c.property_address}. [SYSTEM: You are required to list and read EVERY PDF and photo attached to this case ID. Identify if a violation of Bow ordinances or NH RSA Title LXIV exists.]`);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
 
   return (
     <div className="flex flex-col h-full max-h-screen overflow-hidden">
-      <div className="flex-shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap max-w-5xl mx-auto">
+      <div className="flex-shrink-0 border-b bg-card px-6 py-4">
+        <div className="flex items-center justify-between max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Compass className="w-5 h-5 text-white" />
-            </div>
+            <Compass className="w-6 h-6 text-indigo-600" />
             <div>
-              <h1 className="text-lg font-bold">Compass AI</h1>
-              <p className="text-xs text-muted-foreground">NH Land Use & Zoning Advisor {townConfig && <span> · {townConfig.town_name}</span>}</p>
+              <h1 className="text-lg font-bold leading-tight">Compass AI</h1>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bow Enforcement Advisor</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5"><RotateCcw className="w-3.5 h-3.5" /> New Chat</Button>
-            {isAdmin && <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5"><Settings className="w-3.5 h-3.5" /> Settings</Button>}
+            <Button variant="ghost" size="sm" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /></Button>
+            {isAdmin && <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)}><Settings className="w-4 h-4" /></Button>}
           </div>
         </div>
 
-        {showConfig && isAdmin && (
-          <div className="mt-4 max-w-5xl mx-auto bg-indigo-50 border border-indigo-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-indigo-900 font-semibold">
-                <Building2 className="w-4 h-4" /> Town Configuration
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowConfig(false)}><X className="w-4 h-4" /></Button>
-            </div>
-            <form onSubmit={saveConfig} className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="space-y-1"><Label className="text-xs">Town Name</Label><Input value={configForm.town_name} onChange={e => setConfigForm({...configForm, town_name: e.target.value})} required /></div>
-                <div className="space-y-1"><Label className="text-xs">State</Label><Input value={configForm.state} onChange={e => setConfigForm({...configForm, state: e.target.value})} /></div>
-                <div className="space-y-1"><Label className="text-xs">Penalty ($)</Label><Input type="number" value={configForm.penalty_first_offense} onChange={e => setConfigForm({...configForm, penalty_first_offense: +e.target.value})} /></div>
-                <div className="space-y-1"><Label className="text-xs">ZBA Days</Label><Input type="number" value={configForm.zba_appeal_days} onChange={e => setConfigForm({...configForm, zba_appeal_days: +e.target.value})} /></div>
-              </div>
-              <div className="space-y-1"><Label className="text-xs">Regulations</Label><Textarea rows={3} value={configForm.specific_regulations} onChange={e => setConfigForm({...configForm, specific_regulations: e.target.value})} /></div>
-              <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" disabled={savingConfig}>{savingConfig ? 'Saving...' : 'Save'}</Button>
-                <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent">
-                   <Upload className="w-3 h-3" /> {uploadingDoc ? 'Uploading...' : 'Learn from PDF'}
-                   <input type="file" className="hidden" accept=".pdf,.txt" onChange={handleDocUpload} />
-                </label>
-              </div>
-            </form>
+        {showConfig && (
+          <div className="mt-4 max-w-5xl mx-auto p-4 bg-indigo-50 border border-indigo-100 rounded-lg animate-in slide-in-from-top-2">
+             <h3 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2"><Building2 className="w-4 h-4" /> Town Settings</h3>
+             <div className="grid grid-cols-2 gap-4 text-xs">
+                <div><Label>First Penalty ($)</Label><Input value={configForm.penalty_first_offense} readOnly /></div>
+                <div><Label>Subsequent ($)</Label><Input value={configForm.penalty_subsequent} readOnly /></div>
+             </div>
           </div>
         )}
 
-        <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-3">
+        <div className="mt-4 max-w-5xl mx-auto flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 w-full max-w-sm">
-              <option value="">— Analyze a specific case —</option>
+            <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-9 text-sm rounded-md border border-input bg-background px-3 w-full max-w-sm">
+              <option value="">— Select a case to evaluate —</option>
               {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
             </select>
-            {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze Case Files</Button>}
+            {selectedCase && <Button size="sm" onClick={startDeepAnalysis} className="bg-indigo-600 hover:bg-indigo-700">Deep Evaluation</Button>}
           </div>
 
-          {/* Combined Warning Alert: Time and File Size */}
-          {isLoading ? (
-            <Alert className="bg-amber-50 border-amber-200 py-2 animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
+          {isLoading && (
+            <Alert className="bg-amber-50 border-amber-200 py-2">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-xs font-bold text-amber-800 uppercase tracking-wider">Analysis in Progress</AlertTitle>
-              <AlertDescription className="text-xs text-amber-700 leading-relaxed">
-                Processing documents can take time. It is okay to navigate away. 
-                <strong> Note:</strong> Any case files larger than 10MB will be skipped for automated analysis.
+              <AlertDescription className="text-[11px] text-amber-700 font-medium">
+                Deep analysis of PDFs and photos takes time. Please be patient. It is safe to navigate away; your results are saved automatically.
               </AlertDescription>
             </Alert>
-          ) : (
-             <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1 italic">
-                <FileWarning className="w-3 h-3" /> Note: PDFs/Images must be under 10MB for AI processing.
-             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 max-w-5xl mx-auto w-full">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white shadow-sm' : 'bg-card border border-border shadow-sm'}`}>
-              <ReactMarkdown className="text-sm prose prose-sm max-w-none">
-                {msg.content.replace(/\[Analyzing Case ID:.*?\]/g, '')}
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-5 py-3 ${msg.role === 'user' ? 'bg-indigo-600 text-white shadow-md' : 'bg-card border shadow-sm'}`}>
+              <ReactMarkdown className="text-sm prose prose-sm max-w-none prose-headings:text-indigo-900">
+                {msg.content.replace(/\[SYSTEM:.*?\]/g, '')}
               </ReactMarkdown>
             </div>
           </div>
         ))}
-        
         {isLoading && (
-          <div className="flex justify-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-card border border-indigo-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-md">
-              <div className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-              </div>
-              <span className="text-sm text-indigo-700 font-medium">Compass is opening attachments...</span>
-            </div>
+          <div className="flex items-center gap-3 text-indigo-600 font-medium animate-pulse text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Compass is opening attached files...
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4">
+      <div className="border-t p-4 bg-card shadow-lg">
         <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto">
-          <Input 
-            value={input} 
-            onChange={e => setInput(e.target.value)} 
-            placeholder={isLoading ? "Processing..." : "Ask Compass..."} 
-            className="flex-1" 
-            disabled={sending || isLoading} 
-          />
-          <Button type="submit" disabled={sending || isLoading || !input.trim()} size="icon">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
+          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Compass..." disabled={isLoading} className="bg-background" />
+          <Button type="submit" disabled={isLoading || !input.trim()} className="bg-indigo-600"><Send className="w-4 h-4" /></Button>
         </form>
       </div>
     </div>
