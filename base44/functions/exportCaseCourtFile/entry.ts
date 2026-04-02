@@ -1,12 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
+// --- HELPERS (STRICTLY PRESERVED) ---
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
   let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < uint8Array.length; i += chunkSize) {
-    const chunk = uint8Array.subarray(i, i + chunkSize);
+  for (let i = 0; i < uint8Array.length; i += 8192) {
+    const chunk = uint8Array.subarray(i, i + 8192);
     binary += String.fromCharCode(...chunk);
   }
   return btoa(binary);
@@ -29,25 +29,25 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { case_id } = await req.json();
-    const caseRecord = await base44.entities.Case.get(case_id);
+    
+    // FETCH DATA USING SERVICE ROLE TO ENSURE NO DATA IS MISSED
+    const caseRecord = await base44.asServiceRole.entities.Case.get(case_id);
+    const townConfig = await base44.asServiceRole.entities.TownConfig.get(caseRecord.town_id);
+    const townName = (townConfig?.town_name || 'Municipal').toUpperCase();
 
-    const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
+    const [investigations, notices, courtActions, auditLogs] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
       base44.asServiceRole.entities.Notice.filter({ case_id }),
-      base44.asServiceRole.entities.Document.filter({ case_id }),
       base44.asServiceRole.entities.CourtAction.filter({ case_id }),
-      base44.asServiceRole.entities.Deadline.filter({ case_id }),
       base44.asServiceRole.entities.AuditLog.filter({ case_id }),
-      base44.asServiceRole.entities.Violation.filter({ case_id }),
     ]);
 
+    // PHOTO PRE-FETCH
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
     const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
     const photoCache = {};
     allPhotoUrls.forEach((url, i) => {
-      if (photoResults[i].status === 'fulfilled' && photoResults[i].value) {
-        photoCache[url] = photoResults[i].value;
-      }
+      if (photoResults[i].status === 'fulfilled' && photoResults[i].value) photoCache[url] = photoResults[i].value;
     });
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -57,58 +57,78 @@ Deno.serve(async (req) => {
     const cw = pw - margin * 2;
     let y = margin;
 
-    // --- ORIGINAL STYLING FUNCTIONS RESTORED ---
-    const checkPageBreak = (needed = 10) => {
-      if (y + needed > ph - margin) { doc.addPage(); y = margin; }
+    // STYLING HELPERS
+    const addPageHeader = () => {
+      doc.setFont('Helvetica', 'bold').setFontSize(7).setTextColor(120);
+      doc.text(`TOWN OF ${townName} — CERTIFIED RECORD`, margin, margin - 5);
+      doc.text(`CASE: ${caseRecord.case_number}`, pw - margin, margin - 5, { align: 'right' });
+      doc.setDrawColor(200).line(margin, margin - 3, pw - margin, margin - 3);
     };
 
     const sectionTitle = (title) => {
-      checkPageBreak(15);
+      if (y + 20 > ph - margin) { doc.addPage(); y = margin; addPageHeader(); }
       doc.setFillColor(30, 64, 175).roundedRect(margin, y, cw, 8, 1, 1, 'F');
       doc.setFont('Helvetica', 'bold').setFontSize(10).setTextColor(255).text(title, margin + 3, y + 5.5);
-      doc.setTextColor(0); y += 11;
+      y += 12;
     };
 
     const fieldRow = (label, value) => {
-      checkPageBreak(8);
+      if (y + 10 > ph - margin) { doc.addPage(); y = margin; addPageHeader(); }
       doc.setFont('Helvetica', 'bold').setFontSize(8.5).setTextColor(80).text(label + ':', margin, y + 4);
       doc.setFont('Helvetica', 'normal').setTextColor(0).text(String(value || '—'), margin + 55, y + 4);
-      y += 6;
+      y += 7;
     };
 
-    // --- COVER PAGE (RESTORED ORIGINAL) ---
+    // --- COVER PAGE ---
     doc.setFillColor(30, 64, 175).rect(0, 0, pw, 60, 'F');
     doc.setFont('Helvetica', 'bold').setFontSize(22).setTextColor(255).text('CODE ENFORCEMENT CASE FILE', pw / 2, 35, { align: 'center' });
     doc.setTextColor(0); y = 75;
-    doc.setFontSize(12).text(caseRecord.property_address || '—', pw / 2, y, { align: 'center' });
-    y += 10;
-    fieldRow('Case Status', caseRecord.status.toUpperCase());
+    fieldRow('Property Address', caseRecord.property_address);
     fieldRow('Owner', caseRecord.property_owner_name);
     fieldRow('Assigned Officer', caseRecord.assigned_officer);
+    fieldRow('Status', caseRecord.status?.toUpperCase());
 
-    // --- SECTIONS (ALL RESTORED) ---
-    doc.addPage(); y = margin;
-    sectionTitle('1. INVESTIGATIONS');
-    investigations.forEach(inv => {
-      fieldRow('Date', new Date(inv.investigation_date).toLocaleDateString());
-      fieldRow('Notes', inv.summary || inv.field_notes);
-      if (inv.photos) {
+    // --- INVESTIGATIONS SECTION (REPAIRED) ---
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle('1. FIELD INVESTIGATIONS');
+    if (investigations.length === 0) fieldRow('Status', 'No investigations recorded.');
+    investigations.forEach((inv, idx) => {
+      fieldRow(`Investigation #${idx + 1}`, new Date(inv.investigation_date).toLocaleDateString());
+      doc.setFontSize(8).text(doc.splitTextToSize(`Notes: ${inv.summary || inv.field_notes || 'No notes'}`, cw - 10), margin + 5, y + 4);
+      y += 12;
+      if (inv.photos?.length > 0) {
         inv.photos.forEach(url => {
-          if (photoCache[url] && y + 50 < ph) {
-            doc.addImage(photoCache[url].data, photoCache[url].format, margin, y, 60, 45);
-            y += 50;
+          const img = photoCache[url];
+          if (img && y + 60 < ph) {
+            doc.addImage(img.data, img.format, margin + 5, y, 70, 50);
+            y += 55;
           }
         });
       }
+      y += 5;
     });
 
-    sectionTitle('2. NOTICES & LOGS');
-    notices.forEach(n => fieldRow(n.notice_type, n.date_issued));
+    // --- NOTICES SECTION (REPAIRED) ---
+    sectionTitle('2. NOTICES & CITATIONS');
+    if (notices.length === 0) fieldRow('Status', 'No notices issued.');
+    notices.forEach(n => {
+      fieldRow(n.notice_type?.replace(/_/g, ' ').toUpperCase(), `Issued: ${new Date(n.date_issued).toLocaleDateString()}`);
+      fieldRow('Status', n.status);
+      y += 3;
+    });
 
-    // --- SAVE AS PRIVATE ---
+    // --- CASE LOG / NOTES ---
+    sectionTitle('3. ACTIVITY LOG & NOTES');
+    const logs = auditLogs.filter(l => l.action.includes('note') || l.action.includes('Comment'));
+    logs.slice(0, 15).forEach(log => {
+      fieldRow(new Date(log.timestamp).toLocaleDateString(), log.action);
+    });
+
+    // --- SAVE TO PRIVATE STORAGE ---
     const pdfBuffer = doc.output('arraybuffer');
+    const pdfFilename = `OFFICIAL_RECORD_${caseRecord.case_number}.pdf`;
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ 
-      file: new File([pdfBuffer], `CASE_${case_id}.pdf`, { type: 'application/pdf' }) 
+      file: new File([pdfBuffer], pdfFilename, { type: 'application/pdf' }) 
     });
 
     const docRecord = await base44.asServiceRole.entities.Document.create({
