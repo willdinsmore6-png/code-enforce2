@@ -110,4 +110,28 @@ export default function CaseDetail() {
         window.open(response.data.signed_url, '_blank');
       }
     } catch (err) { 
-      toast({ title: "Download Error", variant: "destructive
+      toast({ title: "Download Error", variant: "destructive" }); 
+    } finally { 
+      setDownloadLoading(false); 
+    }
+  }
+
+  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div>;
+  if (!caseData) return <div className="p-20 text-center font-semibold text-muted-foreground">Case record not found.</div>;
+
+  return (
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+      {/* Header & Main Actions */}
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+        <div>
+          <Link to="/cases" className="text-xs text-muted-foreground flex items-center gap-1 mb-2 hover:text-primary transition-colors">
+            <ArrowLeft className="w-3 h-3" /> Back to Cases
+          </Link>
+          <h2 className="text-2xl font-bold">{caseData.case_number || 'Case View'}</h2>
+          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+            <MapPin className="w-3.5 h-3.5" /> {caseData.property_address}
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap md:justify-end">
+          <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading}>
+            {exportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-
