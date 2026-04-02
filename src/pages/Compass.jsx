@@ -4,7 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { 
+  Compass, 
+  Send, 
+  Upload, 
+  Settings, 
+  Loader2, 
+  Building2, 
+  FileText, 
+  Trash2, 
+  RotateCcw, 
+  X, 
+  AlertCircle 
+} from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
@@ -31,6 +43,7 @@ export default function CompassPage() {
   const messagesEndRef = useRef(null);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
+  // Load municipality config
   useEffect(() => {
     if (municipality) {
       setTownConfig(municipality);
@@ -41,6 +54,7 @@ export default function CompassPage() {
     }
   }, [municipality, isAdmin]);
 
+  // Load active cases for the dropdown
   useEffect(() => {
     async function loadCases() {
       const activeTownId = municipality?.id || user?.town_id;
@@ -55,6 +69,7 @@ export default function CompassPage() {
     loadCases();
   }, [municipality, user]);
 
+  // Initialize or resume conversation with town_id metadata
   useEffect(() => {
     async function initConversation() {
       const savedId = sessionStorage.getItem('compass_conversation_id');
@@ -85,12 +100,14 @@ export default function CompassPage() {
     initConversation();
   }, [municipality, user]);
 
+  // Handle real-time updates from the agent
   useEffect(() => {
     const handler = (e) => setMessages(e.detail.messages || []);
     window.addEventListener('compass_update', handler);
     return () => window.removeEventListener('compass_update', handler);
   }, []);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -112,11 +129,30 @@ export default function CompassPage() {
   async function sendMessage(e) {
     e?.preventDefault();
     if (!input.trim() || !conversation || sending) return;
+    
     const msg = input.trim();
     setInput('');
     setSending(true);
-    const caseContext = selectedCase ? ` [SYSTEM: Access Case ID ${selectedCase} and list all associated Document entities now.]` : '';
-    await base44.agents.addMessage(conversation, { role: 'user', content: msg + caseContext });
+
+    const messagePayload = { 
+      role: 'user', 
+      content: selectedCase ? `${msg} [Analyzing Case ID: ${selectedCase}]` : msg 
+    };
+
+    // CRITICAL: Fetch all document URLs for the case and attach them to the payload
+    // This forces the Base44 backend to process the PDF content directly.
+    if (selectedCase) {
+      try {
+        const caseDocs = await base44.entities.Document.filter({ case_id: selectedCase });
+        if (caseDocs.length > 0) {
+          messagePayload.file_urls = caseDocs.map(d => d.url || d.file_url);
+        }
+      } catch (err) {
+        console.error("Error fetching docs for AI processing:", err);
+      }
+    }
+
+    await base44.agents.addMessage(conversation, messagePayload);
     setSending(false);
   }
 
@@ -168,13 +204,14 @@ export default function CompassPage() {
     if (!selectedCase) return;
     const c = cases.find(ca => ca.id === selectedCase);
     if (!c) return;
-    setInput(`Act as an expert building inspector. Open the case file for ${c.property_address}. Specifically, list and read every PDF, document, and photo attached to this case ID to look for zoning violations.`);
+    setInput(`As an expert inspector, please analyze ${c.property_address}. Open, read, and interpret ALL attached PDFs and photos to identify specific zoning or code violations.`);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
 
   return (
     <div className="flex flex-col h-full max-h-screen overflow-hidden">
+      {/* Header Section */}
       <div className="flex-shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
@@ -192,6 +229,7 @@ export default function CompassPage() {
           </div>
         </div>
 
+        {/* Town Config Form */}
         {showConfig && isAdmin && (
           <div className="mt-4 max-w-5xl mx-auto bg-indigo-50 border border-indigo-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
@@ -219,32 +257,38 @@ export default function CompassPage() {
           </div>
         )}
 
+        {/* Case Analysis Control & Patient Warning */}
         <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 w-full max-w-sm">
               <option value="">— Analyze a specific case —</option>
               {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
             </select>
-            {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze Case Attachments</Button>}
+            {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze Case Files</Button>}
           </div>
 
           {isLoading && (
             <Alert className="bg-amber-50 border-amber-200 py-2 animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-xs font-bold text-amber-800 uppercase tracking-wider">Analysis in Progress</AlertTitle>
+              <AlertTitle className="text-xs font-bold text-amber-800 uppercase tracking-wider">Deep Analysis Running</AlertTitle>
               <AlertDescription className="text-xs text-amber-700 leading-relaxed">
-                Answers can take some time so please be patient. It is okay to navigate away from the page; your conversation is automatically saved and will continue in the background.
+                Processing PDF documents and identifying violations can take some time so please be patient. 
+                It is okay to navigate away from the page; your results are saved.
               </AlertDescription>
             </Alert>
           )}
         </div>
       </div>
 
+      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white shadow-sm' : 'bg-card border border-border shadow-sm'}`}>
-              <ReactMarkdown className="text-sm prose prose-sm max-w-none">{msg.content.replace(/\[SYSTEM:.*?\]/g, '')}</ReactMarkdown>
+              {/* Clean up system tags for user visibility */}
+              <ReactMarkdown className="text-sm prose prose-sm max-w-none">
+                {msg.content.replace(/\[Analyzing Case ID:.*?\]/g, '')}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
@@ -256,19 +300,20 @@ export default function CompassPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
               </div>
-              <span className="text-sm text-indigo-700 font-medium">Compass is analyzing case documents...</span>
+              <span className="text-sm text-indigo-700 font-medium">Compass is reviewing attachments...</span>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Input Form */}
       <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4">
         <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto">
           <Input 
             value={input} 
             onChange={e => setInput(e.target.value)} 
-            placeholder={isLoading ? "Processing files..." : "Ask Compass..."} 
+            placeholder={isLoading ? "Please wait for analysis..." : "Ask Compass..."} 
             className="flex-1" 
             disabled={sending || isLoading} 
           />
