@@ -100,7 +100,6 @@ export default function CompassPage() {
     sessionStorage.removeItem('compass_messages');
     setConversation(null);
     setMessages([]);
-    
     const activeTownId = municipality?.id || user?.town_id;
     const conv = await base44.agents.createConversation({ 
       agent_name: 'compass', 
@@ -116,7 +115,7 @@ export default function CompassPage() {
     const msg = input.trim();
     setInput('');
     setSending(true);
-    const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
+    const caseContext = selectedCase ? ` [SYSTEM: Access Case ID ${selectedCase} and list all associated Document entities now.]` : '';
     await base44.agents.addMessage(conversation, { role: 'user', content: msg + caseContext });
     setSending(false);
   }
@@ -169,7 +168,7 @@ export default function CompassPage() {
     if (!selectedCase) return;
     const c = cases.find(ca => ca.id === selectedCase);
     if (!c) return;
-    setInput(`Analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Open and read ALL documents and pictures attached to this case.`);
+    setInput(`Act as an expert building inspector. Open the case file for ${c.property_address}. Specifically, list and read every PDF, document, and photo attached to this case ID to look for zoning violations.`);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
@@ -245,7 +244,7 @@ export default function CompassPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white shadow-sm' : 'bg-card border border-border shadow-sm'}`}>
-              <ReactMarkdown className="text-sm prose prose-sm max-w-none">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</ReactMarkdown>
+              <ReactMarkdown className="text-sm prose prose-sm max-w-none">{msg.content.replace(/\[SYSTEM:.*?\]/g, '')}</ReactMarkdown>
             </div>
           </div>
         ))}
@@ -257,7 +256,7 @@ export default function CompassPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
               </div>
-              <span className="text-sm text-indigo-700 font-medium">Compass is opening attachments...</span>
+              <span className="text-sm text-indigo-700 font-medium">Compass is analyzing case documents...</span>
             </div>
           </div>
         )}
