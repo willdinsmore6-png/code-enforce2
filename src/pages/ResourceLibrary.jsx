@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import BuildingCodeLookup from '../components/BuildingCodeLookup';
 import { base44 } from '@/api/base44Client';
-import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, Send, Loader2, X, RefreshCw } from 'lucide-react';
+import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, Send, Loader2, X, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
-import { toast } from '@/components/ui/use-toast';
 
 export default function ResourceLibrary() {
   const { user, municipality } = useAuth();
@@ -28,17 +27,13 @@ export default function ResourceLibrary() {
   async function loadResources() {
     setLoading(true);
     try {
-      // Direct filter to match the Agent's write logic
+      // We remove the 'is_active' filter temporarily to see if the AI is saving "hidden" drafts
       const existing = await base44.entities.Resource.filter({ 
-        municipality_id: currentTownId,
-        is_active: true
+        municipality_id: currentTownId 
       });
       setResources(existing);
-    } catch (err) { 
-      console.error("Vault Sync Error:", err); 
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Sync Error:", err); }
+    setLoading(false);
   }
 
   const toggleItem = (key) => setExpandedItems(prev => ({ ...prev, [key]: !prev[key] }));
@@ -61,10 +56,10 @@ export default function ResourceLibrary() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-100 pb-6 text-left">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 font-mono tracking-tight uppercase">Resource Library</h1>
-          <p className="text-sm text-slate-500 font-medium">Jurisdiction: {townName}, {state}</p>
+          <p className="text-sm text-slate-500">System ID: <span className="font-mono text-[10px] text-amber-600">{currentTownId}</span></p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowAI(!showAI)} variant="outline" className="gap-2 text-xs h-9">
+          <Button onClick={() => setShowAI(!showAI)} variant="outline" className="gap-2 text-xs h-9 border-slate-200">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" /> 
             {showAI ? "Close Curator" : "Open AI Curator"}
           </Button>
@@ -74,7 +69,6 @@ export default function ResourceLibrary() {
       {showAI && (
         <AICuratePanel 
           onClose={() => { setShowAI(false); loadResources(); }} 
-          municipality={municipality}
           townId={currentTownId}
           townName={townName}
           state={state}
@@ -85,18 +79,25 @@ export default function ResourceLibrary() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-slate-400" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Reference Archive</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Live Vault</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-48 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white" />
+              <Input placeholder="Filter terms..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white" />
             </div>
             <Button onClick={loadResources} variant="ghost" size="sm" className="h-8 w-8 p-0">
                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
+
+        {resources.length === 0 && !loading && (
+          <div className="p-8 border-2 border-dashed border-slate-100 rounded-xl text-center space-y-2">
+            <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto" />
+            <p className="text-xs text-slate-500 font-mono uppercase tracking-widest">Vault Empty for ID: {currentTownId}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
@@ -108,18 +109,16 @@ export default function ResourceLibrary() {
                 <div className="grid gap-2">
                   {items.map(item => (
                     <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                      <button onClick={() => toggleItem(item.id)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors">
+                      <button onClick={() => toggleItem(item.id)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50">
                         <span className="text-sm font-semibold text-slate-700">{item.term}</span>
                         {expandedItems[item.id] ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                       </button>
                       {expandedItems[item.id] && (
-                        <div className="px-5 pb-5 pt-1 space-y-4 text-left border-t border-slate-50">
-                          <div className="text-sm text-slate-600 leading-relaxed font-mono whitespace-pre-wrap py-2">
-                            <ReactMarkdown>{item.definition}</ReactMarkdown>
-                          </div>
+                        <div className="px-5 pb-5 pt-1 space-y-4 text-left border-t border-slate-50 font-mono">
+                          <div className="text-sm text-slate-600 leading-relaxed py-2"><ReactMarkdown>{item.definition}</ReactMarkdown></div>
                           {item.tip && (
-                            <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3">
-                              <p className="text-[10px] font-bold text-amber-700 uppercase mb-1 font-mono">Registrar Field Note</p>
+                            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                              <p className="text-[10px] font-bold text-amber-700 uppercase mb-1">Field Note</p>
                               <p className="text-xs text-amber-900/80 leading-snug">{item.tip}</p>
                             </div>
                           )}
@@ -137,29 +136,16 @@ export default function ResourceLibrary() {
   );
 }
 
-function AICuratePanel({ onClose, townId, townName, state, municipality }) {
+function AICuratePanel({ onClose, townId, townName, state }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // We explicitly create the TownConfig object your Agent settings require
-  const townConfig = {
-    municipality_id: townId,
-    town_name: townName,
-    state: state,
-    regulations: municipality?.regulations || "Standard Zoning"
-  };
-
   useEffect(() => {
-    base44.agents.createConversation({ 
-      agent_name: 'resource_curator', 
-      metadata: { town_id: townId, TownConfig: townConfig } 
-    }).then(conv => { 
-      setConversation(conv); 
-      setMessages(conv.messages || []); 
-    });
+    base44.agents.createConversation({ agent_name: 'resource_curator', metadata: { town_id: townId } })
+      .then(conv => { setConversation(conv); setMessages(conv.messages || []); });
   }, [townId]);
 
   useEffect(() => {
@@ -177,23 +163,22 @@ function AICuratePanel({ onClose, townId, townName, state, municipality }) {
     if (!customMsg) setInput('');
     setSending(true);
 
-    // Provide the TownConfig in every message to reinforce the Agent's instructions
-    const systemPayload = `
-      [TownConfig Information]
-      Municipality ID: ${townConfig.municipality_id}
-      Town Name: ${townConfig.town_name}
-      State: ${townConfig.state}
+    // FORCE SYNC PROMPT: This overrides the Agent's internal assumptions about the ID
+    const forceSyncPrompt = `
+      [ID SYNC OVERRIDE]
+      Current Municipality ID to use: ${townId}
+      Target Town: ${townName}, ${state}
       
+      ACTION: Create/Update 10 new technical resources. You MUST use the ID provided above for the 'municipality_id' field.
       COMMAND: ${msg}
     `;
 
-    await base44.agents.addMessage(conversation, { role: 'user', content: systemPayload });
+    await base44.agents.addMessage(conversation, { role: 'user', content: forceSyncPrompt });
     setSending(false);
   }
 
   const handleAutoCurate = () => {
-    const prompt = `Please perform a thorough review and update of our Resource Library as per your curator instructions. Build out at least 12 highly relevant resources for ${townName}, ${state}.`;
-    sendMessage(null, prompt);
+    sendMessage(null, "Run full jurisdictional build-out. Create 10+ new resources.");
   };
 
   return (
@@ -201,11 +186,11 @@ function AICuratePanel({ onClose, townId, townName, state, municipality }) {
       <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-[10px] uppercase tracking-widest font-mono">Registrar Curator</span>
+          <span className="font-bold text-[10px] uppercase tracking-widest font-mono">Curator ID Sync: {townId}</span>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={handleAutoCurate} className="h-7 text-[10px] bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 gap-1 border border-amber-500/20">
-            <RefreshCw className={`w-3 h-3 ${sending ? 'animate-spin' : ''}`} /> Auto-Curate
+          <Button variant="ghost" size="sm" onClick={handleAutoCurate} className="h-7 text-[10px] bg-amber-500/10 text-amber-500 gap-1 border border-amber-500/20">
+            <RefreshCw className={`w-3 h-3 ${sending ? 'animate-spin' : ''}`} /> Force Auto-Curate
           </Button>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
         </div>
@@ -213,17 +198,15 @@ function AICuratePanel({ onClose, townId, townName, state, municipality }) {
       <div className="h-64 overflow-y-auto px-4 py-3 bg-slate-50 font-mono text-[10px] text-left">
         {messages.map((msg, i) => (
           <div key={i} className={`mb-3 ${msg.role === 'user' ? 'text-blue-600' : 'text-slate-700'}`}>
-            <span className="font-bold uppercase tracking-tighter">{msg.role === 'user' ? '> AUDIT: ' : '>> SYNC: '}</span>
+            <span className="font-bold uppercase tracking-tighter">{msg.role === 'user' ? '> SYNC INITIATED: ' : '>> RESPONSE: '}</span>
             <div className="inline leading-relaxed ml-1"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
       <form onSubmit={sendMessage} className="flex gap-2 p-4 border-t bg-white">
-        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Task for the Curator..." className="flex-1 h-9 text-xs font-mono" />
-        <Button type="submit" size="sm" className="bg-slate-900 h-9 px-4 uppercase text-[10px] font-bold" disabled={sending}>
-           {sending ? "Syncing..." : "Execute"}
-        </Button>
+        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Force curate task..." className="flex-1 h-9 text-xs font-mono" />
+        <Button type="submit" size="sm" className="bg-slate-900 h-9 px-4 uppercase text-[10px] font-bold" disabled={sending}>Execute</Button>
       </form>
     </div>
   );
