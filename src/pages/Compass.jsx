@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Trash2, CheckCircle, RotateCcw, X } from 'lucide-react';
+import { Compass, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -25,8 +26,6 @@ export default function CompassPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadedDocNames, setUploadedDocNames] = useState([]);
-  const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
-  const [docsSharedWithAgent, setDocsSharedWithAgent] = useState(false);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
@@ -68,7 +67,6 @@ export default function CompassPage() {
             setConversation(existing);
             const cached = sessionStorage.getItem('compass_messages');
             setMessages(cached ? JSON.parse(cached) : (existing.messages || []));
-            if (existing.messages?.length > 0) setDocsSharedWithAgent(true);
             return;
           }
         } catch (e) {
@@ -78,10 +76,7 @@ export default function CompassPage() {
       
       const conv = await base44.agents.createConversation({ 
         agent_name: 'compass', 
-        metadata: { 
-          name: 'Compass Session',
-          town_id: activeTownId 
-        } 
+        metadata: { town_id: activeTownId } 
       });
       sessionStorage.setItem('compass_conversation_id', conv.id);
       setConversation(conv);
@@ -105,15 +100,11 @@ export default function CompassPage() {
     sessionStorage.removeItem('compass_messages');
     setConversation(null);
     setMessages([]);
-    setDocsSharedWithAgent(false);
     
     const activeTownId = municipality?.id || user?.town_id;
     const conv = await base44.agents.createConversation({ 
       agent_name: 'compass', 
-      metadata: { 
-        name: 'Compass Session',
-        town_id: activeTownId 
-      } 
+      metadata: { town_id: activeTownId } 
     });
     sessionStorage.setItem('compass_conversation_id', conv.id);
     setConversation(conv);
@@ -126,13 +117,7 @@ export default function CompassPage() {
     setInput('');
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
-    const messagePayload = { role: 'user', content: msg + caseContext };
-    const docUrls = townConfig?.ordinance_docs || [];
-    if (docUrls.length > 0 && !docsSharedWithAgent) {
-      messagePayload.file_urls = docUrls;
-      setDocsSharedWithAgent(true);
-    }
-    await base44.agents.addMessage(conversation, messagePayload);
+    await base44.agents.addMessage(conversation, { role: 'user', content: msg + caseContext });
     setSending(false);
   }
 
@@ -148,11 +133,7 @@ export default function CompassPage() {
         setTownConfig(created);
       }
       setShowConfig(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingConfig(false);
-    }
+    } catch (err) { console.error(err); } finally { setSavingConfig(false); }
   }
 
   async function handleDocUpload(e) {
@@ -170,11 +151,7 @@ export default function CompassPage() {
       });
       setTownConfig(updated);
       setUploadedDocNames(updated.ordinance_doc_names || []);
-      setLastUploadedDoc(file.name);
-      setTimeout(() => setLastUploadedDoc(null), 4000);
-    } finally {
-      setUploadingDoc(false);
-    }
+    } finally { setUploadingDoc(false); }
   }
 
   async function removeDocument(index) {
@@ -192,7 +169,7 @@ export default function CompassPage() {
     if (!selectedCase) return;
     const c = cases.find(ca => ca.id === selectedCase);
     if (!c) return;
-    setInput(`Please analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Does a violation exist? What specific RSA or local ordinance applies?`);
+    setInput(`Analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Open and read ALL documents and pictures attached to this case.`);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
@@ -219,9 +196,8 @@ export default function CompassPage() {
         {showConfig && isAdmin && (
           <div className="mt-4 max-w-5xl mx-auto bg-indigo-50 border border-indigo-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                <h3 className="font-semibold text-indigo-900">Town Configuration</h3>
+              <div className="flex items-center gap-2 text-indigo-900 font-semibold">
+                <Building2 className="w-4 h-4" /> Town Configuration
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowConfig(false)}><X className="w-4 h-4" /></Button>
             </div>
@@ -241,32 +217,34 @@ export default function CompassPage() {
                 </label>
               </div>
             </form>
-            {uploadedDocNames.length > 0 && (
-              <div className="mt-4 space-y-1.5 border-t border-indigo-200 pt-3">
-                {uploadedDocNames.map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white px-3 py-1.5 rounded border border-indigo-100 text-xs">
-                    <span className="truncate flex items-center gap-2"><FileText className="w-3 h-3 text-indigo-500" />{doc.name || doc}</span>
-                    <button onClick={() => removeDocument(i)} className="text-red-500"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
-        <div className="mt-3 max-w-5xl mx-auto flex items-center gap-2">
-          <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 w-full max-w-sm">
-            <option value="">— Analyze a specific case —</option>
-            {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
-          </select>
-          {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze</Button>}
+        <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 w-full max-w-sm">
+              <option value="">— Analyze a specific case —</option>
+              {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
+            </select>
+            {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze Case Attachments</Button>}
+          </div>
+
+          {isLoading && (
+            <Alert className="bg-amber-50 border-amber-200 py-2 animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-xs font-bold text-amber-800 uppercase tracking-wider">Analysis in Progress</AlertTitle>
+              <AlertDescription className="text-xs text-amber-700 leading-relaxed">
+                Answers can take some time so please be patient. It is okay to navigate away from the page; your conversation is automatically saved and will continue in the background.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white shadow-sm' : 'bg-card border border-border shadow-sm'}`}>
               <ReactMarkdown className="text-sm prose prose-sm max-w-none">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</ReactMarkdown>
             </div>
           </div>
@@ -274,18 +252,15 @@ export default function CompassPage() {
         
         {isLoading && (
           <div className="flex justify-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-card border border-indigo-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+            <div className="bg-card border border-indigo-100 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-md">
               <div className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
               </div>
-              <span className="text-sm text-indigo-700 font-medium">
-                Compass is searching case files...
-              </span>
+              <span className="text-sm text-indigo-700 font-medium">Compass is opening attachments...</span>
             </div>
           </div>
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
@@ -294,7 +269,7 @@ export default function CompassPage() {
           <Input 
             value={input} 
             onChange={e => setInput(e.target.value)} 
-            placeholder={isLoading ? "Compass is thinking..." : "Ask Compass..."} 
+            placeholder={isLoading ? "Processing files..." : "Ask Compass..."} 
             className="flex-1" 
             disabled={sending || isLoading} 
           />
