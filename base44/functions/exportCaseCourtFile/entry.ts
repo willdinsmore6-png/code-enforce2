@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
-// --- HELPER: CONVERT BUFFER TO BASE64 (Required for Photos) ---
+// --- HELPER FUNCTIONS ---
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
   let binary = '';
@@ -13,7 +13,6 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-// --- HELPER: FETCH IMAGE FOR PDF ---
 async function fetchImageAsBase64(url) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -32,7 +31,6 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // 1. AUTHENTICATION
     let user;
     try {
       user = await base44.auth.me();
@@ -47,23 +45,19 @@ Deno.serve(async (req) => {
     const { case_id } = body;
     if (!case_id) return Response.json({ error: 'case_id is required' }, { status: 400 });
 
-    // 2. DATA AGGREGATION
     const caseRecord = await base44.entities.Case.get(case_id);
     if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
-    // Dynamic Town Context
     const townConfig = await base44.asServiceRole.entities.TownConfig.get(caseRecord.town_id);
-    const townName = (townConfig?.town_name || 'MUNICIPAL').toUpperCase();
+    const townName = (townConfig?.town_name || 'Municipal').toUpperCase();
     const townState = townConfig?.state || 'NH';
 
-    const [investigations, notices, documents, violations] = await Promise.all([
+    const [investigations, notices, documents] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter({ case_id }),
       base44.asServiceRole.entities.Notice.filter({ case_id }),
       base44.asServiceRole.entities.Document.filter({ case_id }),
-      base44.asServiceRole.entities.Violation.filter({ case_id }),
     ]);
 
-    // 3. PHOTO PRE-FETCHING
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
     const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
     const photoCache = {};
@@ -73,7 +67,6 @@ Deno.serve(async (req) => {
       }
     });
 
-    // 4. PDF INITIALIZATION
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();
@@ -81,8 +74,8 @@ Deno.serve(async (req) => {
     const cw = pw - margin * 2;
     let y = margin;
 
-    const PRIMARY_COLOR = [30, 58, 138]; // Municipal Navy
-    const SECONDARY_COLOR = [100, 116, 139]; // Slate Gray
+    const PRIMARY_COLOR = [30, 58, 138];
+    const SECONDARY_COLOR = [100, 116, 139];
 
     function addPageHeader() {
       doc.setFont('Helvetica', 'bold');
@@ -127,14 +120,14 @@ Deno.serve(async (req) => {
       y += rowH;
     }
 
-    // 5. COVER PAGE (DYNAMIC BRANDING)
+    // COVER PAGE
     doc.setFillColor(...PRIMARY_COLOR);
     doc.rect(0, 0, pw, 5, 'F');
     y = 35;
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...SECONDARY_COLOR);
-    doc.text(`STATE OF ${townState === 'NH' ? 'NEW HAMPSHIRE' : townState}`, pw / 2, y, { align: 'center' });
+    doc.text(`STATE OF ${townState}`, pw / 2, y, { align: 'center' });
     y += 8;
     doc.setFontSize(18);
     doc.setTextColor(0);
@@ -142,14 +135,10 @@ Deno.serve(async (req) => {
     y += 20;
     doc.setFontSize(26);
     doc.text('CERTIFIED CASE FILE', pw / 2, y, { align: 'center' });
-    y += 10;
-    doc.setFontSize(11);
-    doc.setFont('Helvetica', 'normal');
-    doc.text(`Case Reference: ${caseRecord.case_number || 'PENDING'}`, pw / 2, y, { align: 'center' });
-
+    
     y += 25;
     doc.setFillColor(245, 247, 250);
-    doc.roundedRect(margin, y, cw, 55, 2, 2, 'F');
+    doc.roundedRect(margin, y, cw, 50, 2, 2, 'F');
     let gridY = y + 10;
     const drawGrid = (l, v) => {
       doc.setFont('Helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PRIMARY_COLOR);
@@ -162,10 +151,9 @@ Deno.serve(async (req) => {
     drawGrid('Owner of Record:', caseRecord.property_owner_name);
     drawGrid('Violation Type:', caseRecord.violation_type?.replace('_', ' ').toUpperCase());
     drawGrid('Current Status:', caseRecord.status?.replace('_', ' ').toUpperCase());
-    drawGrid('Assigned Officer:', caseRecord.assigned_officer);
-    drawGrid('Date Generated:', new Date().toLocaleDateString());
+    drawGrid('Generated On:', new Date().toLocaleDateString());
 
-    // 6. CONTENT SECTIONS
+    // CONTENT
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle('1. Case Overview');
     fieldRow('Violation Description', caseRecord.violation_description);
@@ -176,7 +164,6 @@ Deno.serve(async (req) => {
       investigations.forEach((inv) => {
         checkPageBreak(15);
         fieldRow(`Inspection Date: ${new Date(inv.investigation_date).toLocaleDateString()}`, inv.summary || inv.field_notes);
-        
         if (inv.photos?.length > 0) {
           const valid = inv.photos.filter(url => photoCache[url]);
           if (valid.length > 0) {
@@ -204,29 +191,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 7. FINALIZE & STORE PRIVATE
     const pdfBuffer = doc.output('arraybuffer');
-    const pdfFilename = `CERTIFIED_RECORD_${caseRecord.case_number || case_id.slice(0,5)}.pdf`;
+    const pdfFilename = `OFFICIAL_FILE_${caseRecord.case_number || case_id.slice(0,5)}.pdf`;
     
-    // UPLOAD TO PRIVATE STORAGE
+    // IMPORTANT: Upload to private storage
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ 
       file: new File([pdfBuffer], pdfFilename, { type: 'application/pdf' }) 
     });
 
-    // SAVE TO DATABASE
+    // Match your getCourtFilePDF expectation: store it as "file_url"
     const docRecord = await base44.asServiceRole.entities.Document.create({
       case_id,
       town_id: caseRecord.town_id,
       title: `Certified Record — ${new Date().toLocaleDateString()}`,
       document_type: 'court_filing',
-      file_url: file_uri, // This is a PRIVATE URI
+      file_url: file_uri, 
       uploaded_by: user.email
     });
 
     return Response.json({ success: true, document_id: docRecord.id, filename: pdfFilename });
 
   } catch (error) {
-    console.error('PDF Error:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
