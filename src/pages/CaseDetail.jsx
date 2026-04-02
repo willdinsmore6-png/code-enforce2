@@ -109,5 +109,29 @@ export default function CaseDetail() {
     }
   }
 
-  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div>;
-  if (!caseData) return <div className="p-20 text-center">Case
+  if (loading) {
+    return (
+      <div className="p-20 text-center">
+        <Loader2 className="animate-spin mx-auto text-primary" />
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return (
+      <div className="p-20 text-center">
+        <p className="text-muted-foreground font-semibold">Case record not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <Link to="/cases" className="text-xs text-muted-foreground flex items-center gap-1 mb-2 hover:text-primary transition-colors">
+            <ArrowLeft className="w-3 h-3" /> Back to Cases
+          </Link>
+          <h2 className="text-2xl font-bold">{caseData.case_number || 'Case Details'}</h2>
+          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+            <MapPin className="w-
