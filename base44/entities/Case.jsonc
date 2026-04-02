@@ -170,7 +170,8 @@
       "description": "Auto-calculated date when record may be purged per RSA 33-A"
     }
   },
-  "required": [
+ "required": [
+    "town_id", // Add this to ensure every case is tagged to a town
     "property_address",
     "violation_type",
     "violation_description"
