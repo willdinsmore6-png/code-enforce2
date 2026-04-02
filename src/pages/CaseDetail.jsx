@@ -51,6 +51,7 @@ export default function CaseDetail() {
         setCourtActions(ca || []);
         setLoading(false);
       } catch (err) { 
+        console.error('Data load error:', err);
         setLoading(false); 
       }
     }
@@ -199,19 +200,7 @@ export default function CaseDetail() {
         </div>
       )}
 
-      {/* Public Portal Info */}
-      {caseData.public_access_code && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-blue-600" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">Public Portal Code: <span className="font-mono text-lg ml-2">{caseData.public_access_code}</span></p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Tabs Container */}
+      {/* Tabs Container */}
       <Tabs defaultValue="overview">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="overview" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Overview</TabsTrigger>
@@ -229,37 +218,33 @@ export default function CaseDetail() {
               {caseData.violation_description || 'No description provided.'}
             </p>
           </div>
-
-          <div className="bg-card rounded-xl border p-5">
-            <h3 className="font-bold text-sm mb-4 flex items-center gap-2 uppercase text-slate-400">
-              <Clock className="w-4 h-4 text-indigo-500" /> Active Deadlines
-            </h3>
-            <div className="space-y-3">
-              {deadlines.length > 0 ? deadlines.map(d => (
-                <div key={d.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold truncate">{d.description}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{format(new Date(d.due_date), 'MMM d')}</p>
-                  </div>
-                  <StatusBadge status={d.priority} type="priority" />
-                </div>
-              )) : <p className="text-xs text-muted-foreground italic">No active deadlines for this case.</p>}
-            </div>
-          </div>
-
           <CaseNotes caseId={id} caseNumber={caseData.case_number} />
         </TabsContent>
 
         <TabsContent value="notices" className="mt-6">
-          <CaseNotices caseId={id} notices={notices} setNotices={setNotices} />
+          <CaseNotices 
+            caseId={id} 
+            caseData={caseData} 
+            notices={notices} 
+            setNotices={setNotices} 
+          />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-6">
-          <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
+          <CaseDocuments 
+            caseId={id} 
+            documents={documents} 
+            setDocuments={setDocuments} 
+          />
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-6">
-          <CaseTimeline investigations={investigations} notices={notices} courtActions={courtActions} />
+          <CaseTimeline 
+            caseData={caseData} 
+            investigations={investigations} 
+            notices={notices} 
+            courtActions={courtActions} 
+          />
         </TabsContent>
       </Tabs>
 
