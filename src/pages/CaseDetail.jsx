@@ -119,8 +119,8 @@ export default function CaseDetail() {
 
   if (!caseData) {
     return (
-      <div className="p-20 text-center">
-        <p className="text-muted-foreground font-semibold">Case record not found.</p>
+      <div className="p-20 text-center font-semibold text-muted-foreground">
+        Case record not found.
       </div>
     );
   }
@@ -132,6 +132,115 @@ export default function CaseDetail() {
           <Link to="/cases" className="text-xs text-muted-foreground flex items-center gap-1 mb-2 hover:text-primary transition-colors">
             <ArrowLeft className="w-3 h-3" /> Back to Cases
           </Link>
-          <h2 className="text-2xl font-bold">{caseData.case_number || 'Case Details'}</h2>
+          <h2 className="text-2xl font-bold">
+            {caseData.case_number || 'Case Details'}
+          </h2>
           <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-            <MapPin className="w-
+            <MapPin className="w-3.5 h-3.5" /> 
+            {caseData.property_address}
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={exportLoading}>
+            {exportLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+            ) : (
+              <FileText className="w-3.5 h-3.5 mr-2" />
+            )}
+            {exportLoading ? 'Generating...' : 'Generate PDF'}
+          </Button>
+          
+          {generatedDocId && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleDownloadPDF} 
+              disabled={downloadLoading} 
+              className="border-blue-200 text-blue-600 bg-blue-50/50"
+            >
+              {downloadLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-2" />
+              )}
+              Download PDF
+            </Button>
+          )}
+          
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="w-3.5 h-3.5 mr-2" /> Edit
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-card border p-4 rounded-xl shadow-sm">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Status</span>
+          <StatusBadge status={caseData.status} />
+        </div>
+        <div className="bg-card border p-4 rounded-xl shadow-sm">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Owner</span>
+          <p className="text-sm font-semibold truncate">{caseData.property_owner_name || '—'}</p>
+        </div>
+        <div className="bg-card border p-4 rounded-xl shadow-sm">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Deadline</span>
+          <p className="text-sm font-semibold">
+            {caseData.abatement_deadline ? format(new Date(caseData.abatement_deadline), 'MMM d, yyyy') : 'None'}
+          </p>
+        </div>
+        <div className="bg-card border p-4 rounded-xl shadow-sm">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Assigned Officer</span>
+          <Select value={caseData.assigned_officer || 'unassigned'} onValueChange={updateOfficer}>
+            <SelectTrigger className="h-7 border-none bg-transparent p-0 text-sm font-semibold shadow-none focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {users.map(u => <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="overview" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Overview</TabsTrigger>
+          <TabsTrigger value="notices" className="gap-2"><Bell className="w-3.5 h-3.5" /> Notices ({notices.length})</TabsTrigger>
+          <TabsTrigger value="documents" className="gap-2"><FileText className="w-3.5 h-3.5" /> Vault ({documents.length})</TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-2"><Clock className="w-3.5 h-3.5" /> Timeline</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          <div className="bg-card border p-5 rounded-xl shadow-sm">
+            <h3 className="font-bold text-sm mb-3 uppercase text-slate-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" /> Violation Description
+            </h3>
+            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+              {caseData.violation_description || 'No description provided.'}
+            </p>
+          </div>
+          <CaseNotes caseId={id} caseNumber={caseData.case_number} />
+        </TabsContent>
+
+        <TabsContent value="notices" className="mt-6">
+          <CaseNotices caseId={id} notices={notices} setNotices={setNotices} />
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-6">
+          <CaseDocuments caseId={id} documents={documents} setDocuments={setDocuments} />
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-6">
+          <CaseTimeline investigations={investigations} notices={notices} />
+        </TabsContent>
+      </Tabs>
+
+      <EditCaseModal 
+        caseData={caseData} 
+        open={editOpen} 
+        onClose={() => setEditOpen(false)} 
+        onSave={(updated) => setCaseData(updated)} 
+      />
+    </div>
+  );
+}
