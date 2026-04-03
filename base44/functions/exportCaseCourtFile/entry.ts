@@ -54,16 +54,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // THE CORE FIX: Using a wide $or filter to capture every possible link to this case
-    const filter = {
-      $or: [
-        { case_id: case_id },           // Human-readable ID (YDLSH1VL)
-        { case_id: caseRecord.id },      // Internal Hex ID
-        { case_id: caseRecord.case_number } // Display Number
-      ]
-    };
+    // FIXED FILTER — always match internal UUID
+    const filter = { case_id: caseRecord.id };
 
-    const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
+    const [
+      investigations,
+      notices,
+      documents,
+      courtActions,
+      deadlines,
+      auditLogs,
+      violations
+    ] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter(filter),
       base44.asServiceRole.entities.Notice.filter(filter),
       base44.asServiceRole.entities.Document.filter(filter),
