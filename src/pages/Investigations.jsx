@@ -89,7 +89,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
       uploadedUrls.push(file_url);
     }
     const updatedPhotos = [...(form.photos || []), ...uploadedUrls];
-    const updated = await base44.entities.Investigation.update(inv.id, {
+    await base44.entities.Investigation.update(inv.id, {
       investigation_date: form.investigation_date,
       officer_name: form.officer_name,
       field_notes: form.field_notes,
@@ -154,7 +154,6 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
               <Label htmlFor="ew" className="text-sm cursor-pointer">Warrant required</Label>
             </div>
           </div>
-          {/* Existing photos/docs */}
           {form.photos?.length > 0 && (
           <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos & Documents</Label>
@@ -215,7 +214,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
 }
 
 export default function Investigations() {
-  const { impersonatedMunicipality } = useAuth();
+  const { impersonatedMunicipality, user } = useAuth(); // Added user to destructuring
   const [investigations, setInvestigations] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -241,27 +240,50 @@ export default function Investigations() {
 
   useEffect(() => {
     async function load() {
-      const townFilter = impersonatedMunicipality ? { town_id: impersonatedMunicipality.id } : null;
+      // Determine active town: prioritizes impersonation for superadmins, falls back to user's town
+      const activeTownId = impersonatedMunicipality?.id || user?.town_id;
+      
+      if (!activeTownId) {
+        setLoading(false);
+        return;
+      }
+
+      const townFilter = { town_id: activeTownId };
+      
       const [inv, c] = await Promise.all([
-        townFilter ? base44.entities.Investigation.filter(townFilter, '-created_date', 50) : base44.entities.Investigation.list('-created_date', 50),
-        townFilter ? base44.entities.Case.filter(townFilter, '-created_date', 100) : base44.entities.Case.list('-created_date', 100),
+        base44.entities.Investigation.filter(townFilter, '-created_date', 50),
+        base44.entities.Case.filter(townFilter, '-created_date', 100),
       ]);
       setInvestigations(inv);
       setCases(c);
       setLoading(false);
     }
     load();
-  }, [impersonatedMunicipality]);
+  }, [impersonatedMunicipality, user?.town_id]); // Added user?.town_id to dependencies
 
   async function handleSubmit(e) {
     e.preventDefault();
+    
+    const activeTownId = impersonatedMunicipality?.id || user?.town_id;
+    if (!activeTownId) {
+      console.error("No active town ID found.");
+      return;
+    }
+
     setSaving(true);
     const photoUrls = [];
     for (const photo of photos) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: photo });
       photoUrls.push(file_url);
     }
-    const inv = await base44.entities.Investigation.create({ ...form, photos: photoUrls });
+
+    // Explicitly including town_id in the create call
+    const inv = await base44.entities.Investigation.create({ 
+      ...form, 
+      town_id: activeTownId,
+      photos: photoUrls 
+    });
+
     setInvestigations(prev => [inv, ...prev]);
     if (form.case_id) {
       await base44.entities.Case.update(form.case_id, {
