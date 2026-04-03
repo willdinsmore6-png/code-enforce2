@@ -58,17 +58,16 @@ Deno.serve(async (req) => {
     }
     if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
+    // FIXED: Explicitly mapping the case_id property to ensure records are found
     const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
-      base44.asServiceRole.entities.Investigation.filter({ case_id }),
-      base44.asServiceRole.entities.Notice.filter({ case_id }),
-      base44.asServiceRole.entities.Document.filter({ case_id }),
-      base44.asServiceRole.entities.CourtAction.filter({ case_id }),
-      base44.asServiceRole.entities.Deadline.filter({ case_id }),
-      base44.asServiceRole.entities.AuditLog.filter({ case_id }),
-      base44.asServiceRole.entities.Violation.filter({ case_id }),
+      base44.asServiceRole.entities.Investigation.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Notice.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Document.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.CourtAction.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Deadline.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.AuditLog.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Violation.filter({ case_id: case_id }),
     ]);
-
-    if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
     // Pre-fetch all investigation photos in parallel
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
