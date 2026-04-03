@@ -58,9 +58,14 @@ Deno.serve(async (req) => {
     }
     if (!caseRecord) return Response.json({ error: 'Case not found' }, { status: 404 });
 
-    // FIXED: Explicitly mapping the case_id property to ensure records are found
+    // FIXED: Search for both the human-readable ID and the internal hex ID
     const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
-      base44.asServiceRole.entities.Investigation.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Investigation.filter({ 
+        $or: [
+          { case_id: case_id },
+          { case_id: caseRecord.id }
+        ] 
+      }),
       base44.asServiceRole.entities.Notice.filter({ case_id: case_id }),
       base44.asServiceRole.entities.Document.filter({ case_id: case_id }),
       base44.asServiceRole.entities.CourtAction.filter({ case_id: case_id }),
@@ -69,8 +74,8 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.Violation.filter({ case_id: case_id }),
     ]);
 
-    // Pre-fetch all investigation photos in parallel
-    const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []);
+    // Pre-fetch investigation photos with improved filtering
+    const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []).filter(Boolean);
     const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
     const photoCache = {};
     allPhotoUrls.forEach((url, i) => {
@@ -81,7 +86,6 @@ Deno.serve(async (req) => {
 
     console.log(`Pre-fetched ${Object.keys(photoCache).length}/${allPhotoUrls.length} photos. Building PDF...`);
 
-    // --- PDF Setup ---
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();
@@ -192,7 +196,7 @@ Deno.serve(async (req) => {
       catch { return String(d); }
     }
 
-    // COVER PAGE
+    // --- COVER PAGE ---
     doc.setFillColor(30, 64, 175);
     doc.rect(0, 0, pw, 60, 'F');
     doc.setFont('Helvetica', 'bold');
@@ -246,7 +250,7 @@ Deno.serve(async (req) => {
     doc.text('This document is prepared for municipal code enforcement proceedings.', pw / 2, y, { align: 'center' });
     doc.text('All information is confidential and intended for authorized use only.', pw / 2, y + 5, { align: 'center' });
 
-    // SECTION 1: CASE SUMMARY
+    // --- SECTION 1: CASE SUMMARY ---
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle('1. CASE SUMMARY');
     twoColField('Case Number', caseRecord.case_number || case_id.slice(0, 8), 'Status', (caseRecord.status || '').replace(/_/g, ' '));
@@ -287,7 +291,7 @@ Deno.serve(async (req) => {
       bodyText(caseRecord.resolution_notes);
     }
 
-    // SECTION 2: VIOLATIONS
+    // --- SECTION 2: VIOLATIONS ---
     if (violations && violations.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`2. VIOLATIONS (${violations.length})`);
@@ -305,7 +309,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECTION 3: INVESTIGATIONS
+    // --- SECTION 3: INVESTIGATIONS ---
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle(`3. FIELD INVESTIGATIONS (${(investigations || []).length})`);
     if (!investigations || investigations.length === 0) {
@@ -323,7 +327,6 @@ Deno.serve(async (req) => {
         if (inv.field_notes) { fieldRow('Field Notes', ''); bodyText(inv.field_notes); }
         if (inv.evidence_summary) { fieldRow('Evidence Summary', ''); bodyText(inv.evidence_summary); }
 
-        // Embed photos from cache (already fetched in parallel above)
         if (inv.photos && inv.photos.length > 0) {
           const validPhotos = inv.photos.filter(url => photoCache[url]);
           if (validPhotos.length > 0) {
@@ -356,7 +359,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // SECTION 4: NOTICES
+    // --- SECTION 4: NOTICES ---
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle(`4. NOTICES & CITATIONS (${(notices || []).length})`);
     if (!notices || notices.length === 0) {
@@ -378,7 +381,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECTION 5: COURT ACTIONS
+    // --- SECTION 5: COURT ACTIONS ---
     if (courtActions && courtActions.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`5. COURT ACTIONS (${courtActions.length})`);
@@ -398,7 +401,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECTION 6: DEADLINES
+    // --- SECTION 6: DEADLINES ---
     checkPageBreak(20);
     if (y > margin + 40) { doc.addPage(); y = margin; addPageHeader(); }
     sectionTitle(`6. DEADLINES & CALENDAR (${(deadlines || []).length})`);
@@ -418,7 +421,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECTION 7: DOCUMENTS ON FILE
+    // --- SECTION 7: DOCUMENTS ON FILE ---
     if (documents && documents.length > 0) {
       checkPageBreak(20);
       if (y > ph - 80) { doc.addPage(); y = margin; addPageHeader(); }
@@ -434,7 +437,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECTION 8 & 9: NOTES & AUDIT LOG
+    // --- SECTION 8 & 9: NOTES & AUDIT LOG ---
     const notes = (auditLogs || []).filter(l => l.action === 'note_added' || l.action === 'User note');
     const activity = (auditLogs || []).filter(l => l.action !== 'note_added' && l.action !== 'User note').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
@@ -486,7 +489,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // PAGE NUMBERS
     const pageCount = doc.internal.pages.length - 1;
     for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
@@ -499,16 +501,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`PDF generated. Pages: ${pageCount}. Uploading to private storage...`);
-
-    // Upload PDF to private storage
     const pdfBuffer = doc.output('arraybuffer');
     const pdfFilename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
     const pdfFile = new File([pdfBuffer], pdfFilename, { type: 'application/pdf' });
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfFile });
 
-    // Create a Document entity record linked to this case & town (RLS enforced)
-    const filename = `${(caseRecord.case_number || 'case').replace(/[^a-zA-Z0-9-]/g, '_')}-court-file.pdf`;
     const docRecord = await base44.asServiceRole.entities.Document.create({
       case_id,
       town_id: caseRecord.town_id,
@@ -519,8 +516,6 @@ Deno.serve(async (req) => {
       uploaded_by: user.email,
       version: 1,
     });
-
-    console.log(`PDF stored. Document record created: ${docRecord.id}`);
 
     return Response.json({
       success: true,
