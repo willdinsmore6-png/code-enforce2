@@ -89,7 +89,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
       uploadedUrls.push(file_url);
     }
     const updatedPhotos = [...(form.photos || []), ...uploadedUrls];
-    await base44.entities.Investigation.update(inv.id, {
+    const updated = await base44.entities.Investigation.update(inv.id, {
       investigation_date: form.investigation_date,
       officer_name: form.officer_name,
       field_notes: form.field_notes,
@@ -154,6 +154,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
               <Label htmlFor="ew" className="text-sm cursor-pointer">Warrant required</Label>
             </div>
           </div>
+          {/* Existing photos/docs */}
           {form.photos?.length > 0 && (
           <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Existing Photos & Documents</Label>
@@ -214,7 +215,7 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
 }
 
 export default function Investigations() {
-  const { impersonatedMunicipality, user } = useAuth(); // Added user to destructuring
+  const { impersonatedMunicipality, user } = useAuth();
   const [investigations, setInvestigations] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +241,7 @@ export default function Investigations() {
 
   useEffect(() => {
     async function load() {
-      // Determine active town: prioritizes impersonation for superadmins, falls back to user's town
+      // Corrected logic to determine active town for both Admin and Impersonated SuperAdmin
       const activeTownId = impersonatedMunicipality?.id || user?.town_id;
       
       if (!activeTownId) {
@@ -249,7 +250,6 @@ export default function Investigations() {
       }
 
       const townFilter = { town_id: activeTownId };
-      
       const [inv, c] = await Promise.all([
         base44.entities.Investigation.filter(townFilter, '-created_date', 50),
         base44.entities.Case.filter(townFilter, '-created_date', 100),
@@ -259,14 +259,15 @@ export default function Investigations() {
       setLoading(false);
     }
     load();
-  }, [impersonatedMunicipality, user?.town_id]); // Added user?.town_id to dependencies
+  }, [impersonatedMunicipality, user?.town_id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     
+    // Resolve the correct town_id before creating
     const activeTownId = impersonatedMunicipality?.id || user?.town_id;
     if (!activeTownId) {
-      console.error("No active town ID found.");
+      console.error("No active town context found.");
       return;
     }
 
@@ -277,7 +278,7 @@ export default function Investigations() {
       photoUrls.push(file_url);
     }
 
-    // Explicitly including town_id in the create call
+    // CRITICAL FIX: Explicitly passing town_id ensures the record is visible to the town
     const inv = await base44.entities.Investigation.create({ 
       ...form, 
       town_id: activeTownId,
