@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext'; // FIXED: Added this import
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ const typeLabels = {
 };
 
 export default function CaseDocuments({ caseId, documents, setDocuments, readOnly = false }) {
+  const { user, impersonatedMunicipality } = useAuth(); // FIXED: Added to get correct town context
   const [open, setOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -59,32 +61,46 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
   async function handleUpload(e) {
     e.preventDefault();
     if (!files.length) return;
+
+    // FIXED: Get the town_id from AuthContext (supports impersonation AND normal admin login)
+    const activeTownId = impersonatedMunicipality?.id || user?.town_id;
+    
+    if (!activeTownId) {
+      alert("Error: Active town context not found. Please try refreshing or re-selecting your town.");
+      return;
+    }
+
     setSaving(true);
     
     try {
-      const { data: { user } } = await base44.auth.getUser();
       const newDocs = [];
 
       for (const f of files) {
+        // 1. Upload the file to storage
         const { file_url } = await base44.integrations.Core.UploadFile({ file: f });
+        
         const title = form.title || f.name.replace(/\.[^.]+$/, '');
+        
+        // 2. Create the document record with the CORRECT town_id
         const doc = await base44.entities.Document.create({
           ...form,
           title,
           case_id: caseId,
-          town_id: user.town_id,
+          town_id: activeTownId, // CRITICAL FIX
           file_url,
           version: 1,
         });
         newDocs.push(doc);
       }
+      
       setDocuments(prev => [...prev, ...newDocs]);
       setOpen(false);
       setSaving(false);
       setFiles([]);
       setForm({ title: '', document_type: 'complaint', description: '' });
     } catch (error) {
-      console.error(error);
+      console.error("Upload failed:", error);
+      alert("Upload failed. Check console for details.");
       setSaving(false);
     }
   }
@@ -142,7 +158,7 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                             <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center">
                                 <FileText className="w-5 h-5 text-muted-foreground" />
                             </div>
-                            <button type="button" onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 rounded-full text-white"><X className="w-2.5 h-2.5" /></button>
+                            <button type="button" onClick={() => removeFile(i)} className="absolute -top-1 -right-1 bg-red-500 rounded-full text-white p-0.5"><X className="w-2.5 h-2.5" /></button>
                           </div>
                         ))}
                       </div>
