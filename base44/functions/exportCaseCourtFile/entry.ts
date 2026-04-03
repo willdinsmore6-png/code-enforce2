@@ -54,17 +54,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // Resolve investigations using both Human ID and Hex ID
-    const [investigations, notices, documents, violations] = await Promise.all([
-      base44.asServiceRole.entities.Investigation.filter({ 
-        $or: [
-          { case_id: case_id },           // Human ID
-          { case_id: caseRecord.id }      // Database Hex ID
-        ] 
-      }),
-      base44.asServiceRole.entities.Notice.filter({ case_id: caseRecord.id }),
-      base44.asServiceRole.entities.Document.filter({ case_id: caseRecord.id }),
-      base44.asServiceRole.entities.Violation.filter({ case_id: caseRecord.id }),
+    // THE CORE FIX: Using a wide $or filter to capture every possible link to this case
+    const filter = {
+      $or: [
+        { case_id: case_id },           // Human-readable ID (YDLSH1VL)
+        { case_id: caseRecord.id },      // Internal Hex ID
+        { case_id: caseRecord.case_number } // Display Number
+      ]
+    };
+
+    const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
+      base44.asServiceRole.entities.Investigation.filter(filter),
+      base44.asServiceRole.entities.Notice.filter(filter),
+      base44.asServiceRole.entities.Document.filter(filter),
+      base44.asServiceRole.entities.CourtAction.filter(filter),
+      base44.asServiceRole.entities.Deadline.filter(filter),
+      base44.asServiceRole.entities.AuditLog.filter(filter),
+      base44.asServiceRole.entities.Violation.filter(filter),
     ]);
 
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []).filter(Boolean);
@@ -178,7 +184,7 @@ Deno.serve(async (req) => {
       catch { return String(d); }
     }
 
-    // --- COVER PAGE ---
+    // COVER PAGE
     doc.setFillColor(30, 64, 175);
     doc.rect(0, 0, pw, 60, 'F');
     doc.setFont('Helvetica', 'bold');
@@ -206,7 +212,8 @@ Deno.serve(async (req) => {
 
     const coverFields = [
       ['Case Status', (caseRecord.status || '').toUpperCase()],
-      ['Violation Type', caseRecord.violation_type || '—'],
+      ['Violation Type', (caseRecord.violation_type || '').replace(/_/g, ' ')],
+      ['Compliance Path', (caseRecord.compliance_path || 'none').replace(/_/g, ' ')],
       ['Priority', (caseRecord.priority || 'medium').toUpperCase()],
       ['Complaint Date', dateStr(caseRecord.complaint_date)],
       ['Assigned Officer', caseRecord.assigned_officer || '—'],
@@ -214,22 +221,35 @@ Deno.serve(async (req) => {
     doc.setFontSize(9.5);
     coverFields.forEach(([label, val]) => {
       doc.setFont('Helvetica', 'bold');
+      doc.setTextColor(80);
       doc.text(label + ':', pw / 2 - 50, y);
       doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(0);
       doc.text(String(val), pw / 2 + 5, y);
       y += 7;
     });
 
-    // --- SECTION 1: SUMMARY ---
+    // SECTION 1: SUMMARY
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle('1. CASE SUMMARY');
-    twoColField('Case Number', caseRecord.case_number, 'Status', caseRecord.status);
+    twoColField('Case Number', caseRecord.case_number, 'Status', (caseRecord.status || '').replace(/_/g, ' '));
     twoColField('Complaint Date', dateStr(caseRecord.complaint_date), 'Priority', caseRecord.priority);
+    twoColField('Violation Type', (caseRecord.violation_type || '').replace(/_/g, ' '), 'First Offense', caseRecord.is_first_offense ? 'Yes' : 'No');
+    twoColField('Compliance Path', (caseRecord.compliance_path || 'none').replace(/_/g, ' '), 'Daily Penalty', `$${caseRecord.daily_penalty_rate || 275}/day`);
+    twoColField('Assigned Officer', caseRecord.assigned_officer || '—', 'Abatement Date', dateStr(caseRecord.abatement_deadline));
+    
+    y += 3;
+    subsectionTitle('Property Information');
     fieldRow('Address', caseRecord.property_address);
+    fieldRow('Parcel ID', caseRecord.parcel_id);
     fieldRow('Owner', caseRecord.property_owner_name);
-    fieldRow('Description', caseRecord.violation_description);
+    
+    y += 3;
+    subsectionTitle('Violation Description');
+    fieldRow('Code Cited', caseRecord.specific_code_violated);
+    bodyText(caseRecord.violation_description);
 
-    // --- SECTION 3: INVESTIGATIONS ---
+    // SECTION 3: INVESTIGATIONS
     doc.addPage(); y = margin; addPageHeader();
     const invCount = (investigations || []).length;
     sectionTitle(`3. FIELD INVESTIGATIONS (${invCount})`);
@@ -271,10 +291,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // RETAINING ALL OTHER SECTIONS (Audit Logs, Deadlines, etc.)
+    const notes = (auditLogs || []).filter(l => l.action === 'note_added' || l.action === 'User note');
+    if (notes.length > 0) {
+      doc.addPage(); y = margin; addPageHeader();
+      sectionTitle(`8. CASE NOTES (${notes.length})`);
+      notes.forEach((note, idx) => {
+        checkPageBreak(15);
+        subsectionTitle(`Note ${idx + 1} — ${dateStr(note.timestamp)}`);
+        bodyText(note.changes?.note || note.changes || '');
+        y += 5;
+      });
+    }
+
     const pageCount = doc.internal.pages.length - 1;
     for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(7);
+      doc.setTextColor(120);
       doc.text(`Page ${i - 1} of ${pageCount - 1}`, pw / 2, ph - 8, { align: 'center' });
     }
 
@@ -283,9 +317,8 @@ Deno.serve(async (req) => {
     const pdfFile = new File([pdfBuffer], pdfFilename, { type: 'application/pdf' });
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfFile });
 
-    // THE FIX: Ensure the document record matches your schema exactly
     const finalDoc = await base44.asServiceRole.entities.Document.create({
-      case_id: caseRecord.id, // Use the Hex ID for internal linking
+      case_id: caseRecord.id,
       town_id: caseRecord.town_id,
       title: `Court File Export — ${caseRecord.case_number}`,
       document_type: 'court_filing',
@@ -294,11 +327,7 @@ Deno.serve(async (req) => {
       created_at: new Date().toISOString()
     });
 
-    return Response.json({ 
-      success: true, 
-      document_id: finalDoc.id, 
-      filename: pdfFilename 
-    });
+    return Response.json({ success: true, document_id: finalDoc.id, filename: pdfFilename });
 
   } catch (error) {
     console.error('Export Error:', error);
