@@ -54,20 +54,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // THE FIX: Searching for investigations using both the Short ID and the Hex ID
-    const [investigations, notices, documents, courtActions, deadlines, auditLogs, violations] = await Promise.all([
+    // Resolve investigations using both Human ID and Hex ID
+    const [investigations, notices, documents, violations] = await Promise.all([
       base44.asServiceRole.entities.Investigation.filter({ 
         $or: [
-          { case_id: case_id },           // Human ID (YDLSH1VL)
+          { case_id: case_id },           // Human ID
           { case_id: caseRecord.id }      // Database Hex ID
         ] 
       }),
-      base44.asServiceRole.entities.Notice.filter({ case_id: case_id }),
-      base44.asServiceRole.entities.Document.filter({ case_id: case_id }),
-      base44.asServiceRole.entities.CourtAction.filter({ case_id: case_id }),
-      base44.asServiceRole.entities.Deadline.filter({ case_id: case_id }),
-      base44.asServiceRole.entities.AuditLog.filter({ case_id: case_id }),
-      base44.asServiceRole.entities.Violation.filter({ case_id: case_id }),
+      base44.asServiceRole.entities.Notice.filter({ case_id: caseRecord.id }),
+      base44.asServiceRole.entities.Document.filter({ case_id: caseRecord.id }),
+      base44.asServiceRole.entities.Violation.filter({ case_id: caseRecord.id }),
     ]);
 
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []).filter(Boolean);
@@ -98,7 +95,7 @@ Deno.serve(async (req) => {
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(120);
-      doc.text(`CASE FILE: ${caseRecord.case_number || case_id.slice(0, 8)} — CONFIDENTIAL`, margin, margin - 5);
+      doc.text(`CASE FILE: ${caseRecord.case_number || case_id} — CONFIDENTIAL`, margin, margin - 5);
       doc.text(`Page ${doc.internal.pages.length - 1}`, pw - margin, margin - 5, { align: 'right' });
       doc.setDrawColor(180);
       doc.line(margin, margin - 3, pw - margin, margin - 3);
@@ -181,7 +178,7 @@ Deno.serve(async (req) => {
       catch { return String(d); }
     }
 
-    // COVER PAGE
+    // --- COVER PAGE ---
     doc.setFillColor(30, 64, 175);
     doc.rect(0, 0, pw, 60, 'F');
     doc.setFont('Helvetica', 'bold');
@@ -190,7 +187,7 @@ Deno.serve(async (req) => {
     doc.text('CODE ENFORCEMENT', pw / 2, 22, { align: 'center' });
     doc.text('CASE FILE', pw / 2, 34, { align: 'center' });
     doc.setFontSize(13);
-    doc.text(caseRecord.case_number || `Case #${case_id.slice(0, 8)}`, pw / 2, 47, { align: 'center' });
+    doc.text(caseRecord.case_number || `Case #${case_id}`, pw / 2, 47, { align: 'center' });
 
     doc.setTextColor(0);
     y = 72;
@@ -223,7 +220,7 @@ Deno.serve(async (req) => {
       y += 7;
     });
 
-    // SECTION 1: CASE SUMMARY
+    // --- SECTION 1: SUMMARY ---
     doc.addPage(); y = margin; addPageHeader();
     sectionTitle('1. CASE SUMMARY');
     twoColField('Case Number', caseRecord.case_number, 'Status', caseRecord.status);
@@ -232,7 +229,7 @@ Deno.serve(async (req) => {
     fieldRow('Owner', caseRecord.property_owner_name);
     fieldRow('Description', caseRecord.violation_description);
 
-    // SECTION 3: INVESTIGATIONS
+    // --- SECTION 3: INVESTIGATIONS ---
     doc.addPage(); y = margin; addPageHeader();
     const invCount = (investigations || []).length;
     sectionTitle(`3. FIELD INVESTIGATIONS (${invCount})`);
@@ -274,18 +271,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // SECTION 7: DOCUMENTS
-    if (documents && documents.length > 0) {
-      doc.addPage(); y = margin; addPageHeader();
-      sectionTitle(`7. DOCUMENTS ON FILE (${documents.length})`);
-      documents.forEach((d, idx) => {
-        checkPageBreak(15);
-        subsectionTitle(`${idx + 1}. ${d.title || 'Untitled'}`);
-        twoColField('Type', d.document_type, 'Date', dateStr(d.created_at));
-        y += 5;
-      });
-    }
-
     const pageCount = doc.internal.pages.length - 1;
     for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
@@ -298,16 +283,22 @@ Deno.serve(async (req) => {
     const pdfFile = new File([pdfBuffer], pdfFilename, { type: 'application/pdf' });
     const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: pdfFile });
 
-    await base44.asServiceRole.entities.Document.create({
-      case_id,
+    // THE FIX: Ensure the document record matches your schema exactly
+    const finalDoc = await base44.asServiceRole.entities.Document.create({
+      case_id: caseRecord.id, // Use the Hex ID for internal linking
       town_id: caseRecord.town_id,
-      title: `Court File Export — ${new Date().toLocaleDateString()}`,
+      title: `Court File Export — ${caseRecord.case_number}`,
       document_type: 'court_filing',
       file_url: file_uri,
       version: 1,
+      created_at: new Date().toISOString()
     });
 
-    return Response.json({ success: true, filename: pdfFilename });
+    return Response.json({ 
+      success: true, 
+      document_id: finalDoc.id, 
+      filename: pdfFilename 
+    });
 
   } catch (error) {
     console.error('Export Error:', error);
