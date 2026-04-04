@@ -6,9 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Image, Download, Trash2, Eye, Upload, Camera, X } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2, Eye, Upload, X } from 'lucide-react';
 import DocumentPreview from './DocumentPreview';
-import { format } from 'date-fns';
 
 const ACCEPT = 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif';
 

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -13,15 +15,10 @@ import {
 
 import {
   ArrowLeft,
-  FileText,
-  Camera,
-  Scale,
-  Bell,
   Clock,
   MapPin,
   User,
   AlertTriangle,
-  Copy,
   Globe,
   Pencil,
   Trash2,
@@ -41,6 +38,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 export default function CaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, impersonatedMunicipality } = useAuth();
 
   const [caseData, setCaseData] = useState(null);
   const [investigations, setInvestigations] = useState([]);
@@ -111,7 +109,10 @@ export default function CaseDetail() {
   useEffect(() => {
     async function loadUsers() {
       try {
-        const response = await base44.functions.invoke('getUsers', {});
+        const response = await base44.functions.invoke(
+          'getUsers',
+          mergeActingTownPayload(user, impersonatedMunicipality, {})
+        );
         setUsers(response.data?.users || []);
       } catch (error) {
         console.error('Failed to load users:', error);
@@ -119,7 +120,7 @@ export default function CaseDetail() {
     }
 
     loadUsers();
-  }, []);
+  }, [user, impersonatedMunicipality]);
 
   async function updateStatus(newStatus) {
     await base44.entities.Case.update(id, { status: newStatus });
@@ -141,7 +142,10 @@ export default function CaseDetail() {
 
   async function handleDeleteCase() {
     setDeleting(true);
-    await base44.functions.invoke('deleteCaseWithChildren', { case_id: id });
+    await base44.functions.invoke(
+      'deleteCaseWithChildren',
+      mergeActingTownPayload(user, impersonatedMunicipality, { case_id: id })
+    );
     navigate('/cases');
   }
 
@@ -150,9 +154,10 @@ export default function CaseDetail() {
     setGeneratedDocId(null);
 
     try {
-      const response = await base44.functions.invoke('exportCaseCourtFile', {
-        case_id: id
-      });
+      const response = await base44.functions.invoke(
+        'exportCaseCourtFile',
+        mergeActingTownPayload(user, impersonatedMunicipality, { case_id: id })
+      );
       const { document_id } = response.data;
       if (!document_id) throw new Error('No document ID returned');
       setGeneratedDocId(document_id);
@@ -169,9 +174,10 @@ export default function CaseDetail() {
 
     setDownloadLoading(true);
     try {
-      const response = await base44.functions.invoke('getCourtFilePDF', {
-        document_id: generatedDocId
-      });
+      const response = await base44.functions.invoke(
+        'getCourtFilePDF',
+        mergeActingTownPayload(user, impersonatedMunicipality, { document_id: generatedDocId })
+      );
       const { signed_url, filename } = response.data;
       if (!signed_url) throw new Error('No download URL returned');
 

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Upload, X, AlertTriangle, MapPin, Camera, FileText, Shield } from 'lucide-react';
+import { CheckCircle, Upload, X, AlertTriangle, MapPin, Camera, FileText, Shield, Building2 } from 'lucide-react';
 
 const VIOLATION_TYPES = [
   { value: 'junk_debris', label: 'Junk / Debris / Abandoned Vehicles' },
@@ -22,8 +23,18 @@ const VIOLATION_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
+function isTownActive(t) {
+  return String(t?.is_active).toLowerCase() === 'true' || t?.is_active === true;
+}
+
 export default function Report() {
+  const [searchParams] = useSearchParams();
+  const townFromUrl = searchParams.get('town') || searchParams.get('town_id');
+
   const [townConfig, setTownConfig] = useState(null);
+  const [townLoadError, setTownLoadError] = useState(null);
+  const [townChoices, setTownChoices] = useState([]);
+  const [selectedTownId, setSelectedTownId] = useState('');
   const [form, setForm] = useState({
     property_address: '',
     violation_type: '',
@@ -38,11 +49,70 @@ export default function Report() {
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
 
+  const effectiveTownId = useMemo(() => townFromUrl || selectedTownId || '', [townFromUrl, selectedTownId]);
+
   useEffect(() => {
-    base44.entities.TownConfig.list('-created_date', 1).then(configs => {
-      if (configs[0]) setTownConfig(configs[0]);
-    }).catch(() => {});
-  }, []);
+    let cancelled = false;
+    async function resolveTown() {
+      setTownLoadError(null);
+      setTownChoices([]);
+
+      if (townFromUrl) {
+        try {
+          const t = await base44.entities.TownConfig.get(townFromUrl);
+          if (cancelled) return;
+          if (!t) {
+            setTownConfig(null);
+            setTownLoadError('invalid');
+            return;
+          }
+          if (!isTownActive(t)) {
+            setTownConfig(null);
+            setTownLoadError('inactive');
+            return;
+          }
+          setTownConfig(t);
+          setSelectedTownId(t.id);
+        } catch {
+          if (!cancelled) {
+            setTownConfig(null);
+            setTownLoadError('invalid');
+          }
+        }
+        return;
+      }
+
+      try {
+        const list = await base44.entities.TownConfig.list('-created_date', 300);
+        if (cancelled) return;
+        const active = (list || []).filter(isTownActive);
+        if (active.length === 1) {
+          setTownConfig(active[0]);
+          setSelectedTownId(active[0].id);
+        } else if (active.length === 0) {
+          setTownConfig(null);
+          setTownLoadError('none');
+        } else {
+          setTownChoices(active);
+          setTownConfig(null);
+          setTownLoadError('choose');
+        }
+      } catch {
+        if (!cancelled) {
+          setTownConfig(null);
+          setTownLoadError('unknown');
+        }
+      }
+    }
+    resolveTown();
+    return () => { cancelled = true; };
+  }, [townFromUrl]);
+
+  useEffect(() => {
+    if (townLoadError !== 'choose' || !selectedTownId) return;
+    const t = townChoices.find(x => x.id === selectedTownId);
+    if (t) setTownConfig(t);
+  }, [selectedTownId, townLoadError, townChoices]);
 
   const update = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -73,17 +143,76 @@ export default function Report() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
+    const tid = effectiveTownId || townConfig?.id;
+    if (!tid) {
+      setErrors(prev => ({ ...prev, _town: 'Select your municipality before submitting.' }));
+      return;
+    }
     setSubmitting(true);
-    const response = await base44.functions.invoke('submitPublicReport', {
-      ...form,
-      photo_urls: photos.map(p => p.url),
-      town_id: townConfig?.id || null,
-    });
-    setResult(response.data);
+    setErrors(prev => ({ ...prev, _submit: null }));
+    try {
+      const response = await base44.functions.invoke('submitPublicReport', {
+        ...form,
+        photo_urls: photos.map(p => p.url),
+        town_id: tid,
+      });
+      const data = response.data;
+      if (data?.error) {
+        setErrors(prev => ({ ...prev, _submit: data.error }));
+        setSubmitting(false);
+        return;
+      }
+      setResult(data);
+    } catch (err) {
+      setErrors(prev => ({ ...prev, _submit: err?.message || 'Submission failed. Please try again.' }));
+    }
     setSubmitting(false);
   }
 
   const townName = townConfig?.town_name || 'Town';
+
+  if (townLoadError === 'invalid') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-slate-900 mb-2">Invalid report link</h1>
+          <p className="text-sm text-slate-600">
+            This URL does not match an active municipality. Use the &quot;Report a violation&quot; link from your town&apos;s official website, or contact your code enforcement office.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (townLoadError === 'inactive') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-slate-900 mb-2">Reporting unavailable</h1>
+          <p className="text-sm text-slate-600">
+            This municipality&apos;s online reporting is not active. Please call or email your town&apos;s code enforcement office.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (townLoadError === 'none') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
+          <Building2 className="w-10 h-10 text-slate-400 mx-auto mb-4" />
+          <h1 className="text-lg font-bold text-slate-900 mb-2">No active municipalities</h1>
+          <p className="text-sm text-slate-600">
+            Public reporting is not configured yet. For assistance, contact{' '}
+            <a href="mailto:support@code-enforce.com" className="text-blue-600 underline">support@code-enforce.com</a>.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (result?.success) {
     return (
@@ -128,6 +257,35 @@ export default function Report() {
       </header>
 
       <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
+        {townLoadError === 'choose' && !townConfig && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-900">
+            <p className="font-semibold mb-2">Select your municipality</p>
+            <p className="text-amber-800/90 mb-3">
+              For faster filing, use the report link from your town&apos;s website (it includes the correct town ID). If you don&apos;t have that link, choose your town below.
+            </p>
+            <label htmlFor="town_select" className="sr-only">Municipality</label>
+            <select
+              id="town_select"
+              className="w-full border border-amber-300 rounded-lg px-3 py-2 bg-white text-slate-900"
+              value={selectedTownId}
+              onChange={e => setSelectedTownId(e.target.value)}
+            >
+              <option value="">— Choose town —</option>
+              {townChoices.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.town_name || t.short_name || t.id}{t.state ? `, ${t.state}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {errors._submit && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800" role="alert">
+            {errors._submit}
+          </div>
+        )}
+
         {/* Info banner */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex gap-3">
           <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
@@ -341,7 +499,7 @@ export default function Report() {
           <div className="pt-2">
             <Button
               type="submit"
-              disabled={submitting || uploading}
+              disabled={submitting || uploading || !townConfig}
               className="w-full h-11 text-base"
               aria-busy={submitting}
             >

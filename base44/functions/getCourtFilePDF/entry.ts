@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { checkActingTownAccess } from '../lib/actingTownGuard.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -16,7 +17,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { document_id } = await req.json();
+    const body = await req.json();
+    const { document_id } = body;
     if (!document_id) return Response.json({ error: 'document_id is required' }, { status: 400 });
 
     // Fetch via user-scoped call so RLS enforces town-level access
@@ -26,6 +28,9 @@ Deno.serve(async (req) => {
     if (!docRecord) {
       return Response.json({ error: 'Document not found or access denied' }, { status: 404 });
     }
+
+    const actingDenied = checkActingTownAccess(user, body, docRecord.town_id);
+    if (actingDenied) return actingDenied;
 
     if (!docRecord.file_url) {
       return Response.json({ error: 'No file associated with this document' }, { status: 400 });

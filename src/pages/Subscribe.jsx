@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Shield, Lock, FileText, CheckCircle, AlertTriangle, Building2, Scale, Database } from 'lucide-react';
+import { Shield, Lock, CheckCircle, AlertTriangle, Building2, Scale } from 'lucide-react';
 
 export default function Subscribe() {
   const { user, municipality, refreshMunicipality } = useAuth();
@@ -55,6 +55,7 @@ export default function Subscribe() {
 
       const res = await base44.functions.invoke('createStripeCheckout', {
         town_id: townId,
+        app_origin: typeof window !== 'undefined' ? window.location.origin : undefined,
         user_email: user?.email,
         agreement_accepted_at: new Date().toISOString(),
         agreement_accepted_by: user?.email,

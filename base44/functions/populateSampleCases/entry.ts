@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { randomPublicAccessCode } from '../lib/publicAccessCode.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -65,7 +66,10 @@ Deno.serve(async (req) => {
     // Create sample cases
     const createdCases = [];
     for (const caseData of sampleCases) {
-      const createdCase = await base44.asServiceRole.entities.Case.create(caseData);
+      const createdCase = await base44.asServiceRole.entities.Case.create({
+        ...caseData,
+        public_access_code: randomPublicAccessCode(8),
+      });
       createdCases.push(createdCase);
     }
 

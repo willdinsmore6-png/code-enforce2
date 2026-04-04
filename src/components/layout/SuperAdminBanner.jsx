@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Shield, X, ArrowLeft } from 'lucide-react';
+import { Shield, ArrowLeft } from 'lucide-react';
 
 export default function SuperAdminBanner() {
   const navigate = useNavigate();

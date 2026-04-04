@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
       found: true,
       case: {
         id: c.id,
+        town_id: c.town_id,
         case_number: c.case_number,
         status: c.status,
         property_address: c.property_address,

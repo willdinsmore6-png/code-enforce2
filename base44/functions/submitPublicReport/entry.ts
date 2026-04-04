@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { allocateUniquePublicAccessCode } from '../lib/publicAccessCode.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -20,16 +21,28 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Address, violation type, and description are required.' }, { status: 400 });
     }
 
-    // Generate case number
+    if (!town_id || typeof town_id !== 'string') {
+      return Response.json(
+        {
+          error:
+            'Municipality is required. Use the violation report link from your town’s website (it includes the correct town ID).',
+        },
+        { status: 400 }
+      );
+    }
+
+    const towns = await base44.asServiceRole.entities.TownConfig.filter({ id: town_id });
+    if (!towns?.[0]) {
+      return Response.json({ error: 'Unknown or invalid municipality.' }, { status: 400 });
+    }
+
     const prefix = 'PUB';
     const year = new Date().getFullYear();
     const rand = Math.floor(Math.random() * 90000) + 10000;
     const case_number = `${prefix}-${year}-${rand}`;
 
-    // Generate public access code
-    const public_access_code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const public_access_code = await allocateUniquePublicAccessCode(base44);
 
-    // Determine retention per RSA 33-A (court actions = 10yr, standard = 7yr)
     const retention_category = 'rsa_33a_7yr';
     const retentionDate = new Date();
     retentionDate.setFullYear(retentionDate.getFullYear() + 7);
@@ -38,7 +51,7 @@ Deno.serve(async (req) => {
     const newCase = await base44.asServiceRole.entities.Case.create({
       case_number,
       public_access_code,
-      town_id: town_id || null,
+      town_id,
       status: 'pending_review',
       source: 'public_report',
       priority: 'medium',
@@ -53,11 +66,11 @@ Deno.serve(async (req) => {
       retention_expires,
     });
 
-    // If photos were uploaded, create document records
     if (photo_urls && photo_urls.length > 0) {
-      const docPromises = photo_urls.map((url, i) =>
+      const docPromises = photo_urls.map((url: string, i: number) =>
         base44.asServiceRole.entities.Document.create({
           case_id: newCase.id,
+          town_id,
           title: `Public Report Photo ${i + 1}`,
           document_type: 'photo',
           file_url: url,

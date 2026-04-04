@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import BuildingCodeLookup from '../components/BuildingCodeLookup';
 import { base44 } from '@/api/base44Client';
-import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, Send, Loader2, X, RefreshCw } from 'lucide-react';
+import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
@@ -158,9 +158,8 @@ function AICuratePanel({ onClose, townId, townName, state }) {
     setSending(true);
 
     const prompt = `
-      SECURITY REQUIREMENT: You MUST set the field 'town_id' to "${townId}" on every Resource you create or update.
-      Failure to do so will block the record from being visible.
-      
+      SECURITY: The Resource entity uses field **town_id** (not municipality_id). Set town_id to "${townId}" on every Resource create/update or RLS will hide the record.
+
       COMMAND: ${msg}
     `;
 

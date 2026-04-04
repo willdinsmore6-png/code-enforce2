@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
+import { checkActingTownAccess } from '../lib/actingTownGuard.ts';
 
 function arrayBufferToBase64(buffer) {
   const uint8Array = new Uint8Array(buffer);
@@ -12,20 +13,43 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-async function fetchImageAsBase64(url) {
+async function fetchImageAsBase64(url: string, base44: any) {
   if (!url) return null;
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+
+  async function readResponse(response: Response) {
     if (!response.ok) return null;
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     if (!contentType.startsWith('image/')) return null;
     const buffer = await response.arrayBuffer();
     const base64 = arrayBufferToBase64(buffer);
     return { data: base64, format: contentType.includes('png') ? 'PNG' : 'JPEG' };
-  } catch (err) {
-    console.error(`Photo fetch failed: ${url}`, err.message);
-    return null;
   }
+
+  try {
+    let response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    let result = await readResponse(response);
+    if (result) return result;
+
+    // Private / authenticated file URIs: request a short-lived signed URL then retry
+    if (base44?.asServiceRole?.integrations?.Core?.CreateFileSignedUrl) {
+      try {
+        const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+          file_uri: url,
+          expires_in: 300,
+        });
+        if (signed_url) {
+          response = await fetch(signed_url, { signal: AbortSignal.timeout(15000) });
+          result = await readResponse(response);
+          if (result) return result;
+        }
+      } catch (e) {
+        console.error(`Signed URL failed for photo: ${url}`, e?.message);
+      }
+    }
+  } catch (err) {
+    console.error(`Photo fetch failed: ${url}`, err?.message);
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -47,18 +71,31 @@ Deno.serve(async (req) => {
     const { case_id } = body;
     if (!case_id) return Response.json({ error: 'case_id required' }, { status: 400 });
 
-    let caseRecord;
-    try {
-      caseRecord = await base44.entities.Case.get(case_id);
-    } catch (e) {
+    // Tenant gate: non–superadmins must resolve the case through RLS (town_id), not service role.
+    let caseRecord = null;
+    if (user.role === 'superadmin') {
+      caseRecord =
+        (await base44.asServiceRole.entities.Case.filter({ id: case_id }))?.[0] ?? null;
+      if (!caseRecord) {
+        try {
+          caseRecord = await base44.asServiceRole.entities.Case.get(case_id);
+        } catch { /* empty */ }
+      }
+    } else {
+      const scoped = await base44.entities.Case.filter({ id: case_id });
+      caseRecord = scoped?.[0] ?? null;
+    }
+    if (!caseRecord) {
       return Response.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // FIXED FILTER — always match internal UUID
+    const actingDenied = checkActingTownAccess(user, body, caseRecord.town_id);
+    if (actingDenied) return actingDenied;
+
     const filter = { case_id: caseRecord.id };
 
     const [
-      investigations,
+      invPrimary,
       notices,
       documents,
       courtActions,
@@ -75,8 +112,25 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.Violation.filter(filter),
     ]);
 
+    let investigations = invPrimary || [];
+    // Fallback: some deployments match town-scoped list + client filter more reliably than case_id alone
+    if (investigations.length === 0 && caseRecord.town_id) {
+      try {
+        const townScoped = await base44.asServiceRole.entities.Investigation.filter(
+          { town_id: caseRecord.town_id },
+          '-created_date',
+          500
+        );
+        investigations = (townScoped || []).filter((inv) => inv.case_id === caseRecord.id);
+      } catch (e) {
+        console.error('Investigation town fallback failed:', e?.message);
+      }
+    }
+
     const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []).filter(Boolean);
-    const photoResults = await Promise.allSettled(allPhotoUrls.map(url => fetchImageAsBase64(url)));
+    const photoResults = await Promise.allSettled(
+      allPhotoUrls.map(url => fetchImageAsBase64(url, base44))
+    );
     const photoCache = {};
     allPhotoUrls.forEach((url, i) => {
       if (photoResults[i].status === 'fulfilled' && photoResults[i].value) {
@@ -251,27 +305,150 @@ Deno.serve(async (req) => {
     fieldRow('Code Cited', caseRecord.specific_code_violated);
     bodyText(caseRecord.violation_description);
 
-    // SECTION 3: INVESTIGATIONS
+    // SECTION 2: NOTICES (data was always fetched; previously never written to the PDF)
+    const noticeCount = (notices || []).length;
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle(`2. NOTICES (${noticeCount})`);
+    if (noticeCount === 0) {
+      bodyText('No notices recorded for this case.');
+    } else {
+      const sortedNotices = [...notices].sort((a, b) =>
+        new Date(b.date_issued || 0).getTime() - new Date(a.date_issued || 0).getTime());
+      for (const [idx, n] of sortedNotices.entries()) {
+        checkPageBreak(28);
+        subsectionTitle(`Notice ${idx + 1} — ${dateStr(n.date_issued)}`);
+        twoColField('Type', String(n.notice_type || '').replace(/_/g, ' '), 'Delivery', String(n.delivery_method || '').replace(/_/g, ' '));
+        fieldRow('Tracking #', n.tracking_number);
+        fieldRow('RSA / Ordinance', `${n.rsa_cited || '—'} / ${n.ordinance_cited || '—'}`);
+        if (n.notice_content) {
+          bodyText(n.notice_content);
+        }
+        y += 6;
+      }
+    }
+
+    // SECTION 3: DOCUMENTS
+    const docListCount = (documents || []).length;
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle(`3. DOCUMENTS & UPLOADS (${docListCount})`);
+    if (docListCount === 0) {
+      bodyText('No case documents on file.');
+    } else {
+      for (const [idx, d] of documents.entries()) {
+        checkPageBreak(18);
+        subsectionTitle(`${idx + 1}. ${d.title || 'Untitled'}`);
+        twoColField('Type', String(d.document_type || '').replace(/_/g, ' '), 'Version', String(d.version ?? 1));
+        if (d.description) bodyText(d.description);
+        y += 4;
+      }
+    }
+
+    // SECTION 4: COURT ACTIONS
+    const caCount = (courtActions || []).length;
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle(`4. COURT ACTIONS (${caCount})`);
+    if (caCount === 0) {
+      bodyText('No court actions recorded.');
+    } else {
+      const sortedCa = [...courtActions].sort((a, b) =>
+        new Date(b.filing_date || 0).getTime() - new Date(a.filing_date || 0).getTime());
+      for (const [idx, ca] of sortedCa.entries()) {
+        checkPageBreak(26);
+        subsectionTitle(`Court action ${idx + 1} — ${dateStr(ca.filing_date)}`);
+        twoColField('Type', String(ca.action_type || '').replace(/_/g, ' '), 'Court', String(ca.court_type || '').replace(/_/g, ' '));
+        fieldRow('Docket #', ca.docket_number);
+        fieldRow('Hearing', ca.hearing_date ? String(ca.hearing_date) : '—');
+        if (ca.attorney_notes || ca.outcome) {
+          if (ca.attorney_notes) bodyText(ca.attorney_notes);
+          if (ca.outcome) bodyText(`Outcome: ${ca.outcome}`);
+        }
+        y += 5;
+      }
+    }
+
+    // SECTION 5: DEADLINES
+    const dlCount = (deadlines || []).length;
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle(`5. DEADLINES (${dlCount})`);
+    if (dlCount === 0) {
+      bodyText('No deadlines recorded.');
+    } else {
+      const sortedDl = [...deadlines].sort((a, b) =>
+        new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime());
+      for (const [idx, dl] of sortedDl.entries()) {
+        checkPageBreak(16);
+        subsectionTitle(`Deadline ${idx + 1} — ${dateStr(dl.due_date)}`);
+        twoColField('Type', String(dl.deadline_type || '').replace(/_/g, ' '), 'Priority', dl.priority || '—');
+        fieldRow('Completed', dl.is_completed ? `Yes (${dateStr(dl.completed_date)})` : 'No');
+        if (dl.description) bodyText(dl.description);
+        y += 4;
+      }
+    }
+
+    // SECTION 6: VIOLATION RECORDS (structured Violation entities)
+    const vCount = (violations || []).length;
+    doc.addPage(); y = margin; addPageHeader();
+    sectionTitle(`6. VIOLATION RECORDS (${vCount})`);
+    if (vCount === 0) {
+      bodyText('No additional structured violation records.');
+    } else {
+      for (const [idx, v] of violations.entries()) {
+        checkPageBreak(20);
+        subsectionTitle(`Violation ${idx + 1}`);
+        fieldRow('RSA', v.rsa_citation);
+        fieldRow('Ordinance', v.ordinance_citation);
+        if (v.description) bodyText(v.description);
+        if (v.corrective_actions) bodyText(`Corrective actions: ${v.corrective_actions}`);
+        y += 4;
+      }
+    }
+
+    // SECTION 7: FIELD INVESTIGATIONS
     doc.addPage(); y = margin; addPageHeader();
     const invCount = (investigations || []).length;
-    sectionTitle(`3. FIELD INVESTIGATIONS (${invCount})`);
-    
+    sectionTitle(`7. FIELD INVESTIGATIONS (${invCount})`);
+
     if (invCount === 0) {
       bodyText('No field investigations recorded for this case.');
     } else {
-      const sorted = [...investigations].sort((a, b) => new Date(b.investigation_date).getTime() - new Date(a.investigation_date).getTime());
+      const sorted = [...investigations].sort((a, b) => {
+        const tb = new Date(b.investigation_date || b.created_date || 0).getTime();
+        const ta = new Date(a.investigation_date || a.created_date || 0).getTime();
+        return tb - ta;
+      });
       for (const [idx, inv] of sorted.entries()) {
-        checkPageBreak(30);
-        subsectionTitle(`Investigation ${idx + 1} — ${dateStr(inv.investigation_date)}`);
-        twoColField('Officer', inv.officer_name, 'Confirmed', inv.violation_confirmed ? 'YES' : 'No');
-        
+        checkPageBreak(36);
+        subsectionTitle(`Investigation ${idx + 1} — ${dateStr(inv.investigation_date || inv.created_date)}`);
+        twoColField('Officer', inv.officer_name, 'Violation confirmed', inv.violation_confirmed ? 'YES' : 'No');
+        if (inv.warrant_required) {
+          fieldRow('Warrant (RSA 595-B)', inv.warrant_reference || 'Required — see file');
+        }
+        if (inv.evidence_summary) {
+          fieldRow('Evidence summary', '');
+          bodyText(inv.evidence_summary);
+        }
         if (inv.field_notes) {
-          fieldRow('Notes', '');
+          fieldRow('Field notes', '');
           bodyText(inv.field_notes);
         }
+        twoColField('Site conditions', inv.site_conditions || '—', 'Weather', inv.weather_conditions || '—');
+        if (inv.witnesses) fieldRow('Witnesses', inv.witnesses);
 
         if (inv.photos && inv.photos.length > 0) {
           const validPhotos = inv.photos.filter(url => photoCache[url]);
+          const skipped = inv.photos.length - validPhotos.length;
+          if (skipped > 0) {
+            checkPageBreak(8);
+            doc.setFont('Helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.text(
+              `${skipped} attachment(s) could not be embedded (private URL or non-image). Files remain in the case record.`,
+              margin,
+              y + 4
+            );
+            doc.setFont('Helvetica', 'normal');
+            y += 8;
+          }
           if (validPhotos.length > 0) {
             y += 5;
             let photoX = margin;
@@ -293,7 +470,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // RETAINING ALL OTHER SECTIONS (Audit Logs, Deadlines, etc.)
     const notes = (auditLogs || []).filter(l => l.action === 'note_added' || l.action === 'User note');
     if (notes.length > 0) {
       doc.addPage(); y = margin; addPageHeader();

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import { format } from 'date-fns';
 
@@ -53,17 +52,27 @@ export default function PublicPortal() {
 
   async function handleAbatementSubmit(e) {
     e.preventDefault();
+    if (!caseData.town_id) {
+      alert('Unable to submit: please look up your case again, then try once more.');
+      return;
+    }
     setSubmitting(true);
     let fileUrl = null;
     if (abatementFile) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: abatementFile });
       fileUrl = file_url;
     }
+    if (!fileUrl) {
+      alert('Please attach a photo or document showing compliance (required for upload).');
+      setSubmitting(false);
+      return;
+    }
     const newDoc = await base44.entities.Document.create({
       case_id: caseData.id,
+      town_id: caseData.town_id,
       title: `Owner Submission — ${format(new Date(), 'MMM d, yyyy')}`,
       document_type: 'abatement_proof',
-      file_url: fileUrl || '',
+      file_url: fileUrl,
       description: abatementNotes || 'Submitted by property owner via public portal',
     });
     setDocuments(prev => [...prev, newDoc]);
@@ -72,6 +81,7 @@ export default function PublicPortal() {
   }
 
   const statusMessages = {
+    pending_review: { icon: Clock, text: 'Your report has been received and is pending review by code enforcement.', color: 'text-blue-700 bg-blue-50' },
     intake: { icon: Clock, text: 'Your case is being reviewed. A code enforcement officer will be assigned shortly.', color: 'text-blue-700 bg-blue-50' },
     investigation: { icon: Search, text: 'An investigation is underway. An officer will visit the property.', color: 'text-purple-700 bg-purple-50' },
     notice_sent: { icon: AlertTriangle, text: 'A Notice of Violation has been sent. Please review the notice carefully and comply by the abatement deadline.', color: 'text-amber-700 bg-amber-50' },

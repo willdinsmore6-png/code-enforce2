@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
@@ -31,40 +31,65 @@ import PageNotFound from './lib/PageNotFound';
 import Onboarding from './pages/Onboarding';
 import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
+import {
+  isPublicAppPath,
+  isTownInactive,
+  userHasNoTown,
+  isUnassignedAllowedPath,
+  isInactiveSubscriptionAllowedPath,
+  isBlockingAuthError,
+} from '@/lib/authRoutePolicy';
 
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, municipality, appPublicSettings, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const path = location.pathname;
+  const publicPath = isPublicAppPath(path);
+
+  /** One navigation matrix: login, unassigned, inactive subscription (no duplicates with AuthContext). */
   useEffect(() => {
-    const path = window.location.pathname;
-    const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
+    if (isLoadingAuth || isLoadingPublicSettings) return;
 
-    if (!isLoadingAuth && !isLoadingPublicSettings && !user && !authError && !isPublicPath) {
-      window.location.href = '/login'; 
+    if (isBlockingAuthError(authError)) return;
+
+    if (!user && !authError && !publicPath) {
+      window.location.href = '/login';
       return;
     }
 
-    if (!user || user.role === 'superadmin' || authError) return;
+    if (!user || user.role === 'superadmin') return;
 
-    const townId = user?.town_id;
-    
-    if (townId && municipality && !isPublicPath) {
-      const isActive = String(municipality.is_active).toLowerCase() === 'true' || municipality.is_active === true;
-      if (!isActive) {
-        navigate('/subscribe');
+    if (userHasNoTown(user)) {
+      if (!isUnassignedAllowedPath(path)) {
+        navigate('/onboarding', { replace: true });
+      }
+      return;
+    }
+
+    if (municipality && isTownInactive(municipality)) {
+      if (!isInactiveSubscriptionAllowedPath(path)) {
+        navigate('/subscribe', { replace: true });
       }
     }
-  }, [user, navigate, authError, isLoadingAuth, isLoadingPublicSettings, municipality]);
+  }, [
+    user,
+    municipality,
+    authError,
+    navigate,
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    path,
+    publicPath,
+  ]);
 
   // --- MAINTENANCE GUARD ---
   const isMaintenanceActive = appPublicSettings?.is_maintenance_active === true;
   const isSuperAdmin = user?.role === 'superadmin';
-  const path = window.location.pathname;
-  const isPublicPath = ['/public-portal', '/report', '/onboarding', '/subscribe', '/success'].includes(path);
 
   // If maintenance is ON, and user is NOT a SuperAdmin, and they aren't on a public route: LOCK THEM OUT
-  if (isMaintenanceActive && !isSuperAdmin && !isPublicPath && !isLoadingPublicSettings && !isLoadingAuth) {
+  if (isMaintenanceActive && !isSuperAdmin && !publicPath && !isLoadingPublicSettings && !isLoadingAuth) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
         <div className="max-w-md w-full space-y-8 animate-in zoom-in-95 duration-500">
@@ -111,7 +136,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'pending_approval') return <PendingApprovalScreen />;
   }
   
-  if (!user && !isPublicPath) {
+  if (!user && !publicPath) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
         <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>

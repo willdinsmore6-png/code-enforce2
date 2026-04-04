@@ -6,8 +6,16 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { town_name, state, agreement_accepted_at, agreement_accepted_by } = await req.json();
+    const body = await req.json();
+    const { town_name, state, agreement_accepted_at, agreement_accepted_by, acting_town_id } = body;
     if (!town_name) return Response.json({ error: 'town_name is required' }, { status: 400 });
+
+    if (user.role === 'superadmin' && acting_town_id) {
+      return Response.json(
+        { error: 'Cannot create a municipality while acting as a town admin. Clear impersonation first.' },
+        { status: 403 }
+      );
+    }
 
     // Create the new TownConfig using service role (users can't create towns directly)
     const town = await base44.asServiceRole.entities.TownConfig.create({

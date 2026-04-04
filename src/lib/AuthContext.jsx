@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { isUnassignedAllowedPath } from '@/lib/authRoutePolicy';
 
 const AuthContext = createContext();
 
@@ -22,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
-    // Skip auth logic for public portals
+    // Public portal only: skip auth bootstrap (anonymous lookup)
     if (window.location.pathname.includes('public-portal')) {
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
@@ -84,14 +85,7 @@ export const AuthProvider = ({ children }) => {
         const isActuallyActive = String(config.is_active).toLowerCase() === 'true' || config.is_active === true;
         const updatedConfig = { ...config, is_active: isActuallyActive };
         setMunicipality(updatedConfig);
-
-        const path = window.location.pathname;
-        const isPublicRoute = ['/public-portal', '/report', '/subscribe', '/success'].some(r => path.startsWith(r));
-
-        // Redirect logic for inactive towns (SuperAdmins are exempt)
-        if (!isActuallyActive && !isPublicRoute && u.role !== 'superadmin') {
-          window.location.href = '/subscribe';
-        }
+        // Subscription redirect is handled in App.jsx only (avoids duplicate navigate / hard reload)
       }
     } catch (e) {
       console.error('Failed to load municipality:', e);
@@ -116,9 +110,8 @@ export const AuthProvider = ({ children }) => {
         if (currentUser.status === 'pending') {
           setAuthError({ type: 'pending_approval', message: 'Waiting for admin approval' });
         } else if (!currentUser.town_id || currentUser.town_id === 'Null') {
-          const path = window.location.pathname;
-          const allowed = ['/subscribe', '/public-portal', '/report', '/onboarding'].some(r => path.startsWith(r));
-          if (!allowed) {
+          const p = window.location.pathname;
+          if (!isUnassignedAllowedPath(p)) {
             setAuthError({ type: 'unassigned_user', message: 'Account not linked' });
           }
         } else {

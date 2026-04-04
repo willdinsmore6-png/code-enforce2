@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
-import { differenceInDays, format } from 'date-fns';
 
 function buildRecommendations(config) {
   const abatementDays = config?.compliance_days_zoning ?? 30;

@@ -9,9 +9,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin role required' }, { status: 403 });
     }
 
-    const { email, role, town_id } = await req.json();
+    const body = await req.json();
+    const { email, role, town_id, acting_town_id: actingTownId } = body;
     if (!email) {
       return Response.json({ error: 'email is required' }, { status: 400 });
+    }
+
+    let assignedTown = town_id || user.town_id || user.data?.town_id;
+    // Superadmins often have no user.town_id; while impersonating, default invite target to active context
+    if (user.role === 'superadmin' && actingTownId && !assignedTown) {
+      assignedTown = actingTownId;
+    }
+    if (user.role === 'superadmin' && actingTownId && assignedTown !== actingTownId) {
+      return Response.json(
+        { error: 'Forbidden: invites while impersonating must target the active municipality only' },
+        { status: 403 }
+      );
     }
 
     if (user.role === 'admin' && role === 'superadmin') {
@@ -33,7 +46,6 @@ Deno.serve(async (req) => {
 
     if (newUser) {
       const updates = {};
-      const assignedTown = town_id || user.town_id || user.data?.town_id;
       if (assignedTown) updates.town_id = assignedTown;
 
       if (Object.keys(updates).length > 0) {

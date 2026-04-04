@@ -18,7 +18,21 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const allCases = await base44.asServiceRole.entities.Case.list('-created_date', 1000);
+    let body = {};
+    try {
+      body = await req.json();
+    } catch { /* empty body */ }
+
+    const actingTownId = typeof body.acting_town_id === 'string' ? body.acting_town_id.trim() : '';
+
+    let allCases = await base44.asServiceRole.entities.Case.list('-created_date', 1000);
+    if (user.role === 'superadmin' && actingTownId) {
+      allCases = allCases.filter(c => c.town_id === actingTownId);
+    } else if (user.role === 'admin') {
+      const uid = user.town_id || user.data?.town_id;
+      if (uid) allCases = allCases.filter(c => c.town_id === uid);
+    }
+
     const missing = allCases.filter(c => !c.public_access_code);
 
     let updated = 0;

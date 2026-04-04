@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { checkActingTownAccess } from '../lib/actingTownGuard.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -10,7 +11,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { email, town_id: requestedTownId } = await req.json();
+    const body = await req.json();
+    const { email, town_id: requestedTownId } = body;
     if (!email) {
       return Response.json({ error: 'Email is required' }, { status: 400 });
     }
@@ -25,7 +27,10 @@ Deno.serve(async (req) => {
     const targetUser = users[0];
     const targetTown = targetUser.town_id || targetUser.data?.town_id;
     const callerTown = requestedTownId || user.town_id || user.data?.town_id;
-    
+
+    const actingDenied = checkActingTownAccess(user, body, targetTown);
+    if (actingDenied) return actingDenied;
+
     if (user.role === 'admin' && targetTown !== callerTown) {
       return Response.json({ error: 'Forbidden: Can only reset passwords for users in your town' }, { status: 403 });
     }

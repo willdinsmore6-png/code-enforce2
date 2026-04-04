@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, MessageSquare, Loader2, Building2, FileText, Trash2, CheckCircle, RotateCcw, X } from 'lucide-react';
+import { Compass, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -27,6 +27,8 @@ export default function CompassPage() {
   const [uploadedDocNames, setUploadedDocNames] = useState([]);
   const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
   const [docsSharedWithAgent, setDocsSharedWithAgent] = useState(false);
+  const [planFile, setPlanFile] = useState(null);
+  const planInputRef = useRef(null);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const messagesEndRef = useRef(null);
@@ -74,7 +76,13 @@ export default function CompassPage() {
           sessionStorage.removeItem('compass_conversation_id');
         }
       }
-      const conv = await base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } });
+      const conv = await base44.agents.createConversation({
+        agent_name: 'compass',
+        metadata: {
+          name: 'Compass Session',
+          town_id: municipality?.id || user?.town_id || null,
+        },
+      });
       sessionStorage.setItem('compass_conversation_id', conv.id);
       setConversation(conv);
       setMessages(conv.messages || []);
@@ -98,7 +106,15 @@ export default function CompassPage() {
     setConversation(null);
     setMessages([]);
     setDocsSharedWithAgent(false);
-    const conv = await base44.agents.createConversation({ agent_name: 'compass', metadata: { name: 'Compass Session' } });
+    setPlanFile(null);
+    if (planInputRef.current) planInputRef.current.value = '';
+    const conv = await base44.agents.createConversation({
+      agent_name: 'compass',
+      metadata: {
+        name: 'Compass Session',
+        town_id: municipality?.id || user?.town_id || null,
+      },
+    });
     sessionStorage.setItem('compass_conversation_id', conv.id);
     setConversation(conv);
   }
@@ -111,11 +127,27 @@ export default function CompassPage() {
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
     const messagePayload = { role: 'user', content: msg + caseContext };
-    const docUrls = townConfig?.ordinance_docs || [];
-    if (docUrls.length > 0 && !docsSharedWithAgent) {
-      messagePayload.file_urls = docUrls;
+
+    const file_urls = [];
+    const ordinanceUrls = townConfig?.ordinance_docs || [];
+    if (ordinanceUrls.length > 0 && !docsSharedWithAgent) {
+      file_urls.push(...ordinanceUrls);
       setDocsSharedWithAgent(true);
     }
+    if (planFile) {
+      try {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: planFile });
+        if (file_url) file_urls.push(file_url);
+      } catch (err) {
+        console.error('Plan upload failed:', err);
+      }
+      setPlanFile(null);
+      if (planInputRef.current) planInputRef.current.value = '';
+    }
+    if (file_urls.length > 0) {
+      messagePayload.file_urls = file_urls;
+    }
+
     await base44.agents.addMessage(conversation, messagePayload);
     setSending(false);
   }
@@ -221,7 +253,7 @@ export default function CompassPage() {
                 <Button type="submit" size="sm" disabled={savingConfig}>{savingConfig ? 'Saving...' : 'Save'}</Button>
                 <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent">
                    <Upload className="w-3 h-3" /> {uploadingDoc ? 'Uploading...' : 'Learn from PDF'}
-                   <input type="file" className="hidden" accept=".pdf,.txt" onChange={handleDocUpload} />
+                   <input type="file" className="hidden" accept=".pdf,.txt,.png,.jpg,.jpeg,.webp" onChange={handleDocUpload} />
                 </label>
               </div>
             </form>
@@ -259,9 +291,26 @@ export default function CompassPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4">
-        <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto">
-          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Compass..." className="flex-1" disabled={sending} />
+      <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4 space-y-2">
+        {planFile && (
+          <div className="max-w-5xl mx-auto flex items-center gap-2 text-xs text-muted-foreground">
+            <FileText className="w-3.5 h-3.5" />
+            <span className="truncate">Attached: {planFile.name}</span>
+            <button type="button" className="text-red-600 hover:underline" onClick={() => { setPlanFile(null); if (planInputRef.current) planInputRef.current.value = ''; }}>Remove</button>
+          </div>
+        )}
+        <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto items-center">
+          <label className="cursor-pointer shrink-0 p-2 rounded-md border border-input hover:bg-muted" title="Attach plan, PDF, or photo for this message">
+            <Upload className="w-4 h-4" />
+            <input
+              ref={planInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"
+              onChange={(ev) => setPlanFile(ev.target.files?.[0] || null)}
+            />
+          </label>
+          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Compass… (optional: attach a plan)" className="flex-1" disabled={sending} />
           <Button type="submit" disabled={sending || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
         </form>
       </div>

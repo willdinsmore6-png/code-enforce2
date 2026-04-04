@@ -2,12 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   Dialog, 
@@ -17,8 +16,8 @@ import {
   DialogFooter 
 } from '@/components/ui/dialog';
 import {
-  Building2, Users, Plus, Trash2, Shield, FileText, Search, Download, TrendingUp,
-  AlertTriangle, CheckCircle, Loader2, UserPlus, Activity, Zap, Clock, Mail, Copy
+  Building2, Users, Plus, FileText, Search, Download, TrendingUp,
+  AlertTriangle, CheckCircle, Loader2, Zap, Copy
 } from 'lucide-react';
 
 const StatCard = ({ icon: Icon, label, value, color }) => {
@@ -40,7 +39,7 @@ const StatCard = ({ icon: Icon, label, value, color }) => {
 };
 
 export default function SuperAdminDashboard() {
-  const { user, impersonateMunicipality, appPublicSettings, checkAppState } = useAuth();
+  const { user, impersonateMunicipality, impersonatedMunicipality, appPublicSettings, checkAppState } = useAuth();
   const navigate = useNavigate();
 
   // Data State
@@ -68,15 +67,24 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     if (user?.role !== 'superadmin') return;
     load();
-  }, [user]);
+  }, [user, impersonatedMunicipality]);
 
   async function load() {
     setLoading(true);
     try {
+      const getUsersPayload = mergeActingTownPayload(
+        user,
+        impersonatedMunicipality,
+        impersonatedMunicipality ? {} : { all: true }
+      );
+      const casesPromise = impersonatedMunicipality
+        ? base44.entities.Case.filter({ town_id: impersonatedMunicipality.id }, '-created_date', 1000)
+        : base44.entities.Case.list('-created_date', 1000);
+
       const [townsData, usersRes, casesData] = await Promise.all([
         base44.entities.TownConfig.list('-created_date', 200),
-        base44.functions.invoke('getUsers', { all: true }),
-        base44.entities.Case.list('-created_date', 1000),
+        base44.functions.invoke('getUsers', getUsersPayload),
+        casesPromise,
       ]);
       setTowns(townsData || []);
       setAllUsers(usersRes.data?.users || []);
@@ -123,7 +131,15 @@ export default function SuperAdminDashboard() {
   const handleCreateTown = async () => {
     setIsUpdatingStatus(true);
     try {
-      const res = await base44.functions.invoke('setupNewTown', { ...newTown, is_active: true, agreement_accepted_at: new Date().toISOString(), agreement_accepted_by: user?.email });
+      const res = await base44.functions.invoke(
+        'setupNewTown',
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          ...newTown,
+          is_active: true,
+          agreement_accepted_at: new Date().toISOString(),
+          agreement_accepted_by: user?.email,
+        })
+      );
       if (res.data?.success) { setWizardOpen(false); load(); }
     } catch (err) { alert(err.message); }
     setIsUpdatingStatus(false);

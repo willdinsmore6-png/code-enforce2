@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { FileText, AlertTriangle, Scale, Clock, CheckCircle, TrendingUp, ArrowRight, Building2 } from 'lucide-react';
+import { FileText, Scale, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatCard from '../components/shared/StatCard';
 import StatusBadge from '../components/shared/StatusBadge';

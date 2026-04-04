@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Download, FileText, X } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 
 const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 const pdfTypes = ['pdf'];

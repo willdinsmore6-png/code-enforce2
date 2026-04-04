@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Mail, CheckCircle, Trash2, X, Pencil } from 'lucide-react';
+import { Plus, Mail, CheckCircle, Trash2, Pencil } from 'lucide-react';
 import ClearableInput from '../shared/ClearableInput';
 import { format, addDays } from 'date-fns';
 
 export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
+  const { user, impersonatedMunicipality } = useAuth();
   const [open, setOpen] = useState(false);
   const [editNotice, setEditNotice] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -73,14 +76,19 @@ export default function CaseNotices({ caseId, caseData, notices, setNotices }) {
       notice_content: editNotice.notice_content,
     });
     setNotices(prev => prev.map(n => n.id === editNotice.id ? { ...n, ...updated } : n));
-    base44.functions.invoke('logAudit', {
-      case_id: caseId,
-      case_number: caseData.case_number,
-      entity_type: 'Notice',
-      entity_id: editNotice.id,
-      action: 'Updated notice',
-      changes: { notice_type: editNotice.notice_type, date_issued: editNotice.date_issued },
-    }).catch(() => {});
+    base44.functions
+      .invoke(
+        'logAudit',
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          case_id: caseId,
+          case_number: caseData.case_number,
+          entity_type: 'Notice',
+          entity_id: editNotice.id,
+          action: 'Updated notice',
+          changes: { notice_type: editNotice.notice_type, date_issued: editNotice.date_issued },
+        })
+      )
+      .catch(() => {});
     setEditNotice(null);
     setSaving(false);
   }

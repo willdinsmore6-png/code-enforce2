@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { FileText, Camera, Scale, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { FileText, Camera, Scale, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function CaseTimeline({ caseData, investigations, notices, courtActions }) {

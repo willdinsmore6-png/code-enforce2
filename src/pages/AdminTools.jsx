@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PageHeader from '../components/shared/PageHeader';
-import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, Trash2, X, Hash } from 'lucide-react';
+import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, X, Hash, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
 export default function AdminTools() {
-  const { user, municipality, refreshMunicipality } = useAuth();
+  const { user, municipality, impersonatedMunicipality, refreshMunicipality } = useAuth();
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -57,7 +57,10 @@ export default function AdminTools() {
   }, [municipality]);
 
   useEffect(() => {
-    base44.functions.invoke('getUsers', { town_id: municipality?.id }).then(r => {
+    base44.functions.invoke(
+      'getUsers',
+      mergeActingTownPayload(user, impersonatedMunicipality, { town_id: municipality?.id })
+    ).then(r => {
       setUsers(r.data?.users || []);
       setLoadingUsers(false);
     });
@@ -74,7 +77,7 @@ export default function AdminTools() {
     } else {
       setLogsLoading(false);
     }
-  }, []);
+  }, [municipality?.id, user, impersonatedMunicipality]);
 
   const filteredLogs = auditLogs.filter(log =>
     !filterCase || (log.case_number || '').toLowerCase().includes(filterCase.toLowerCase()) ||
@@ -86,11 +89,21 @@ export default function AdminTools() {
     setInviting(true);
     setInviteResult(null);
     try {
-      const res = await base44.functions.invoke('inviteStaffUser', { email: inviteEmail.trim(), role: 'user', town_id: inviteTownId || municipality?.id });
+      const res = await base44.functions.invoke(
+        'inviteStaffUser',
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          email: inviteEmail.trim(),
+          role: 'user',
+          town_id: inviteTownId || municipality?.id,
+        })
+      );
       if (res.data?.error) throw new Error(res.data.error);
       setInviteResult({ success: true, message: `Invitation sent to ${inviteEmail}` });
       setInviteEmail('');
-      const r = await base44.functions.invoke('getUsers', {});
+      const r = await base44.functions.invoke(
+        'getUsers',
+        mergeActingTownPayload(user, impersonatedMunicipality, {})
+      );
       setUsers(r.data?.users || []);
     } catch (err) {
       setInviteResult({ success: false, message: err?.message || 'Failed to send invite. Please try again.' });
@@ -102,7 +115,10 @@ export default function AdminTools() {
     e.preventDefault();
     setResetLoading(true);
     setResetResult(null);
-    const response = await base44.functions.invoke('adminResetPassword', { email: resetEmail.trim() });
+    const response = await base44.functions.invoke(
+      'adminResetPassword',
+      mergeActingTownPayload(user, impersonatedMunicipality, { email: resetEmail.trim() })
+    );
     if (response.data?.success) {
       setResetResult({ success: true, message: response.data.message });
       setResetEmail('');
@@ -115,7 +131,10 @@ export default function AdminTools() {
   async function handleCancelInvite(userId, userEmail) {
     if (!window.confirm(`Cancel the invite for ${userEmail}?`)) return;
     try {
-      const r = await base44.functions.invoke('deleteUser', { userId });
+      const r = await base44.functions.invoke(
+        'deleteUser',
+        mergeActingTownPayload(user, impersonatedMunicipality, { userId })
+      );
       if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
@@ -126,7 +145,10 @@ export default function AdminTools() {
   async function handleRemoveUser(userId, userEmail) {
     if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
     try {
-      const r = await base44.functions.invoke('deleteUser', { userId });
+      const r = await base44.functions.invoke(
+        'deleteUser',
+        mergeActingTownPayload(user, impersonatedMunicipality, { userId })
+      );
       if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.filter(u => u.id !== userId));
     } catch (err) {
@@ -136,7 +158,10 @@ export default function AdminTools() {
 
   async function handleRoleChange(userId, newRole) {
     try {
-      const r = await base44.functions.invoke('updateUserRole', { userId, role: newRole });
+      const r = await base44.functions.invoke(
+        'updateUserRole',
+        mergeActingTownPayload(user, impersonatedMunicipality, { userId, role: newRole })
+      );
       if (r.data?.error) throw new Error(r.data.error);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
     } catch (err) {
@@ -276,6 +301,33 @@ export default function AdminTools() {
                   <Input value={muniForm.tagline} onChange={e => setMuniForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Code Enforcement Division" />
                 </div>
               </div>
+
+              {municipality?.id && (
+                <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Link2 className="w-4 h-4 text-primary" />
+                    Public violation report link
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Post this URL on your municipal website so resident reports are tied to your town and receive a public access code.
+                  </p>
+                  <code className="block break-all text-xs bg-background p-3 rounded-lg border border-border">
+                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/report?town=${municipality.id}`}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => {
+                      const url = `${window.location.origin}/report?town=${municipality.id}`;
+                      navigator.clipboard.writeText(url);
+                    }}
+                  >
+                    Copy link
+                  </Button>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Logo</Label>
@@ -493,7 +545,10 @@ export default function AdminTools() {
               onClick={async () => {
                 setBackfilling(true);
                 setBackfillResult(null);
-                const res = await base44.functions.invoke('backfillAccessCodes', {});
+                const res = await base44.functions.invoke(
+                  'backfillAccessCodes',
+                  mergeActingTownPayload(user, impersonatedMunicipality, {})
+                );
                 setBackfillResult(res.data);
                 setBackfilling(false);
               }}

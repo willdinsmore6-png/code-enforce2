@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import PageHeader from '../components/shared/PageHeader';
 import { format, addDays } from 'date-fns';
+import { generatePublicAccessCode } from '@/lib/publicAccessCode';
 
 export default function NewComplaint() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function NewComplaint() {
     
     try {
       const caseNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
-      const publicCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const publicCode = generatePublicAccessCode(8);
       
       const newCase = await base44.entities.Case.create({
         ...form,
@@ -73,6 +74,7 @@ export default function NewComplaint() {
       ]);
 
       navigate(`/cases/${newCase.id}`);
+      setSaving(false);
     } catch (error) {
       console.error('Failed to create complaint:', error);
       alert(`Error creating complaint: ${error.message || 'Unknown error'}`);
