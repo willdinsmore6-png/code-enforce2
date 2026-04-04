@@ -13,6 +13,83 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+/** Base44 entity filter often needs sort + limit in Deno/service role; single-arg filter can return []. */
+const CASE_CHILD_SORT = '-created_date';
+const CASE_CHILD_LIMIT = 500;
+
+function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
+  const u = new Uint8Array(buffer.slice(0, 12));
+  if (u.length >= 3 && u[0] === 0xff && u[1] === 0xd8 && u[2] === 0xff) return 'JPEG';
+  if (u.length >= 4 && u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47) return 'PNG';
+  return null;
+}
+
+async function loadCaseChildren<T extends { case_id?: string }>(
+  base44: any,
+  entity: string,
+  caseId: string,
+  townId: string | undefined
+): Promise<T[]> {
+  const q = { case_id: caseId };
+  let rows: T[] = [];
+  try {
+    rows =
+      (await base44.asServiceRole.entities[entity].filter(q, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) || [];
+  } catch {
+    try {
+      rows = (await base44.asServiceRole.entities[entity].filter(q)) || [];
+    } catch (e) {
+      console.error(`${entity} case_id filter failed:`, e?.message);
+    }
+  }
+  if (rows.length === 0 && townId) {
+    try {
+      const wide =
+        (await base44.asServiceRole.entities[entity].filter(
+          { town_id: townId },
+          CASE_CHILD_SORT,
+          CASE_CHILD_LIMIT
+        )) || [];
+      rows = wide.filter((r: T) => String(r?.case_id || '') === String(caseId));
+    } catch (e) {
+      console.error(`${entity} town fallback failed:`, e?.message);
+    }
+  }
+  return rows;
+}
+
+function auditNoteBody(log: { changes?: unknown }): string {
+  const c = log?.changes;
+  if (c == null) return '';
+  if (typeof c === 'object' && c !== null && 'note' in c) {
+    return String((c as { note?: string }).note || '');
+  }
+  if (typeof c === 'string') {
+    try {
+      const p = JSON.parse(c) as { note?: string };
+      return p?.note != null ? String(p.note) : c;
+    } catch {
+      return c;
+    }
+  }
+  return String(c);
+}
+
+function collectPhotoUrls(inv: { photos?: unknown }): string[] {
+  const raw = inv?.photos;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((p) => {
+      if (typeof p === 'string') return p;
+      if (p && typeof p === 'object') {
+        const o = p as Record<string, string>;
+        return o.file_url || o.url || o.href || '';
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
 async function fetchImageAsBase64(url: string, base44: any) {
   if (!url) return null;
 
@@ -41,6 +118,16 @@ async function fetchImageAsBase64(url: string, base44: any) {
           response = await fetch(signed_url, { signal: AbortSignal.timeout(15000) });
           result = await readResponse(response);
           if (result) return result;
+          if (response.ok) {
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('octet-stream') || ct.includes('binary')) {
+              const buffer = await response.arrayBuffer();
+              const fmt = sniffImageFormat(buffer);
+              if (fmt) {
+                return { data: arrayBufferToBase64(buffer), format: fmt };
+              }
+            }
+          }
         }
       } catch (e) {
         console.error(`Signed URL failed for photo: ${url}`, e?.message);
@@ -92,42 +179,28 @@ Deno.serve(async (req) => {
     const actingDenied = checkActingTownAccess(user, body, caseRecord.town_id);
     if (actingDenied) return actingDenied;
 
-    const filter = { case_id: caseRecord.id };
+    const caseInternalId = String(caseRecord.id || '').trim();
+    const townId = caseRecord.town_id ? String(caseRecord.town_id).trim() : undefined;
 
     const [
-      invPrimary,
       notices,
       documents,
       courtActions,
       deadlines,
       auditLogs,
-      violations
+      violations,
+      investigations,
     ] = await Promise.all([
-      base44.asServiceRole.entities.Investigation.filter(filter),
-      base44.asServiceRole.entities.Notice.filter(filter),
-      base44.asServiceRole.entities.Document.filter(filter),
-      base44.asServiceRole.entities.CourtAction.filter(filter),
-      base44.asServiceRole.entities.Deadline.filter(filter),
-      base44.asServiceRole.entities.AuditLog.filter(filter),
-      base44.asServiceRole.entities.Violation.filter(filter),
+      loadCaseChildren(base44, 'Notice', caseInternalId, townId),
+      loadCaseChildren(base44, 'Document', caseInternalId, townId),
+      loadCaseChildren(base44, 'CourtAction', caseInternalId, townId),
+      loadCaseChildren(base44, 'Deadline', caseInternalId, townId),
+      loadCaseChildren(base44, 'AuditLog', caseInternalId, townId),
+      loadCaseChildren(base44, 'Violation', caseInternalId, townId),
+      loadCaseChildren(base44, 'Investigation', caseInternalId, townId),
     ]);
 
-    let investigations = invPrimary || [];
-    // Fallback: some deployments match town-scoped list + client filter more reliably than case_id alone
-    if (investigations.length === 0 && caseRecord.town_id) {
-      try {
-        const townScoped = await base44.asServiceRole.entities.Investigation.filter(
-          { town_id: caseRecord.town_id },
-          '-created_date',
-          500
-        );
-        investigations = (townScoped || []).filter((inv) => inv.case_id === caseRecord.id);
-      } catch (e) {
-        console.error('Investigation town fallback failed:', e?.message);
-      }
-    }
-
-    const allPhotoUrls = (investigations || []).flatMap(inv => inv.photos || []).filter(Boolean);
+    const allPhotoUrls = (investigations || []).flatMap((inv) => collectPhotoUrls(inv));
     const photoResults = await Promise.allSettled(
       allPhotoUrls.map(url => fetchImageAsBase64(url, base44))
     );
@@ -338,6 +411,7 @@ Deno.serve(async (req) => {
         checkPageBreak(18);
         subsectionTitle(`${idx + 1}. ${d.title || 'Untitled'}`);
         twoColField('Type', String(d.document_type || '').replace(/_/g, ' '), 'Version', String(d.version ?? 1));
+        if (d.file_url) fieldRow('Stored file', String(d.file_url).slice(0, 200) + (String(d.file_url).length > 200 ? '…' : ''));
         if (d.description) bodyText(d.description);
         y += 4;
       }
@@ -434,9 +508,10 @@ Deno.serve(async (req) => {
         twoColField('Site conditions', inv.site_conditions || '—', 'Weather', inv.weather_conditions || '—');
         if (inv.witnesses) fieldRow('Witnesses', inv.witnesses);
 
-        if (inv.photos && inv.photos.length > 0) {
-          const validPhotos = inv.photos.filter(url => photoCache[url]);
-          const skipped = inv.photos.length - validPhotos.length;
+        const invPhotoUrls = collectPhotoUrls(inv);
+        if (invPhotoUrls.length > 0) {
+          const validPhotos = invPhotoUrls.filter((url) => photoCache[url]);
+          const skipped = invPhotoUrls.length - validPhotos.length;
           if (skipped > 0) {
             checkPageBreak(8);
             doc.setFont('Helvetica', 'italic');
@@ -470,14 +545,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const notes = (auditLogs || []).filter(l => l.action === 'note_added' || l.action === 'User note');
+    const notes = (auditLogs || []).filter((l) => l.action === 'note_added' || l.action === 'User note');
     if (notes.length > 0) {
       doc.addPage(); y = margin; addPageHeader();
       sectionTitle(`8. CASE NOTES (${notes.length})`);
       notes.forEach((note, idx) => {
         checkPageBreak(15);
         subsectionTitle(`Note ${idx + 1} — ${dateStr(note.timestamp)}`);
-        bodyText(note.changes?.note || note.changes || '');
+        bodyText(auditNoteBody(note));
         y += 5;
       });
     }

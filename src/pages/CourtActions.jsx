@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,6 +107,7 @@ function CourtActionForm({ form, update, saving, onCancel, submitLabel }) {
 }
 
 export default function CourtActions() {
+  const { user, impersonatedMunicipality } = useAuth();
   const [courtActions, setCourtActions] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,21 +122,51 @@ export default function CourtActions() {
 
   useEffect(() => {
     async function load() {
-      const [ca, c] = await Promise.all([
-        base44.entities.CourtAction.list('-created_date', 50),
-        base44.entities.Case.list('-created_date', 100),
-      ]);
-      setCourtActions(ca);
-      setCases(c);
-      setLoading(false);
+      const activeTownId = impersonatedMunicipality?.id || user?.town_id;
+      const isSuperAdmin = user?.role === 'superadmin';
+
+      if (!activeTownId && !isSuperAdmin) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        let ca;
+        let c;
+        if (isSuperAdmin && !impersonatedMunicipality) {
+          [ca, c] = await Promise.all([
+            base44.entities.CourtAction.list('-created_date', 50),
+            base44.entities.Case.list('-created_date', 100),
+          ]);
+        } else {
+          const townFilter = { town_id: activeTownId };
+          [ca, c] = await Promise.all([
+            base44.entities.CourtAction.filter(townFilter, '-created_date', 50),
+            base44.entities.Case.filter(townFilter, '-created_date', 100),
+          ]);
+        }
+        setCourtActions(ca || []);
+        setCases(c || []);
+      } catch (err) {
+        console.error('Court actions load failed:', err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [impersonatedMunicipality, user?.town_id, user?.role]);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const activeTownId = impersonatedMunicipality?.id || user?.town_id;
+    const caseRow = cases.find(cc => cc.id === form.case_id);
+    const townId = activeTownId || caseRow?.town_id;
+    if (!townId) {
+      alert('Cannot file court action: no town context. Select a case or use Act as town.');
+      return;
+    }
     setSaving(true);
-    const ca = await base44.entities.CourtAction.create(form);
+    const ca = await base44.entities.CourtAction.create({ ...form, town_id: townId });
     setCourtActions(prev => [ca, ...prev]);
     if (form.case_id) {
       await base44.entities.Case.update(form.case_id, { status: 'court_action' });
