@@ -3,7 +3,7 @@
   "name": "code-enforce2",
   "description": "CodeEnforce",
 
-  "functionsDir": "./functions",
+  "functionsDir": "../functions",
 
   // Frontend build output (for `base44 site deploy` if you use it)
   "site": {

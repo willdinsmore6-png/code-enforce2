@@ -1,6 +1,6 @@
 /**
  * Append `acting_town_id` for superadmin impersonation so server functions can enforce
- * municipality-scoped access. See `base44/functions/shared/actingTownGuard.ts`.
+ * municipality-scoped access. See `functions/shared/actingTownGuard.ts`.
  */
 export function mergeActingTownPayload(user, impersonatedMunicipality, payload = {}) {
   if (user?.role === 'superadmin' && impersonatedMunicipality?.id) {
