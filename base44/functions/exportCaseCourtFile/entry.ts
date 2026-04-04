@@ -18,7 +18,7 @@ const CASE_CHILD_SORT = '-created_date';
 const CASE_CHILD_LIMIT = 500;
 const LIST_FALLBACK_LIMIT = 5000;
 
-/** Match investigation/case links when API stores case_id as string, populated ref, or loose type. */
+/** Match child rows to a case (snake_case + camelCase + populated ref). */
 function normalizeCaseId(v: unknown): string {
   if (v == null) return '';
   if (typeof v === 'string' || typeof v === 'number') return String(v).trim();
@@ -26,6 +26,10 @@ function normalizeCaseId(v: unknown): string {
     return String((v as { id: unknown }).id ?? '').trim();
   }
   return String(v).trim();
+}
+
+function rowCaseId(r: { case_id?: unknown; caseId?: unknown }): string {
+  return normalizeCaseId(r?.case_id ?? r?.caseId);
 }
 
 function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
@@ -40,14 +44,12 @@ type EntityClient = {
   list?: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
 };
 
-/**
- * Load child rows for a case. Uses explicit entity clients (not entities[string]) — bracket access
- * can be undefined in some Deno/service-role builds. Falls back to town filter, then list+scan.
- */
-async function loadCaseChildren<T extends { case_id?: unknown }>(
+/** Load rows for one entity type; try canonical + alternate case ids, then town scan, then list scan. */
+async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown }>(
   entityClient: EntityClient | undefined,
   entityLabel: string,
-  caseIds: Set<string>,
+  canonicalCaseId: string,
+  alternateCaseId: string,
   townId: string | undefined
 ): Promise<T[]> {
   if (!entityClient?.filter) {
@@ -55,34 +57,30 @@ async function loadCaseChildren<T extends { case_id?: unknown }>(
     return [];
   }
 
-  const matchesCase = (r: T) => {
-    const n = normalizeCaseId(r?.case_id);
-    return n.length > 0 && caseIds.has(n);
+  const idMatches = (r: T) => {
+    const rk = rowCaseId(r);
+    return rk.length > 0 && (rk === canonicalCaseId || (!!alternateCaseId && rk === alternateCaseId));
   };
 
-  const primaryId = [...caseIds][0];
-  const tryQueries = [
-    { case_id: primaryId },
-    { case_id: { $eq: primaryId } },
-  ] as const;
+  const tryFilterByCaseId = async (cid: string): Promise<T[]> => {
+    if (!cid) return [];
+    try {
+      let rows =
+        (await entityClient.filter({ case_id: cid }, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) as T[] ||
+        [];
+      if (rows.length > 0) return rows;
+      rows = (await entityClient.filter({ case_id: cid })) as T[] || [];
+      return rows || [];
+    } catch (e) {
+      console.error(`${entityLabel} filter case_id=${cid}:`, e?.message);
+      return [];
+    }
+  };
 
   let rows: T[] = [];
-
-  for (const q of tryQueries) {
-    if (rows.length > 0) break;
-    try {
-      rows =
-        (await entityClient.filter(q, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) as T[] || [];
-    } catch (e) {
-      console.error(`${entityLabel} filter(3arg) failed:`, e?.message);
-    }
-    if (rows.length === 0) {
-      try {
-        rows = (await entityClient.filter(q)) as T[] || [];
-      } catch (e) {
-        console.error(`${entityLabel} filter(1arg) failed:`, e?.message);
-      }
-    }
+  rows = await tryFilterByCaseId(canonicalCaseId);
+  if (rows.length === 0 && alternateCaseId && alternateCaseId !== canonicalCaseId) {
+    rows = await tryFilterByCaseId(alternateCaseId);
   }
 
   if (rows.length === 0 && townId) {
@@ -93,7 +91,7 @@ async function loadCaseChildren<T extends { case_id?: unknown }>(
           CASE_CHILD_SORT,
           CASE_CHILD_LIMIT
         )) as T[] || [];
-      rows = (wide || []).filter(matchesCase);
+      rows = (wide || []).filter(idMatches);
     } catch (e) {
       console.error(`${entityLabel} town fallback failed:`, e?.message);
     }
@@ -102,7 +100,7 @@ async function loadCaseChildren<T extends { case_id?: unknown }>(
   if (rows.length === 0 && typeof entityClient.list === 'function') {
     try {
       const listed = (await entityClient.list(CASE_CHILD_SORT, LIST_FALLBACK_LIMIT)) as T[] || [];
-      rows = (listed || []).filter(matchesCase);
+      rows = (listed || []).filter(idMatches);
     } catch (e) {
       console.error(`${entityLabel} list fallback failed:`, e?.message);
     }
@@ -211,32 +209,46 @@ Deno.serve(async (req) => {
     const { case_id } = body;
     if (!case_id) return Response.json({ error: 'case_id required' }, { status: 400 });
 
-    // Tenant gate: non–superadmins must resolve the case through RLS (town_id), not service role.
-    let caseRecord = null;
-    if (user.role === 'superadmin') {
-      caseRecord =
-        (await base44.asServiceRole.entities.Case.filter({ id: case_id }))?.[0] ?? null;
-      if (!caseRecord) {
-        try {
-          caseRecord = await base44.asServiceRole.entities.Case.get(case_id);
-        } catch { /* empty */ }
+    // Resolve case the same way as before multi-tenant: user-scoped Case.get() first (reliable id).
+    // Service-role-only load was returning records where child filters stopped matching.
+    let caseRecord: Record<string, unknown> | null = null;
+    try {
+      caseRecord = (await base44.entities.Case.get(case_id)) as Record<string, unknown>;
+    } catch {
+      caseRecord = null;
+    }
+    if (!caseRecord) {
+      if (user.role === 'superadmin') {
+        caseRecord =
+          ((await base44.asServiceRole.entities.Case.filter(
+            { id: case_id },
+            '-created_date',
+            5
+          ))?.[0] as Record<string, unknown>) ?? null;
+        if (!caseRecord) {
+          try {
+            caseRecord = (await base44.asServiceRole.entities.Case.get(
+              case_id
+            )) as Record<string, unknown>;
+          } catch {
+            caseRecord = null;
+          }
+        }
+      } else {
+        const scoped = await base44.entities.Case.filter({ id: case_id });
+        caseRecord = (scoped?.[0] as Record<string, unknown>) ?? null;
       }
-    } else {
-      const scoped = await base44.entities.Case.filter({ id: case_id });
-      caseRecord = scoped?.[0] ?? null;
     }
     if (!caseRecord) {
       return Response.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    const actingDenied = checkActingTownAccess(user, body, caseRecord.town_id);
+    const actingDenied = checkActingTownAccess(user, body, caseRecord.town_id as string | undefined);
     if (actingDenied) return actingDenied;
 
-    const caseInternalId = String(caseRecord.id || '').trim();
+    const rawId = caseRecord.id ?? caseRecord._id;
+    const canonicalCaseId = String(rawId != null && rawId !== '' ? rawId : case_id).trim();
     const requestCaseId = String(body.case_id || '').trim();
-    const caseIds = new Set(
-      [caseInternalId, requestCaseId].filter((x) => x.length > 0)
-    );
     const townId = caseRecord.town_id ? String(caseRecord.town_id).trim() : undefined;
 
     const ent = base44.asServiceRole.entities;
@@ -250,13 +262,13 @@ Deno.serve(async (req) => {
       violations,
       investigations,
     ] = await Promise.all([
-      loadCaseChildren(ent.Notice, 'Notice', caseIds, townId),
-      loadCaseChildren(ent.Document, 'Document', caseIds, townId),
-      loadCaseChildren(ent.CourtAction, 'CourtAction', caseIds, townId),
-      loadCaseChildren(ent.Deadline, 'Deadline', caseIds, townId),
-      loadCaseChildren(ent.AuditLog, 'AuditLog', caseIds, townId),
-      loadCaseChildren(ent.Violation, 'Violation', caseIds, townId),
-      loadCaseChildren(ent.Investigation, 'Investigation', caseIds, townId),
+      loadCaseChildren(ent.Notice, 'Notice', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.Document, 'Document', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.CourtAction, 'CourtAction', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.Deadline, 'Deadline', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.AuditLog, 'AuditLog', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.Violation, 'Violation', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(ent.Investigation, 'Investigation', canonicalCaseId, requestCaseId, townId),
     ]);
 
     const allPhotoUrls = (investigations || []).flatMap((inv) => collectPhotoUrls(inv));
