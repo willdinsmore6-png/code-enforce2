@@ -18,6 +18,9 @@ const CASE_CHILD_SORT = '-created_date';
 const CASE_CHILD_LIMIT = 500;
 const LIST_FALLBACK_LIMIT = 5000;
 
+/** Bumped when PDF structure changes; footer + API echo prove the deployed function is current. */
+const COURT_PACKET_VARIANT = 'full-8-20260404';
+
 /** Match child rows to a case (snake_case + camelCase + populated ref). */
 function normalizeCaseId(v: unknown): string {
   if (v == null) return '';
@@ -923,9 +926,13 @@ Deno.serve(async (req) => {
     const pageCount = doc.internal.pages.length - 1;
     for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
+      doc.setFont('Helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(120);
-      doc.text(`Page ${i - 1} of ${pageCount - 1}`, pw / 2, ph - 8, { align: 'center' });
+      doc.text(`Page ${i - 1} of ${pageCount - 1}`, pw / 2, ph - 10, { align: 'center' });
+      doc.setFontSize(6);
+      doc.setTextColor(160);
+      doc.text(`Packet ${COURT_PACKET_VARIANT} · sections 1–8`, pw / 2, ph - 5, { align: 'center' });
     }
 
     const pdfBuffer = doc.output('arraybuffer');
@@ -936,14 +943,19 @@ Deno.serve(async (req) => {
     const finalDoc = await base44.asServiceRole.entities.Document.create({
       case_id: caseRecord.id,
       town_id: caseRecord.town_id,
-      title: `Court File Export — ${caseRecord.case_number}`,
+      title: `Court File Export (full packet) — ${caseRecord.case_number}`,
       document_type: 'court_filing',
       file_url: file_uri,
       version: 1,
       created_at: new Date().toISOString()
     });
 
-    return Response.json({ success: true, document_id: finalDoc.id, filename: pdfFilename });
+    return Response.json({
+      success: true,
+      document_id: finalDoc.id,
+      filename: pdfFilename,
+      packet_variant: COURT_PACKET_VARIANT,
+    });
 
   } catch (error) {
     console.error('Export Error:', error);
