@@ -42,6 +42,11 @@ function rowCaseId(r: Record<string, unknown>): string {
   return '';
 }
 
+function caseIdsEquivalent(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return a === b || a.toLowerCase() === b.toLowerCase();
+}
+
 function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
   const u = new Uint8Array(buffer.slice(0, 12));
   if (u.length >= 3 && u[0] === 0xff && u[1] === 0xd8 && u[2] === 0xff) return 'JPEG';
@@ -172,14 +177,16 @@ async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown 
 }
 
 /**
- * Browser already has investigation rows; Deno filters often return []. Hydrate by id and verify case_id.
+ * Hydrate investigations by id (from Case Detail). get() sometimes omits or reshapes case_id;
+ * use compound filter first, then loose case/town checks.
  */
 async function hydrateInvestigationsByIds(
   userEnt: { Investigation?: EntityClient },
   srEnt: { Investigation?: EntityClient },
   rawIds: unknown,
   canonicalCaseId: string,
-  requestCaseId: string
+  requestCaseId: string,
+  townId: string | undefined
 ): Promise<Record<string, unknown>[]> {
   if (!Array.isArray(rawIds) || rawIds.length === 0) return [];
   const ids = [...new Set(rawIds.map((x) => String(x).trim()).filter(Boolean))];
@@ -189,15 +196,36 @@ async function hydrateInvestigationsByIds(
   const invUser = userEnt.Investigation;
   const out: Record<string, unknown>[] = [];
 
+  const caseCandidates = [...new Set([canonicalCaseId, requestCaseId].filter(Boolean))];
+
   for (const iid of ids) {
     let row: Record<string, unknown> | null = null;
-    try {
-      if (invSr?.get) {
+
+    if (invSr?.filter) {
+      for (const cid of caseCandidates) {
+        try {
+          const f = (await invSr.filter(
+            { id: iid, case_id: cid },
+            CASE_CHILD_SORT,
+            10
+          )) as Record<string, unknown>[] | null;
+          if (f?.[0]) {
+            row = f[0];
+            break;
+          }
+        } catch {
+          /* */
+        }
+      }
+    }
+
+    if (!row && invSr?.get) {
+      try {
         const g = await invSr.get(iid);
         if (g && typeof g === 'object') row = g as Record<string, unknown>;
+      } catch {
+        /* */
       }
-    } catch {
-      /* try user */
     }
     if (!row && invUser?.get) {
       try {
@@ -209,7 +237,7 @@ async function hydrateInvestigationsByIds(
     }
     if (!row && invSr?.filter) {
       try {
-        const f = (await invSr.filter({ id: iid })) as Record<string, unknown>[] | null;
+        const f = (await invSr.filter({ id: iid }, CASE_CHILD_SORT, 5)) as Record<string, unknown>[] | null;
         row = f?.[0] ?? null;
       } catch {
         /* */
@@ -218,7 +246,17 @@ async function hydrateInvestigationsByIds(
     if (!row) continue;
 
     const k = rowCaseId(row);
-    if (k === canonicalCaseId || (requestCaseId && k === requestCaseId)) {
+    const caseOk =
+      caseIdsEquivalent(k, canonicalCaseId) ||
+      (!!requestCaseId && caseIdsEquivalent(k, requestCaseId));
+
+    const rowTown = String((row as { town_id?: unknown }).town_id ?? '').trim();
+    const townOk = !!townId && rowTown === townId;
+
+    if (caseOk) {
+      out.push(row);
+    } else if (townOk) {
+      // IDs came from this case’s screen; include if tenant matches when case_id compare failed (API shape quirks)
       out.push(row);
     }
   }
@@ -470,7 +508,8 @@ Deno.serve(async (req) => {
         srEnt,
         clientInvIds,
         canonicalCaseId,
-        requestCaseId
+        requestCaseId,
+        townId
       );
       if (hydrated.length > 0) {
         const map = new Map<string, Record<string, unknown>>();
