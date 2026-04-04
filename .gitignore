@@ -29,3 +29,6 @@ dist-ssr
 
 .env
 .vite
+
+# Base44 CLI — links this clone to your cloud backend (do not commit)
+base44/.app.jsonc

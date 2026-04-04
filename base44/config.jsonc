@@ -1,0 +1,12 @@
+// Base44 CLI project config — paths are relative to this file (base44/)
+{
+  "name": "code-enforce2",
+  "description": "CodeEnforce",
+
+  "functionsDir": "./functions",
+
+  // Frontend build output (for `base44 site deploy` if you use it)
+  "site": {
+    "outputDirectory": "../dist"
+  }
+}
