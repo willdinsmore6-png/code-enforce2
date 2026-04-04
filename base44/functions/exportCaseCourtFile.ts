@@ -1,6 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
-import { checkActingTownAccess } from '../shared/actingTownGuard.ts';
+
+/** Inlined so this file works when Base44 only syncs a single `exportCaseCourtFile.ts` (no `shared/`). */
+type BodyWithActing = { acting_town_id?: string };
+
+function checkActingTownAccess(
+  user: { role?: string },
+  body: BodyWithActing,
+  resourceTownId: string | null | undefined
+): Response | null {
+  if (user.role !== 'superadmin') return null;
+  const acting = typeof body.acting_town_id === 'string' ? body.acting_town_id.trim() : '';
+  if (!acting) return null;
+  if (!resourceTownId || resourceTownId !== acting) {
+    return Response.json(
+      { error: 'Forbidden: not allowed outside the active municipality context' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
 
 export type CourtFileExportOptions = {
   packetVariant: string;
@@ -971,4 +990,14 @@ export async function handleCourtFileExport(
     console.error('Export Error:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
+}
+
+if (import.meta.main) {
+  Deno.serve((req) =>
+    handleCourtFileExport(req, {
+      packetVariant: 'full-8-20260404',
+      documentTitlePrefix: 'Court File Export (full packet)',
+      exportRoute: 'exportCaseCourtFile',
+    })
+  );
 }
