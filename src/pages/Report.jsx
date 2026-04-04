@@ -171,13 +171,15 @@ export default function Report() {
 
   const townName = townConfig?.town_name || 'Town';
 
+  const reportShell = 'min-h-screen bg-gradient-to-b from-primary/[0.06] via-background to-background';
+
   if (townLoadError === 'invalid') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
-          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Invalid report link</h1>
-          <p className="text-sm text-slate-600">
+      <div className={`${reportShell} flex items-center justify-center p-6`}>
+        <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" />
+          <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">Invalid report link</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             This URL does not match an active municipality. Use the &quot;Report a violation&quot; link from your town&apos;s official website, or contact your code enforcement office.
           </p>
         </div>
@@ -187,11 +189,11 @@ export default function Report() {
 
   if (townLoadError === 'inactive') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
-          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Reporting unavailable</h1>
-          <p className="text-sm text-slate-600">
+      <div className={`${reportShell} flex items-center justify-center p-6`}>
+        <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" />
+          <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">Reporting unavailable</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             This municipality&apos;s online reporting is not active. Please call or email your town&apos;s code enforcement office.
           </p>
         </div>
@@ -201,13 +203,16 @@ export default function Report() {
 
   if (townLoadError === 'none') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="max-w-md bg-white rounded-2xl border border-slate-200 shadow p-8 text-center">
-          <Building2 className="w-10 h-10 text-slate-400 mx-auto mb-4" />
-          <h1 className="text-lg font-bold text-slate-900 mb-2">No active municipalities</h1>
-          <p className="text-sm text-slate-600">
+      <div className={`${reportShell} flex items-center justify-center p-6`}>
+        <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+          <Building2 className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">No active municipalities</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             Public reporting is not configured yet. For assistance, contact{' '}
-            <a href="mailto:support@code-enforce.com" className="text-blue-600 underline">support@code-enforce.com</a>.
+            <a href="mailto:support@code-enforce.com" className="font-medium text-primary underline underline-offset-2">
+              support@code-enforce.com
+            </a>
+            .
           </p>
         </div>
       </div>
@@ -216,25 +221,27 @@ export default function Report() {
 
   if (result?.success) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className={`${reportShell} flex items-center justify-center p-4`}>
+        <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
+            <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Report Submitted</h1>
-          <p className="text-slate-600 mb-6">Thank you. Your complaint has been received by {townName} Code Enforcement.</p>
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Report submitted</h1>
+          <p className="mb-6 text-muted-foreground">
+            Thank you. Your complaint has been received by {townName} code enforcement.
+          </p>
 
-          <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6">
-            <p className="text-sm text-slate-500 mb-1">Your Case Number</p>
-            <p className="font-mono text-xl font-bold text-slate-800">{result.case_number}</p>
-            <p className="text-sm text-slate-500 mt-3 mb-1">Your Access Code (to check status)</p>
-            <p className="font-mono text-2xl font-bold tracking-widest text-blue-700 bg-blue-50 px-4 py-2 rounded-lg inline-block">
+          <div className="mb-6 rounded-xl border border-border/80 bg-muted/30 p-5">
+            <p className="mb-1 text-sm text-muted-foreground">Your case number</p>
+            <p className="font-mono text-xl font-bold text-foreground">{result.case_number}</p>
+            <p className="mb-1 mt-3 text-sm text-muted-foreground">Your access code (to check status)</p>
+            <p className="inline-block rounded-lg bg-primary/10 px-4 py-2 font-mono text-2xl font-bold tracking-widest text-primary">
               {result.public_access_code}
             </p>
           </div>
 
-          <p className="text-xs text-slate-500">
-            Save your access code. Visit the Public Portal to track your complaint's status.
+          <p className="text-xs text-muted-foreground">
+            Save your access code. Visit the Public Portal to track your complaint&apos;s status.
           </p>
         </div>
       </div>
@@ -242,65 +249,92 @@ export default function Report() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 py-4 px-4" role="banner">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          {townConfig?.logo_url && (
-            <img src={townConfig.logo_url} alt={`${townName} seal`} className="w-10 h-10 object-contain" />
-          )}
-          <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">{townName}</p>
-            <h1 className="text-lg font-bold text-slate-900">Report a Code Violation</h1>
+    <div className="min-h-screen bg-gradient-to-b from-primary/[0.06] via-background to-background">
+      <header className="border-b border-border/80 bg-card/70 backdrop-blur-sm" role="banner">
+        <div className="mx-auto max-w-2xl px-4 py-4 sm:py-5">
+          <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06]">
+            <div
+              className="h-1 bg-gradient-to-r from-primary/70 via-primary to-primary/50"
+              aria-hidden="true"
+            />
+            <div className="flex items-center gap-4 px-4 py-4 sm:px-5 sm:py-5">
+              {townConfig?.logo_url ? (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background p-1.5">
+                  <img
+                    src={townConfig.logo_url}
+                    alt={`${townName} seal`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-primary/10 text-primary">
+                  <Building2 className="h-7 w-7" aria-hidden="true" />
+                </div>
+              )}
+              <div className="min-w-0 text-left">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{townName}</p>
+                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Report a code violation</h1>
+                {townConfig?.tagline ? (
+                  <p className="mt-1 text-sm text-muted-foreground">{townConfig.tagline}</p>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      <main id="main-content" className="max-w-2xl mx-auto px-4 py-8">
-        {townLoadError === 'choose' && !townConfig && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-900">
-            <p className="font-semibold mb-2">Select your municipality</p>
-            <p className="text-amber-800/90 mb-3">
-              For faster filing, use the report link from your town&apos;s website (it includes the correct town ID). If you don&apos;t have that link, choose your town below.
-            </p>
-            <label htmlFor="town_select" className="sr-only">Municipality</label>
-            <select
-              id="town_select"
-              className="w-full border border-amber-300 rounded-lg px-3 py-2 bg-white text-slate-900"
-              value={selectedTownId}
-              onChange={e => setSelectedTownId(e.target.value)}
+      <main id="main-content" className="mx-auto max-w-2xl px-4 py-8">
+        <div className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm ring-1 ring-black/[0.03] sm:p-8 dark:ring-white/[0.05]">
+          {townLoadError === 'choose' && !townConfig && (
+            <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100">
+              <p className="mb-2 font-semibold">Select your municipality</p>
+              <p className="mb-3 text-amber-900/90 dark:text-amber-50/90">
+                For faster filing, use the report link from your town&apos;s website (it includes the correct town ID). If you don&apos;t have that link, choose your town below.
+              </p>
+              <label htmlFor="town_select" className="sr-only">
+                Municipality
+              </label>
+              <select
+                id="town_select"
+                className="w-full rounded-lg border border-amber-600/25 bg-background px-3 py-2 text-foreground"
+                value={selectedTownId}
+                onChange={(e) => setSelectedTownId(e.target.value)}
+              >
+                <option value="">— Choose town —</option>
+                {townChoices.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.town_name || t.short_name || t.id}
+                    {t.state ? `, ${t.state}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {errors._submit && (
+            <div
+              className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              role="alert"
             >
-              <option value="">— Choose town —</option>
-              {townChoices.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.town_name || t.short_name || t.id}{t.state ? `, ${t.state}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+              {errors._submit}
+            </div>
+          )}
 
-        {errors._submit && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800" role="alert">
-            {errors._submit}
+          <div className="mb-6 flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+            <div className="text-sm leading-relaxed text-foreground">
+              <strong className="text-foreground">Your privacy is protected.</strong> You may submit anonymously. All
+              reports are reviewed by a code enforcement officer. This form is built for WCAG 2.1 Level AA accessibility.
+            </div>
           </div>
-        )}
 
-        {/* Info banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex gap-3">
-          <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-          <div className="text-sm text-blue-800">
-            <strong>Your privacy is protected.</strong> You may submit anonymously. All reports are reviewed by a Code Enforcement Officer. This form meets WCAG 2.1 Level AA accessibility standards.
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} noValidate aria-label="Code violation report form" className="space-y-6">
+          <form noValidate aria-label="Code violation report form" className="space-y-6" onSubmit={handleSubmit}>
 
           {/* Location */}
           <section aria-labelledby="location-heading">
-            <h2 id="location-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
-              <MapPin className="w-4 h-4 text-slate-500" aria-hidden="true" />
-              Property Location
+            <h2 id="location-heading" className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
+              Property location
             </h2>
             <div>
               <Label htmlFor="property_address">
@@ -325,9 +359,9 @@ export default function Report() {
 
           {/* Violation Type */}
           <section aria-labelledby="violation-heading">
-            <h2 id="violation-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
-              <AlertTriangle className="w-4 h-4 text-slate-500" aria-hidden="true" />
-              Violation Details
+            <h2 id="violation-heading" className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />
+              Violation details
             </h2>
             <div className="space-y-4">
               <div>
@@ -381,21 +415,22 @@ export default function Report() {
 
           {/* Photo Upload */}
           <section aria-labelledby="photos-heading">
-            <h2 id="photos-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
-              <Camera className="w-4 h-4 text-slate-500" aria-hidden="true" />
-              Photo Evidence <span className="text-sm font-normal text-slate-500">(optional but recommended)</span>
+            <h2 id="photos-heading" className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <Camera className="h-4 w-4 text-primary" aria-hidden="true" />
+              Photo evidence{' '}
+              <span className="text-sm font-normal text-muted-foreground">(optional but recommended)</span>
             </h2>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="mb-3 text-xs text-muted-foreground">
               Photos are timestamped upon upload. Clear photos strengthen enforcement action under RSA 676:17.
             </p>
-            <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
-              <Upload className="w-6 h-6 mx-auto mb-2 text-slate-400" aria-hidden="true" />
-              <p className="text-sm text-slate-600 font-medium mb-1">Drag & drop photos here</p>
-              <p className="text-xs text-slate-400 mb-3">JPG, PNG, HEIC accepted</p>
-              <div className="flex justify-center gap-2">
-                <label className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
-                  <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-                  Browse Files
+            <div className="rounded-xl border-2 border-dashed border-border/80 bg-muted/20 p-6 text-center">
+              <Upload className="mx-auto mb-2 h-6 w-6 text-muted-foreground" aria-hidden="true" />
+              <p className="mb-1 text-sm font-medium text-foreground">Drag & drop photos here</p>
+              <p className="mb-3 text-xs text-muted-foreground">JPG, PNG, HEIC accepted</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted/50">
+                  <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                  Browse files
                   <input
                     type="file"
                     multiple
@@ -405,9 +440,9 @@ export default function Report() {
                     aria-label="Upload photo evidence"
                   />
                 </label>
-                <label className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
-                  <Camera className="w-3.5 h-3.5" aria-hidden="true" />
-                  Take Photo
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted/50">
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                  Take photo
                   <input
                     type="file"
                     accept="image/*"
@@ -420,13 +455,19 @@ export default function Report() {
               </div>
             </div>
             {uploading && (
-              <p className="text-sm text-slate-500 mt-2 text-center" role="status" aria-live="polite">Uploading photos...</p>
+              <p className="mt-2 text-center text-sm text-muted-foreground" role="status" aria-live="polite">
+                Uploading photos…
+              </p>
             )}
             {photos.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3" role="list" aria-label="Uploaded photos">
                 {photos.map((p, i) => (
                   <div key={i} className="relative" role="listitem">
-                    <img src={p.preview} alt={`Evidence photo ${i + 1}: ${p.name}`} className="w-20 h-20 object-cover rounded-lg border border-slate-200" />
+                    <img
+                      src={p.preview}
+                      alt={`Evidence photo ${i + 1}: ${p.name}`}
+                      className="h-20 w-20 rounded-lg border border-border object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
@@ -443,18 +484,18 @@ export default function Report() {
 
           {/* Your Information */}
           <section aria-labelledby="contact-heading">
-            <h2 id="contact-heading" className="flex items-center gap-2 text-base font-semibold text-slate-800 mb-4">
-              <FileText className="w-4 h-4 text-slate-500" aria-hidden="true" />
-              Your Information
+            <h2 id="contact-heading" className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
+              Your information
             </h2>
 
-            <div className="flex items-center gap-2 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 p-3">
               <input
                 type="checkbox"
                 id="anonymous"
                 checked={form.complainant_anonymous}
-                onChange={e => update('complainant_anonymous', e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300"
+                onChange={(e) => update('complainant_anonymous', e.target.checked)}
+                className="h-4 w-4 rounded border-border"
               />
               <Label htmlFor="anonymous" className="cursor-pointer text-sm font-medium">
                 Submit anonymously — do not include my contact information
@@ -505,16 +546,17 @@ export default function Report() {
             >
               {submitting ? 'Submitting Report...' : 'Submit Violation Report'}
             </Button>
-            <p className="text-xs text-slate-400 text-center mt-3">
-              By submitting, you certify the information is accurate to the best of your knowledge.
-              Reports are retained per NH RSA 33-A records retention requirements.
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              By submitting, you certify the information is accurate to the best of your knowledge. Reports are retained
+              per NH RSA 33-A records retention requirements.
             </p>
           </div>
         </form>
+        </div>
       </main>
 
-      <footer className="text-center py-6 text-xs text-slate-400" role="contentinfo">
-        {townName} Code Enforcement Division · Public Complaint Portal
+      <footer className="py-6 text-center text-xs text-muted-foreground" role="contentinfo">
+        {townName} code enforcement · public complaint portal
       </footer>
     </div>
   );

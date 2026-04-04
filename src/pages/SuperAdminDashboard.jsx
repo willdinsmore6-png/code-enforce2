@@ -176,7 +176,7 @@ export default function SuperAdminDashboard() {
   if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-slate-50/30 min-h-screen">
+    <div className="mx-auto min-h-screen max-w-7xl p-4 sm:p-6 lg:p-8">
       
       {/* 1. MAINTENANCE CONTROLS */}
       <div className="mb-8 bg-slate-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">

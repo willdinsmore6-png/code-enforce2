@@ -41,7 +41,10 @@ export default function AppLayout() {
         <nav aria-label="Main navigation" className="hidden md:flex">
           <Sidebar />
         </nav>
-        <main className="flex-1 overflow-y-auto" id="main-content">
+        <main
+          className="flex-1 overflow-y-auto scroll-smooth bg-gradient-to-b from-primary/[0.04] via-background to-background dark:from-primary/[0.07] dark:via-background dark:to-background"
+          id="main-content"
+        >
           <SubscriptionGate>
             <Outlet />
           </SubscriptionGate>

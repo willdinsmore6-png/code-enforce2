@@ -414,6 +414,76 @@ async function fetchImageAsBase64(url: string, base44: any) {
   return null;
 }
 
+type TownBranding = {
+  name: string;
+  state: string;
+  tagline: string;
+  logo: { data: string; format: string } | null;
+};
+
+/** Load TownConfig for PDF cover and running headers (logo via same fetch path as investigation photos). */
+async function loadTownBranding(
+  base44: any,
+  townId: string | undefined,
+  isSuperadmin: boolean
+): Promise<TownBranding> {
+  const fallback = (): TownBranding => ({
+    name: 'Municipal Code Enforcement',
+    state: '',
+    tagline: '',
+    logo: null,
+  });
+  if (!townId) return fallback();
+
+  let row: Record<string, unknown> | null = null;
+  const tcUser = base44.entities?.TownConfig;
+  const tcSr = base44.asServiceRole?.entities?.TownConfig;
+
+  if (tcUser?.get) {
+    try {
+      row = (await tcUser.get(townId)) as Record<string, unknown>;
+    } catch {
+      row = null;
+    }
+  }
+  if (!row && tcSr?.get) {
+    try {
+      row = (await tcSr.get(townId)) as Record<string, unknown>;
+    } catch {
+      row = null;
+    }
+  }
+  if (!row && tcSr?.filter) {
+    try {
+      const f = (await tcSr.filter({ id: townId }, '-created_date', 5)) as Record<string, unknown>[] | null;
+      row = f?.[0] ?? null;
+    } catch {
+      row = null;
+    }
+  }
+  if (!row && isSuperadmin && tcUser?.filter) {
+    try {
+      const f = (await tcUser.filter({ id: townId }, '-created_date', 5)) as Record<string, unknown>[] | null;
+      row = f?.[0] ?? null;
+    } catch {
+      row = null;
+    }
+  }
+
+  if (!row) return fallback();
+
+  const name = String(row.town_name || row.short_name || 'Municipal Code Enforcement').trim();
+  const state = String(row.state || '').trim();
+  const tagline = String(row.tagline || '').trim();
+  const logoUrl = String(row.logo_url || '').trim();
+  let logo: { data: string; format: string } | null = null;
+  if (logoUrl) {
+    logo = await fetchImageAsBase64(logoUrl, base44);
+  }
+
+  return { name: name || 'Municipal Code Enforcement', state, tagline, logo };
+}
+
 export async function handleCourtFileExport(
   req: Request,
   o: CourtFileExportOptions
@@ -566,6 +636,8 @@ export async function handleCourtFileExport(
       }
     });
 
+    const branding = await loadTownBranding(base44, townId, user.role === 'superadmin');
+
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();
@@ -582,13 +654,30 @@ export async function handleCourtFileExport(
     }
 
     function addPageHeader() {
+      const logoBox = 6.5;
+      let textStartX = margin;
+      if (branding.logo) {
+        try {
+          doc.addImage(branding.logo.data, branding.logo.format, margin, margin - 12, logoBox, logoBox);
+          textStartX = margin + logoBox + 2.5;
+        } catch {
+          /* optional */
+        }
+      }
+      const townLine = [branding.name, branding.state].filter(Boolean).join(', ');
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(7);
+      doc.setTextColor(75);
+      const townMaxW = pw - textStartX - margin - 18;
+      const townShown = doc.splitTextToSize(townLine, townMaxW)[0] || townLine;
+      doc.text(townShown, textStartX, margin - 7);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6.5);
       doc.setTextColor(120);
-      doc.text(`CASE FILE: ${caseRecord.case_number || case_id} — CONFIDENTIAL`, margin, margin - 5);
-      doc.text(`Page ${doc.internal.pages.length - 1}`, pw - margin, margin - 5, { align: 'right' });
+      doc.text(`Page ${doc.internal.pages.length - 1}`, pw - margin, margin - 7, { align: 'right' });
+      doc.text(`Case ${caseRecord.case_number || case_id} · Confidential`, textStartX, margin - 3);
       doc.setDrawColor(180);
-      doc.line(margin, margin - 3, pw - margin, margin - 3);
+      doc.line(margin, margin - 1, pw - margin, margin - 1);
       doc.setTextColor(0);
     }
 
@@ -668,19 +757,73 @@ export async function handleCourtFileExport(
       catch { return String(d); }
     }
 
-    // COVER PAGE
+    // COVER PAGE — municipality name, optional seal/logo, case file title
+    const bannerH = 58;
     doc.setFillColor(30, 64, 175);
-    doc.rect(0, 0, pw, 60, 'F');
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(22);
+    doc.rect(0, 0, pw, bannerH, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.text('CODE ENFORCEMENT', pw / 2, 22, { align: 'center' });
-    doc.text('CASE FILE', pw / 2, 34, { align: 'center' });
+    doc.setFont('Helvetica', 'bold');
+
+    if (branding.logo) {
+      const logoW = 28;
+      const logoH = 24;
+      try {
+        doc.addImage(branding.logo.data, branding.logo.format, margin, 10, logoW, logoH);
+      } catch (e) {
+        console.error('Cover logo embed failed:', e instanceof Error ? e.message : e);
+      }
+      const tx = margin + logoW + 8;
+      const textW = pw - tx - margin;
+      doc.setFontSize(16);
+      const titleLines = doc.splitTextToSize(branding.name, textW);
+      let ty = 18;
+      titleLines.forEach((line: string) => {
+        doc.text(line, tx, ty);
+        ty += 7;
+      });
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Code Enforcement — Case File', tx, ty + 2);
+      if (branding.state) {
+        doc.setFontSize(9);
+        doc.setTextColor(220, 228, 255);
+        doc.text(branding.state, tx, ty + 10);
+      }
+      if (branding.tagline) {
+        doc.setFontSize(8);
+        doc.setTextColor(210, 218, 255);
+        const tagLines = doc.splitTextToSize(branding.tagline.slice(0, 200), textW);
+        let tgy = ty + (branding.state ? 16 : 12);
+        tagLines.slice(0, 2).forEach((line: string) => {
+          doc.text(line, tx, tgy);
+          tgy += 4;
+        });
+      }
+    } else {
+      doc.setFontSize(20);
+      doc.text(branding.name, pw / 2, 22, { align: 'center' });
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text('Code Enforcement — Case File', pw / 2, 33, { align: 'center' });
+      if (branding.state) {
+        doc.setFontSize(9);
+        doc.setTextColor(220, 228, 255);
+        doc.text(branding.state, pw / 2, 41, { align: 'center' });
+      }
+      if (branding.tagline) {
+        doc.setFontSize(8);
+        doc.setTextColor(210, 218, 255);
+        doc.text(branding.tagline.slice(0, 96), pw / 2, 48, { align: 'center' });
+      }
+    }
+
+    doc.setFont('Helvetica', 'bold');
     doc.setFontSize(13);
-    doc.text(caseRecord.case_number || `Case #${case_id}`, pw / 2, 47, { align: 'center' });
+    doc.setTextColor(255, 255, 255);
+    doc.text(caseRecord.case_number || `Case #${case_id}`, pw / 2, bannerH - 8, { align: 'center' });
 
     doc.setTextColor(0);
-    y = 72;
+    y = bannerH + 14;
     doc.setFontSize(11);
     doc.text('PROPERTY SUBJECT TO ENFORCEMENT', pw / 2, y, { align: 'center' });
     y += 8;
@@ -959,7 +1102,11 @@ export async function handleCourtFileExport(
       doc.text(`Page ${i - 1} of ${pageCount - 1}`, pw / 2, ph - 10, { align: 'center' });
       doc.setFontSize(6);
       doc.setTextColor(160);
-      doc.text(`Packet ${o.packetVariant} · sections 1–8 · ${o.exportRoute}`, pw / 2, ph - 5, { align: 'center' });
+      const muni = [branding.name, branding.state].filter(Boolean).join(', ');
+      const line1 = muni ? `${muni} · ${o.packetVariant}` : `Packet ${o.packetVariant}`;
+      const l1 = doc.splitTextToSize(line1, pw - margin * 2);
+      doc.text(l1[0], pw / 2, ph - 6, { align: 'center' });
+      doc.text(`Sections 1–8 · ${o.exportRoute}`, pw / 2, ph - 2.5, { align: 'center' });
     }
 
     const pdfBuffer = doc.output('arraybuffer');

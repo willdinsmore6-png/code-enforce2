@@ -248,9 +248,9 @@ export default function CaseDetail() {
           <ArrowLeft className="w-3.5 h-3.5" /> Back to cases
         </Link>
 
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">
+        <div className="flex flex-col gap-5 rounded-2xl border border-border/80 bg-card/70 p-5 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:bg-card/50 dark:ring-white/[0.06] sm:flex-row sm:items-start sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
               {caseData.case_number || `Case #${id.slice(0, 8)}`}
             </h2>
             <div className="flex gap-2 mt-2">

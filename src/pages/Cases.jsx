@@ -92,7 +92,7 @@ export default function Cases() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/90 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

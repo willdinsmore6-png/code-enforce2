@@ -64,7 +64,7 @@ export default function Dashboard() {
         }
       />
 
-      <h2 className="text-lg font-semibold mb-4">Case Overview</h2>
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-foreground">Case Overview</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" role="region" aria-label="Case overview statistics">
         <StatCard icon={FileText} label="Open Cases" value={openCases.length} />
         <StatCard icon={Clock} label="Awaiting Response" value={awaitingCases.length} />
@@ -74,7 +74,7 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Recent Cases */}
-        <div className="lg:col-span-2 bg-card rounded-xl border border-border">
+        <div className="lg:col-span-2 rounded-2xl border border-border/80 bg-card/90 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="font-semibold">Recent Cases</h2>
             <Link to="/cases" className="text-sm text-primary font-medium flex items-center gap-1 hover:underline">
@@ -105,7 +105,7 @@ export default function Dashboard() {
         </div>
 
         {/* Upcoming Deadlines */}
-        <div className="bg-card rounded-xl border border-border">
+        <div className="rounded-2xl border border-border/80 bg-card/90 shadow-sm ring-1 ring-black/[0.05] dark:ring-white/[0.05]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="font-semibold">Upcoming Deadlines</h2>
             <Link to="/deadlines" className="text-sm text-primary font-medium flex items-center gap-1 hover:underline">

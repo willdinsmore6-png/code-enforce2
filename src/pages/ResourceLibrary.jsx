@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import BuildingCodeLookup from '../components/BuildingCodeLookup';
+import PageHeader from '../components/shared/PageHeader';
 import { base44 } from '@/api/base44Client';
 import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -52,24 +53,29 @@ export default function ResourceLibrary() {
     }, {});
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       <section>
         <BuildingCodeLookup townName={townName} state={state} townId={currentTownId} />
       </section>
 
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-100 pb-6 text-left">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 font-mono tracking-tight uppercase">Resource Library</h1>
-          <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Active Jurisdiction: {townName}</p>
-        </div>
-        <div className="flex gap-2">
-          {isAdmin && (
-            <Button onClick={() => setShowAI(!showAI)} variant="outline" size="sm" className="gap-2 text-[10px] font-bold bg-slate-900 text-white uppercase shadow-sm hover:bg-slate-800">
-              <Sparkles className="w-3 h-3 text-amber-500" /> {showAI ? "Close Curator" : "Open AI Curator"}
+      <PageHeader
+        title="Resource Library"
+        description={`Ordinances and reference materials for ${townName}${state ? `, ${state}` : ''}.`}
+        actions={
+          isAdmin ? (
+            <Button
+              type="button"
+              onClick={() => setShowAI(!showAI)}
+              variant="default"
+              size="sm"
+              className="gap-2 shadow-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              {showAI ? 'Close AI curator' : 'Open AI curator'}
             </Button>
-          )}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {showAI && (
         <AICuratePanel 
@@ -81,42 +87,62 @@ export default function ResourceLibrary() {
       )}
 
       <section className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-slate-400" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">Live Vault</h2>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <BookOpen className="h-4 w-4" />
+            </div>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">Live vault</h2>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative w-48 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input placeholder="Filter records..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-8 text-xs bg-white border-slate-200" />
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Filter records…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9 pl-9 text-sm"
+              />
             </div>
-            <Button onClick={loadResources} variant="ghost" size="sm" className="h-8 w-8 p-0">
-               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <Button type="button" onClick={loadResources} variant="outline" size="icon" className="h-9 w-9 shrink-0" aria-label="Refresh list">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
 
         {resources.length === 0 && !loading && (
-          <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-xl font-mono text-slate-400 uppercase text-xs tracking-widest">
-             No accessible records found for this ID
+          <div className="rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 py-16 text-center text-sm text-muted-foreground">
+            No resources found for this municipality yet.
           </div>
         )}
 
         <div className="space-y-8">
           {Object.entries(grouped).map(([category, items]) => (
             <div key={category} className="space-y-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-1 text-left font-mono">{category}</p>
+              <p className="ml-1 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</p>
               <div className="grid gap-2">
-                {items.map(item => (
-                  <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm text-left hover:border-slate-300 transition-all">
-                    <button onClick={() => toggleItem(item.id)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors">
-                      <span className="text-sm font-semibold text-slate-700">{item.term}</span>
-                      {expandedItems[item.id] ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="overflow-hidden rounded-2xl border border-border/80 bg-card/90 text-left shadow-sm ring-1 ring-black/[0.03] transition-all hover:border-primary/25 dark:ring-white/[0.05]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleItem(item.id)}
+                      className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/40"
+                    >
+                      <span className="text-sm font-semibold text-foreground">{item.term}</span>
+                      {expandedItems[item.id] ? (
+                        <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
                     </button>
                     {expandedItems[item.id] && (
-                      <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-50 font-mono">
-                        <div className="text-sm text-slate-600 leading-relaxed py-2"><ReactMarkdown>{item.definition}</ReactMarkdown></div>
+                      <div className="space-y-4 border-t border-border/60 px-5 pb-5 pt-3">
+                        <div className="max-w-none text-sm leading-relaxed text-muted-foreground [&_a]:text-primary [&_a]:underline [&_p]:mb-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+                          <ReactMarkdown>{item.definition}</ReactMarkdown>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -172,28 +198,51 @@ function AICuratePanel({ onClose, townId, townName, state }) {
   };
 
   return (
-    <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xl">
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white font-mono text-[10px]">
-        <span className="font-bold uppercase tracking-widest">Registrar Curator Sync</span>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={handleAutoCurate} className="h-6 text-[9px] bg-amber-500/10 text-amber-500 gap-1 border border-amber-500/20 hover:bg-amber-500/20">
-            <RefreshCw className={`w-2.5 h-2.5 ${sending ? 'animate-spin' : ''}`} /> Auto-Sync
+    <div className="mb-8 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+      <div className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white dark:bg-slate-950">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-200">AI resource curator</span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAutoCurate}
+            className="h-8 gap-1 border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 hover:text-amber-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${sending ? 'animate-spin' : ''}`} />
+            Auto-sync
           </Button>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Close curator"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
-      <div className="h-64 overflow-y-auto px-4 py-3 bg-slate-50 font-mono text-[10px] text-left">
+      <div className="h-64 overflow-y-auto bg-muted/30 px-4 py-3 text-left text-xs">
         {messages.map((msg, i) => (
-          <div key={i} className={`mb-3 ${msg.role === 'user' ? 'text-blue-600' : 'text-slate-700'}`}>
-            <span className="font-bold">{msg.role === 'user' ? '> AUDIT: ' : '>> RESPONSE: '}</span>
-            <div className="inline ml-1"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+          <div key={i} className={`mb-3 ${msg.role === 'user' ? 'text-primary' : 'text-foreground'}`}>
+            <span className="font-semibold">{msg.role === 'user' ? 'You: ' : 'Assistant: '}</span>
+            <span className="ml-1 inline align-top">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </span>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={sendMessage} className="flex gap-2 p-4 border-t bg-white">
-        <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Sync instructions..." className="flex-1 h-9 text-xs font-mono border-slate-200 focus:ring-slate-900" />
-        <Button type="submit" size="sm" className="bg-slate-900 h-9 px-4 uppercase text-[10px] font-bold" disabled={sending}>Execute</Button>
+      <form onSubmit={sendMessage} className="flex gap-2 border-t border-border bg-card p-4">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Instructions for the curator…"
+          className="h-9 flex-1 text-sm"
+        />
+        <Button type="submit" size="sm" className="h-9 shrink-0 px-4 font-semibold" disabled={sending}>
+          Send
+        </Button>
       </form>
     </div>
   );

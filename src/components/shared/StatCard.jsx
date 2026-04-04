@@ -3,14 +3,14 @@ import { cn } from '@/lib/utils';
 export default function StatCard({ icon: Icon, label, value, trend, trendUp, className }) {
   return (
     <div className={cn(
-      "bg-card rounded-xl border border-border p-5 flex flex-col gap-3 transition-shadow hover:shadow-md",
+      "flex flex-col gap-3 rounded-xl border border-border/80 bg-card/90 p-5 shadow-sm ring-1 ring-black/[0.03] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:ring-white/[0.05]",
       className
     )}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
         {Icon && (
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="w-[18px] h-[18px] text-primary" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-inner">
+            <Icon className="h-[18px] w-[18px]" />
           </div>
         )}
       </div>
