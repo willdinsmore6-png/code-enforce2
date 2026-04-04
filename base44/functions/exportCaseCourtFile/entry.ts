@@ -192,51 +192,76 @@ function collectPhotoUrls(inv: { photos?: unknown }): string[] {
     .filter(Boolean);
 }
 
+function attachmentFileName(url: string): string {
+  try {
+    const path = new URL(url).pathname;
+    const seg = path.split('/').pop() || url;
+    return decodeURIComponent(seg);
+  } catch {
+    return url.slice(-80);
+  }
+}
+
+function isLikelyPdfUrl(url: string): boolean {
+  return /\.pdf(\?|#|$)/i.test(url);
+}
+
+/** Decode bytes as embeddable image for jsPDF (not PDFs — those are listed as links only). */
+function bufferToImagePayload(buffer: ArrayBuffer, contentTypeHeader: string | null): { data: string; format: string } | null {
+  const ct = (contentTypeHeader || '').toLowerCase();
+  if (ct.includes('pdf')) return null;
+  if (ct.startsWith('image/')) {
+    const base64 = arrayBufferToBase64(buffer);
+    return { data: base64, format: ct.includes('png') ? 'PNG' : 'JPEG' };
+  }
+  const fmt = sniffImageFormat(buffer);
+  if (fmt) {
+    return { data: arrayBufferToBase64(buffer), format: fmt };
+  }
+  return null;
+}
+
 async function fetchImageAsBase64(url: string, base44: any) {
   if (!url) return null;
 
-  async function readResponse(response: Response) {
+  const tryFetchUrl = async (fetchUrl: string) => {
+    const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(20000) });
     if (!response.ok) return null;
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    if (!contentType.startsWith('image/')) return null;
     const buffer = await response.arrayBuffer();
-    const base64 = arrayBufferToBase64(buffer);
-    return { data: base64, format: contentType.includes('png') ? 'PNG' : 'JPEG' };
-  }
+    return bufferToImagePayload(buffer, response.headers.get('content-type'));
+  };
+
+  const trySignedThenFetch = async () => {
+    if (!base44?.asServiceRole?.integrations?.Core?.CreateFileSignedUrl) return null;
+    try {
+      const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+        file_uri: url,
+        expires_in: 300,
+      });
+      if (signed_url) return await tryFetchUrl(signed_url);
+    } catch (e) {
+      console.error(`Signed URL failed for attachment: ${url}`, e?.message);
+    }
+    return null;
+  };
 
   try {
-    let response = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    let result = await readResponse(response);
+    // App file URLs often need a signed URL when fetched from Deno (even "public" paths).
+    const preferSignedFirst = /base44\.app\//i.test(url);
+    if (preferSignedFirst) {
+      const fromSigned = await trySignedThenFetch();
+      if (fromSigned) return fromSigned;
+    }
+
+    let result = await tryFetchUrl(url);
     if (result) return result;
 
-    // Private / authenticated file URIs: request a short-lived signed URL then retry
-    if (base44?.asServiceRole?.integrations?.Core?.CreateFileSignedUrl) {
-      try {
-        const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
-          file_uri: url,
-          expires_in: 300,
-        });
-        if (signed_url) {
-          response = await fetch(signed_url, { signal: AbortSignal.timeout(15000) });
-          result = await readResponse(response);
-          if (result) return result;
-          if (response.ok) {
-            const ct = (response.headers.get('content-type') || '').toLowerCase();
-            if (ct.includes('octet-stream') || ct.includes('binary')) {
-              const buffer = await response.arrayBuffer();
-              const fmt = sniffImageFormat(buffer);
-              if (fmt) {
-                return { data: arrayBufferToBase64(buffer), format: fmt };
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error(`Signed URL failed for photo: ${url}`, e?.message);
-      }
+    if (!preferSignedFirst) {
+      result = await trySignedThenFetch();
+      if (result) return result;
     }
   } catch (err) {
-    console.error(`Photo fetch failed: ${url}`, err?.message);
+    console.error(`Attachment fetch failed: ${url}`, err?.message);
   }
   return null;
 }
@@ -640,22 +665,60 @@ Deno.serve(async (req) => {
 
         const invPhotoUrls = collectPhotoUrls(inv);
         if (invPhotoUrls.length > 0) {
+          checkPageBreak(14);
+          subsectionTitle('Attachments & evidence files');
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(60);
+          bodyText(
+            'Every file linked to this investigation is listed below. PDFs and non-image types cannot be inlined in this packet; use the URL or the case file in CodeEnforce. Images are also embedded after this list when available.'
+          );
+          doc.setTextColor(0);
+          y += 2;
+
+          invPhotoUrls.forEach((u, ai) => {
+            const name = attachmentFileName(u);
+            const pdf = isLikelyPdfUrl(u);
+            const kind = pdf ? 'PDF' : /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(u) ? 'Image' : 'File';
+            checkPageBreak(18);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.text(`${ai + 1}. ${name} (${kind})`, margin, y + 4);
+            y += 5;
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.setTextColor(30, 64, 175);
+            const urlLines = doc.splitTextToSize(String(u), cw);
+            urlLines.forEach((line: string) => {
+              checkPageBreak(4);
+              doc.text(line, margin, y + 4);
+              y += 3.5;
+            });
+            doc.setTextColor(0);
+            y += 3;
+          });
+
           const validPhotos = invPhotoUrls.filter((url) => photoCache[url]);
-          const skipped = invPhotoUrls.length - validPhotos.length;
-          if (skipped > 0) {
+          const notEmbedded = invPhotoUrls.length - validPhotos.length;
+          if (notEmbedded > 0) {
             checkPageBreak(8);
             doc.setFont('Helvetica', 'italic');
             doc.setFontSize(8);
+            doc.setTextColor(100);
             doc.text(
-              `${skipped} attachment(s) could not be embedded (private URL or non-image). Files remain in the case record.`,
+              `${notEmbedded} file(s) above were not embedded as pictures (PDF, fetch failed, or non-JPEG/PNG bytes). URLs remain in the list.`,
               margin,
               y + 4
             );
             doc.setFont('Helvetica', 'normal');
+            doc.setTextColor(0);
             y += 8;
           }
+
           if (validPhotos.length > 0) {
-            y += 5;
+            checkPageBreak(10);
+            subsectionTitle('Embedded images');
+            y += 2;
             let photoX = margin;
             let photoRowMaxY = y;
             for (const photoUrl of validPhotos) {
