@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
-import { checkActingTownAccess } from '../lib/actingTownGuard.ts';
+import { checkActingTownAccess } from '../shared/actingTownGuard.ts';
 
 Deno.serve(async (req) => {
   try {

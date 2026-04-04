@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
-import { allocateUniquePublicAccessCode } from '../lib/publicAccessCode.ts';
+import { allocateUniquePublicAccessCode } from '../shared/publicAccessCode.ts';
 
 Deno.serve(async (req) => {
   try {

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
-import { randomPublicAccessCode } from '../lib/publicAccessCode.ts';
+import { randomPublicAccessCode } from '../shared/publicAccessCode.ts';
 
 Deno.serve(async (req) => {
   try {
