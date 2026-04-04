@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, FileText, Image, Download, Trash2, Eye, Upload, X } from 'lucide-react';
 import DocumentPreview from './DocumentPreview';
+import { isLikelyPublicFileUrl, getDocumentSignedUrl } from '@/lib/documentFileAccess';
 
 const ACCEPT = 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif';
 
@@ -55,6 +56,31 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
     if (!window.confirm('Are you sure?')) return;
     await base44.entities.Document.delete(docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
+  }
+
+  async function handleDownloadDocument(doc) {
+    try {
+      if (isLikelyPublicFileUrl(doc.file_url)) {
+        window.open(doc.file_url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const { signedUrl, filename } = await getDocumentSignedUrl(
+        user,
+        impersonatedMunicipality,
+        doc.id
+      );
+      const a = document.createElement('a');
+      a.href = signedUrl;
+      a.download = filename || doc.title || 'document';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Document download failed:', err);
+      alert(err.message || 'Download failed');
+    }
   }
 
   async function handleUpload(e) {
@@ -182,7 +208,15 @@ export default function CaseDocuments({ caseId, documents, setDocuments, readOnl
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => setPreviewDoc(doc)} className="text-muted-foreground hover:text-primary transition-colors"><Eye className="w-4 h-4" /></button>
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><Download className="w-4 h-4" /></a>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadDocument(doc)}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                    title="Download"
+                    aria-label="Download document"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                   {!readOnly && <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>}
                 </div>
               </div>

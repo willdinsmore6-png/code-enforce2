@@ -161,6 +161,12 @@ export default function CaseDetail() {
       const { document_id } = response.data;
       if (!document_id) throw new Error('No document ID returned');
       setGeneratedDocId(document_id);
+      try {
+        const refreshed = await base44.entities.Document.filter({ case_id: id });
+        setDocuments(refreshed || []);
+      } catch (e) {
+        console.warn('Could not refresh document list after export:', e);
+      }
     } catch (err) {
       console.error('PDF generation failed:', err);
       alert(`Generation failed: ${err.message}`);
