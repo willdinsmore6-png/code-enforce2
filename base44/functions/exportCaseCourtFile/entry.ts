@@ -16,6 +16,17 @@ function arrayBufferToBase64(buffer) {
 /** Base44 entity filter often needs sort + limit in Deno/service role; single-arg filter can return []. */
 const CASE_CHILD_SORT = '-created_date';
 const CASE_CHILD_LIMIT = 500;
+const LIST_FALLBACK_LIMIT = 5000;
+
+/** Match investigation/case links when API stores case_id as string, populated ref, or loose type. */
+function normalizeCaseId(v: unknown): string {
+  if (v == null) return '';
+  if (typeof v === 'string' || typeof v === 'number') return String(v).trim();
+  if (typeof v === 'object' && v !== null && 'id' in v) {
+    return String((v as { id: unknown }).id ?? '').trim();
+  }
+  return String(v).trim();
+}
 
 function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
   const u = new Uint8Array(buffer.slice(0, 12));
@@ -24,37 +35,79 @@ function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
   return null;
 }
 
-async function loadCaseChildren<T extends { case_id?: string }>(
-  base44: any,
-  entity: string,
-  caseId: string,
+type EntityClient = {
+  filter: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
+  list?: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
+};
+
+/**
+ * Load child rows for a case. Uses explicit entity clients (not entities[string]) — bracket access
+ * can be undefined in some Deno/service-role builds. Falls back to town filter, then list+scan.
+ */
+async function loadCaseChildren<T extends { case_id?: unknown }>(
+  entityClient: EntityClient | undefined,
+  entityLabel: string,
+  caseIds: Set<string>,
   townId: string | undefined
 ): Promise<T[]> {
-  const q = { case_id: caseId };
+  if (!entityClient?.filter) {
+    console.error(`exportCaseCourtFile: missing entity client for ${entityLabel}`);
+    return [];
+  }
+
+  const matchesCase = (r: T) => {
+    const n = normalizeCaseId(r?.case_id);
+    return n.length > 0 && caseIds.has(n);
+  };
+
+  const primaryId = [...caseIds][0];
+  const tryQueries = [
+    { case_id: primaryId },
+    { case_id: { $eq: primaryId } },
+  ] as const;
+
   let rows: T[] = [];
-  try {
-    rows =
-      (await base44.asServiceRole.entities[entity].filter(q, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) || [];
-  } catch {
+
+  for (const q of tryQueries) {
+    if (rows.length > 0) break;
     try {
-      rows = (await base44.asServiceRole.entities[entity].filter(q)) || [];
+      rows =
+        (await entityClient.filter(q, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) as T[] || [];
     } catch (e) {
-      console.error(`${entity} case_id filter failed:`, e?.message);
+      console.error(`${entityLabel} filter(3arg) failed:`, e?.message);
+    }
+    if (rows.length === 0) {
+      try {
+        rows = (await entityClient.filter(q)) as T[] || [];
+      } catch (e) {
+        console.error(`${entityLabel} filter(1arg) failed:`, e?.message);
+      }
     }
   }
+
   if (rows.length === 0 && townId) {
     try {
       const wide =
-        (await base44.asServiceRole.entities[entity].filter(
+        (await entityClient.filter(
           { town_id: townId },
           CASE_CHILD_SORT,
           CASE_CHILD_LIMIT
-        )) || [];
-      rows = wide.filter((r: T) => String(r?.case_id || '') === String(caseId));
+        )) as T[] || [];
+      rows = (wide || []).filter(matchesCase);
     } catch (e) {
-      console.error(`${entity} town fallback failed:`, e?.message);
+      console.error(`${entityLabel} town fallback failed:`, e?.message);
     }
   }
+
+  if (rows.length === 0 && typeof entityClient.list === 'function') {
+    try {
+      const listed = (await entityClient.list(CASE_CHILD_SORT, LIST_FALLBACK_LIMIT)) as T[] || [];
+      rows = (listed || []).filter(matchesCase);
+    } catch (e) {
+      console.error(`${entityLabel} list fallback failed:`, e?.message);
+    }
+  }
+
   return rows;
 }
 
@@ -180,7 +233,13 @@ Deno.serve(async (req) => {
     if (actingDenied) return actingDenied;
 
     const caseInternalId = String(caseRecord.id || '').trim();
+    const requestCaseId = String(body.case_id || '').trim();
+    const caseIds = new Set(
+      [caseInternalId, requestCaseId].filter((x) => x.length > 0)
+    );
     const townId = caseRecord.town_id ? String(caseRecord.town_id).trim() : undefined;
+
+    const ent = base44.asServiceRole.entities;
 
     const [
       notices,
@@ -191,13 +250,13 @@ Deno.serve(async (req) => {
       violations,
       investigations,
     ] = await Promise.all([
-      loadCaseChildren(base44, 'Notice', caseInternalId, townId),
-      loadCaseChildren(base44, 'Document', caseInternalId, townId),
-      loadCaseChildren(base44, 'CourtAction', caseInternalId, townId),
-      loadCaseChildren(base44, 'Deadline', caseInternalId, townId),
-      loadCaseChildren(base44, 'AuditLog', caseInternalId, townId),
-      loadCaseChildren(base44, 'Violation', caseInternalId, townId),
-      loadCaseChildren(base44, 'Investigation', caseInternalId, townId),
+      loadCaseChildren(ent.Notice, 'Notice', caseIds, townId),
+      loadCaseChildren(ent.Document, 'Document', caseIds, townId),
+      loadCaseChildren(ent.CourtAction, 'CourtAction', caseIds, townId),
+      loadCaseChildren(ent.Deadline, 'Deadline', caseIds, townId),
+      loadCaseChildren(ent.AuditLog, 'AuditLog', caseIds, townId),
+      loadCaseChildren(ent.Violation, 'Violation', caseIds, townId),
+      loadCaseChildren(ent.Investigation, 'Investigation', caseIds, townId),
     ]);
 
     const allPhotoUrls = (investigations || []).flatMap((inv) => collectPhotoUrls(inv));
