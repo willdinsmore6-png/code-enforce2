@@ -11,7 +11,8 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "deploy:functions": "base44 functions deploy",
-    "deploy:function:export": "base44 functions deploy exportCaseCourtFile"
+    "deploy:function:export": "base44 functions deploy exportCaseCourtFile",
+    "deploy:function:full": "base44 functions deploy exportFullCourtPacket"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.24",

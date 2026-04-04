@@ -57,6 +57,8 @@ export default function CaseDetail() {
 
   const [exportLoading, setExportLoading] = useState(false);
   const [generatedDocId, setGeneratedDocId] = useState(null);
+  const [lastExportFilename, setLastExportFilename] = useState(null);
+  const [exportStatus, setExportStatus] = useState('');
   const [downloadLoading, setDownloadLoading] = useState(false);
 
   // MAIN LOAD: case + children (using internal UUID for relationships)
@@ -152,26 +154,46 @@ export default function CaseDetail() {
   async function handleGeneratePDF() {
     setExportLoading(true);
     setGeneratedDocId(null);
+    setLastExportFilename(null);
+    setExportStatus('');
+
+    const payload = mergeActingTownPayload(user, impersonatedMunicipality, {
+      case_id: id,
+      investigation_ids: (investigations || []).map((inv) => inv.id).filter(Boolean),
+    });
+
+    /** Prefer new function name in case the platform still serves old code at `exportCaseCourtFile`. */
+    const tryFunctions = ['exportFullCourtPacket', 'exportCaseCourtFile'];
+    let lastErr = null;
 
     try {
-      const response = await base44.functions.invoke(
-        'exportCaseCourtFile',
-        mergeActingTownPayload(user, impersonatedMunicipality, {
-          case_id: id,
-          investigation_ids: (investigations || []).map((inv) => inv.id).filter(Boolean),
-        })
-      );
-      const { document_id } = response.data;
-      if (!document_id) throw new Error('No document ID returned');
-      setGeneratedDocId(document_id);
-      try {
-        const refreshed = await base44.entities.Document.filter({ case_id: id });
-        setDocuments(refreshed || []);
-      } catch (e) {
-        console.warn('Could not refresh document list after export:', e);
+      for (const fn of tryFunctions) {
+        try {
+          const response = await base44.functions.invoke(fn, payload);
+          const data = response.data || {};
+          const document_id = data.document_id;
+          if (!document_id) throw new Error('No document ID returned');
+          setGeneratedDocId(document_id);
+          if (data.filename) setLastExportFilename(data.filename);
+          const route = data.export_route || fn;
+          const pv = data.packet_variant ? ` · ${data.packet_variant}` : '';
+          setExportStatus(`Built via ${route}${pv}. Check PDF footer for packet id.`);
+          try {
+            const refreshed = await base44.entities.Document.filter({ case_id: id });
+            setDocuments(refreshed || []);
+          } catch (e) {
+            console.warn('Could not refresh document list after export:', e);
+          }
+          return;
+        } catch (e) {
+          lastErr = e;
+          console.warn(`Court export: ${fn} failed, trying fallback if any`, e);
+        }
       }
+      throw lastErr || new Error('All export functions failed');
     } catch (err) {
       console.error('PDF generation failed:', err);
+      setExportStatus('');
       alert(`Generation failed: ${err.message}`);
     } finally {
       setExportLoading(false);
@@ -193,7 +215,9 @@ export default function CaseDetail() {
       const a = document.createElement('a');
       a.href = signed_url;
       a.download =
-        filename || `${caseData.case_number || 'case'}-court-file.pdf`;
+        filename ||
+        lastExportFilename ||
+        `${caseData.case_number || 'case'}-court-file.pdf`;
       a.target = '_blank';
       document.body.appendChild(a);
       a.click();
@@ -239,7 +263,8 @@ export default function CaseDetail() {
             </address>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex gap-2 flex-wrap justify-end">
             <Button
               variant="outline"
               size="sm"
@@ -252,7 +277,7 @@ export default function CaseDetail() {
               ) : (
                 <Download className="w-3.5 h-3.5" />
               )}{' '}
-              {exportLoading ? 'Generating...' : 'Generate PDF'}
+              {exportLoading ? 'Generating...' : 'Generate court packet'}
             </Button>
 
             {generatedDocId && (
@@ -323,6 +348,12 @@ export default function CaseDetail() {
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            {exportStatus ? (
+              <p className="text-xs text-muted-foreground text-right max-w-sm leading-snug">
+                {exportStatus}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
