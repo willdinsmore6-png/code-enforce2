@@ -156,7 +156,10 @@ export default function CaseDetail() {
     try {
       const response = await base44.functions.invoke(
         'exportCaseCourtFile',
-        mergeActingTownPayload(user, impersonatedMunicipality, { case_id: id })
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          case_id: id,
+          investigation_ids: (investigations || []).map((inv) => inv.id).filter(Boolean),
+        })
       );
       const { document_id } = response.data;
       if (!document_id) throw new Error('No document ID returned');

@@ -28,8 +28,18 @@ function normalizeCaseId(v: unknown): string {
   return String(v).trim();
 }
 
-function rowCaseId(r: { case_id?: unknown; caseId?: unknown }): string {
-  return normalizeCaseId(r?.case_id ?? r?.caseId);
+function rowCaseId(r: Record<string, unknown>): string {
+  const data = r?.data as Record<string, unknown> | undefined;
+  const fromData = data && (data.case_id ?? data.caseId);
+  if (fromData != null) return normalizeCaseId(fromData);
+  const direct = r?.case_id ?? r?.caseId;
+  if (direct != null) return normalizeCaseId(direct);
+  const rel = r?.case;
+  if (typeof rel === 'string' || typeof rel === 'number') return normalizeCaseId(rel);
+  if (rel && typeof rel === 'object' && rel !== null && 'id' in rel) {
+    return normalizeCaseId((rel as { id: unknown }).id);
+  }
+  return '';
 }
 
 function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
@@ -42,6 +52,7 @@ function sniffImageFormat(buffer: ArrayBuffer): 'JPEG' | 'PNG' | null {
 type EntityClient = {
   filter: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
   list?: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
+  get?: (id: string) => Promise<unknown>;
 };
 
 /**
@@ -158,6 +169,61 @@ async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown 
   }
 
   return [];
+}
+
+/**
+ * Browser already has investigation rows; Deno filters often return []. Hydrate by id and verify case_id.
+ */
+async function hydrateInvestigationsByIds(
+  userEnt: { Investigation?: EntityClient },
+  srEnt: { Investigation?: EntityClient },
+  rawIds: unknown,
+  canonicalCaseId: string,
+  requestCaseId: string
+): Promise<Record<string, unknown>[]> {
+  if (!Array.isArray(rawIds) || rawIds.length === 0) return [];
+  const ids = [...new Set(rawIds.map((x) => String(x).trim()).filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  const invSr = srEnt.Investigation;
+  const invUser = userEnt.Investigation;
+  const out: Record<string, unknown>[] = [];
+
+  for (const iid of ids) {
+    let row: Record<string, unknown> | null = null;
+    try {
+      if (invSr?.get) {
+        const g = await invSr.get(iid);
+        if (g && typeof g === 'object') row = g as Record<string, unknown>;
+      }
+    } catch {
+      /* try user */
+    }
+    if (!row && invUser?.get) {
+      try {
+        const g = await invUser.get(iid);
+        if (g && typeof g === 'object') row = g as Record<string, unknown>;
+      } catch {
+        /* */
+      }
+    }
+    if (!row && invSr?.filter) {
+      try {
+        const f = (await invSr.filter({ id: iid })) as Record<string, unknown>[] | null;
+        row = f?.[0] ?? null;
+      } catch {
+        /* */
+      }
+    }
+    if (!row) continue;
+
+    const k = rowCaseId(row);
+    if (k === canonicalCaseId || (requestCaseId && k === requestCaseId)) {
+      out.push(row);
+    }
+  }
+
+  return out;
 }
 
 function auditNoteBody(log: { changes?: unknown }): string {
@@ -298,7 +364,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await req.json() as {
+      case_id?: string;
+      acting_town_id?: string;
+      investigation_ids?: unknown;
+    };
     const { case_id } = body;
     if (!case_id) return Response.json({ error: 'case_id required' }, { status: 400 });
 
@@ -390,6 +460,29 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error('Investigation.list full scan fallback failed:', e?.message);
+      }
+    }
+
+    const clientInvIds = body.investigation_ids;
+    if (Array.isArray(clientInvIds) && clientInvIds.length > 0) {
+      const hydrated = await hydrateInvestigationsByIds(
+        userEnt,
+        srEnt,
+        clientInvIds,
+        canonicalCaseId,
+        requestCaseId
+      );
+      if (hydrated.length > 0) {
+        const map = new Map<string, Record<string, unknown>>();
+        for (const inv of investigations || []) {
+          const iid = inv?.id != null ? String(inv.id) : '';
+          if (iid) map.set(iid, inv as Record<string, unknown>);
+        }
+        for (const inv of hydrated) {
+          const iid = inv?.id != null ? String(inv.id) : '';
+          if (iid) map.set(iid, inv);
+        }
+        investigations = [...map.values()];
       }
     }
 
