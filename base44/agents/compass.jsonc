@@ -29,7 +29,7 @@
     },
     {
       "entity_name": "Document",
-      "allowed_operations": ["read", "list"]
+      "allowed_operations": ["read"]
     }
   ],
   "model": "automatic",
