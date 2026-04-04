@@ -44,16 +44,19 @@ type EntityClient = {
   list?: (...args: unknown[]) => Promise<unknown[] | null | undefined>;
 };
 
-/** Load rows for one entity type; try canonical + alternate case ids, then town scan, then list scan. */
-async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown }>(
+/**
+ * Load child rows from one entity client.
+ * `singleArgFilterFirst`: when true, matches CaseDetail.jsx (browser) — filter({ case_id }) only first.
+ */
+async function loadCaseChildrenFromClient<T extends { case_id?: unknown; caseId?: unknown }>(
   entityClient: EntityClient | undefined,
   entityLabel: string,
   canonicalCaseId: string,
   alternateCaseId: string,
-  townId: string | undefined
+  townId: string | undefined,
+  singleArgFilterFirst: boolean
 ): Promise<T[]> {
   if (!entityClient?.filter) {
-    console.error(`exportCaseCourtFile: missing entity client for ${entityLabel}`);
     return [];
   }
 
@@ -65,6 +68,14 @@ async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown 
   const tryFilterByCaseId = async (cid: string): Promise<T[]> => {
     if (!cid) return [];
     try {
+      if (singleArgFilterFirst) {
+        let rows = (await entityClient.filter({ case_id: cid })) as T[] || [];
+        if (rows.length > 0) return rows;
+        rows =
+          (await entityClient.filter({ case_id: cid }, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) as T[] ||
+          [];
+        return rows || [];
+      }
       let rows =
         (await entityClient.filter({ case_id: cid }, CASE_CHILD_SORT, CASE_CHILD_LIMIT)) as T[] ||
         [];
@@ -107,6 +118,46 @@ async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown 
   }
 
   return rows;
+}
+
+/** Browser uses base44.entities.*; Deno service role often returns [] for the same filter — try user client first. */
+async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown }>(
+  userClient: EntityClient | undefined,
+  serviceClient: EntityClient | undefined,
+  entityLabel: string,
+  canonicalCaseId: string,
+  alternateCaseId: string,
+  townId: string | undefined
+): Promise<T[]> {
+  if (!userClient?.filter && !serviceClient?.filter) {
+    console.error(`exportCaseCourtFile: no entity client for ${entityLabel}`);
+    return [];
+  }
+
+  if (userClient?.filter) {
+    const fromUser = await loadCaseChildrenFromClient<T>(
+      userClient,
+      `${entityLabel}[user]`,
+      canonicalCaseId,
+      alternateCaseId,
+      townId,
+      true
+    );
+    if (fromUser.length > 0) return fromUser;
+  }
+
+  if (serviceClient?.filter) {
+    return await loadCaseChildrenFromClient<T>(
+      serviceClient,
+      `${entityLabel}[service]`,
+      canonicalCaseId,
+      alternateCaseId,
+      townId,
+      false
+    );
+  }
+
+  return [];
 }
 
 function auditNoteBody(log: { changes?: unknown }): string {
@@ -251,7 +302,8 @@ Deno.serve(async (req) => {
     const requestCaseId = String(body.case_id || '').trim();
     const townId = caseRecord.town_id ? String(caseRecord.town_id).trim() : undefined;
 
-    const ent = base44.asServiceRole.entities;
+    const userEnt = base44.entities;
+    const srEnt = base44.asServiceRole.entities;
 
     const [
       notices,
@@ -262,13 +314,20 @@ Deno.serve(async (req) => {
       violations,
       investigations,
     ] = await Promise.all([
-      loadCaseChildren(ent.Notice, 'Notice', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.Document, 'Document', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.CourtAction, 'CourtAction', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.Deadline, 'Deadline', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.AuditLog, 'AuditLog', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.Violation, 'Violation', canonicalCaseId, requestCaseId, townId),
-      loadCaseChildren(ent.Investigation, 'Investigation', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.Notice, srEnt.Notice, 'Notice', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.Document, srEnt.Document, 'Document', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.CourtAction, srEnt.CourtAction, 'CourtAction', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.Deadline, srEnt.Deadline, 'Deadline', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.AuditLog, srEnt.AuditLog, 'AuditLog', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(userEnt.Violation, srEnt.Violation, 'Violation', canonicalCaseId, requestCaseId, townId),
+      loadCaseChildren(
+        userEnt.Investigation,
+        srEnt.Investigation,
+        'Investigation',
+        canonicalCaseId,
+        requestCaseId,
+        townId
+      ),
     ]);
 
     const allPhotoUrls = (investigations || []).flatMap((inv) => collectPhotoUrls(inv));
