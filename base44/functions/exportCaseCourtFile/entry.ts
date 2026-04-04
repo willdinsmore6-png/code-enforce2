@@ -163,17 +163,34 @@ async function loadCaseChildren<T extends { case_id?: unknown; caseId?: unknown 
 function auditNoteBody(log: { changes?: unknown }): string {
   const c = log?.changes;
   if (c == null) return '';
+
   if (typeof c === 'object' && c !== null && 'note' in c) {
-    return String((c as { note?: string }).note || '');
+    return String((c as { note?: unknown }).note ?? '');
   }
+
   if (typeof c === 'string') {
-    try {
-      const p = JSON.parse(c) as { note?: string };
-      return p?.note != null ? String(p.note) : c;
-    } catch {
-      return c;
+    const s = c.trim();
+    if (s.startsWith('{') && s.includes('"note"')) {
+      try {
+        const p = JSON.parse(s) as { note?: unknown };
+        if (p != null && typeof p === 'object' && 'note' in p) {
+          return String(p.note ?? '');
+        }
+      } catch {
+        /* fall through */
+      }
     }
+    try {
+      const p = JSON.parse(s) as { note?: unknown };
+      if (p != null && typeof p === 'object' && 'note' in p) {
+        return String(p.note ?? '');
+      }
+    } catch {
+      /* not JSON */
+    }
+    return s;
   }
+
   return String(c);
 }
 
@@ -337,7 +354,7 @@ Deno.serve(async (req) => {
       deadlines,
       auditLogs,
       violations,
-      investigations,
+      investigationsFromLoad,
     ] = await Promise.all([
       loadCaseChildren(userEnt.Notice, srEnt.Notice, 'Notice', canonicalCaseId, requestCaseId, townId),
       loadCaseChildren(userEnt.Document, srEnt.Document, 'Document', canonicalCaseId, requestCaseId, townId),
@@ -354,6 +371,27 @@ Deno.serve(async (req) => {
         townId
       ),
     ]);
+
+    let investigations = investigationsFromLoad || [];
+    if (!investigations.length && srEnt.Investigation?.list) {
+      try {
+        const all =
+          (await srEnt.Investigation.list('-created_date', 10000)) as
+            | { case_id?: unknown; caseId?: unknown }[]
+            | null
+            | undefined;
+        const pool = all || [];
+        investigations = pool.filter((inv) => {
+          const k = rowCaseId(inv);
+          if (!k) return false;
+          if (k === canonicalCaseId) return true;
+          if (requestCaseId && k === requestCaseId) return true;
+          return false;
+        });
+      } catch (e) {
+        console.error('Investigation.list full scan fallback failed:', e?.message);
+      }
+    }
 
     const allPhotoUrls = (investigations || []).flatMap((inv) => collectPhotoUrls(inv));
     const photoResults = await Promise.allSettled(
