@@ -1,6 +1,28 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
-import { checkActingTownAccess } from './actingTownGuard.ts';
+
+/**
+ * Inlined from lib/actingTownGuard.ts so this function does not depend on
+ * base44/functions/lib (GitHub-only sync often omits that folder in the editor).
+ */
+type BodyWithActing = { acting_town_id?: string };
+
+function checkActingTownAccess(
+  user: { role?: string },
+  body: BodyWithActing,
+  resourceTownId: string | null | undefined
+): Response | null {
+  if (user.role !== 'superadmin') return null;
+  const acting = typeof body.acting_town_id === 'string' ? body.acting_town_id.trim() : '';
+  if (!acting) return null;
+  if (!resourceTownId || resourceTownId !== acting) {
+    return Response.json(
+      { error: 'Forbidden: not allowed outside the active municipality context' },
+      { status: 403 }
+    );
+  }
+  return null;
+}
 
 export type CourtFileExportOptions = {
   packetVariant: string;

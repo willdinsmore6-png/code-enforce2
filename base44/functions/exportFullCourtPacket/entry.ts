@@ -1,6 +1,6 @@
-import { handleCourtFileExport } from '../lib/courtFileExportHandler.ts';
+import { handleCourtFileExport } from '../exportCaseCourtFile/handler.ts';
 
-/** Alternate deploy name — use if the platform still routes the old code to `exportCaseCourtFile`. */
+/** Alternate invoke name — same PDF engine; options differ for labels / footer. */
 Deno.serve((req) =>
   handleCourtFileExport(req, {
     packetVariant: 'full-8-altfn-20260404',

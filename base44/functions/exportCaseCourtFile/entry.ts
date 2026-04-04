@@ -1,4 +1,4 @@
-import { handleCourtFileExport } from '../lib/courtFileExportHandler.ts';
+import { handleCourtFileExport } from './handler.ts';
 
 Deno.serve((req) =>
   handleCourtFileExport(req, {
