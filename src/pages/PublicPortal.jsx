@@ -163,13 +163,23 @@ export default function PublicPortal() {
               <h2 className="font-semibold">Look Up Your Case</h2>
               <HelpTip title="Access code" align="start">
                 <p>
-                  Enter the <strong>public access code</strong> from your notice (spaces and dashes are optional). If that does not
-                  work, try the <strong>case number</strong> shown in the staff app for the same case.
+                  Use the <strong>8-character public access code</strong> shown in the staff app on the case (blue “Public Portal Access
+                  Code” box) or printed on the notice. Spaces and dashes are optional.
                 </p>
-                <p>If the code fails, check for typos and try again, or contact the code office — they can re-send or verify the code.</p>
+                <p>
+                  Codes use <strong>letters A–Z</strong> and digits <strong>2–9</strong> only (no <strong>0</strong>, <strong>1</strong>,{' '}
+                  <strong>I</strong>, or <strong>O</strong>). If your notice looks like it has a <strong>1</strong>, try the letter{' '}
+                  <strong>I</strong> instead, and vice versa.
+                </p>
+                <p>
+                  You can also try the <strong>case number</strong> (e.g. CE-2026-9980) if the town lists it separately from the access
+                  code.
+                </p>
               </HelpTip>
             </div>
-            <p className="text-sm text-muted-foreground">Enter the access code from your Notice of Violation</p>
+            <p className="text-sm text-muted-foreground">
+              8-character code from the case or notice — or your case number
+            </p>
           </div>
         </div>
 
@@ -177,7 +187,7 @@ export default function PublicPortal() {
           <ClearableInput
             value={accessCode}
             onChange={e => setAccessCode(e.target.value.toUpperCase())}
-            placeholder="e.g. Y19BKLAV or case number"
+            placeholder="e.g. YK9B2L4A or CE-2026-9980"
             className="flex-1 uppercase"
             required
           />
@@ -187,11 +197,20 @@ export default function PublicPortal() {
         </form>
 
         {notFound && (
-          <p className="text-sm text-destructive mt-3">
-            {searchError
-              ? searchError
-              : 'No case found with that access code. Please check and try again.'}
-          </p>
+          <div className="mt-3 space-y-2 text-sm text-destructive">
+            <p>
+              {searchError
+                ? searchError
+                : 'No case matched that code. Double-check the 8-character public access code from the staff app (case page), or try your case number.'}
+            </p>
+            {!searchError && (
+              <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                <li>If you typed a <strong className="text-foreground">1</strong>, try the letter <strong className="text-foreground">I</strong> (and the other way around).</li>
+                <li>Ask the code office to confirm the code or run <strong className="text-foreground">Backfill access codes</strong> in Admin if older cases have no code.</li>
+                <li>Staff must deploy the <strong className="text-foreground">lookupCaseByCode</strong> function for this search to work on the live site.</li>
+              </ul>
+            )}
+          </div>
         )}
       </div>
 

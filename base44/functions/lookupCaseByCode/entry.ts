@@ -8,39 +8,85 @@ function normalizeAccessInput(raw: unknown): string {
     .toUpperCase();
 }
 
+type DataBag = {
+  public_access_code?: string;
+  publicAccessCode?: string;
+  case_number?: string;
+  caseNumber?: string;
+  town_id?: string;
+};
+
 type CaseRow = Record<string, unknown> & {
   id?: string;
   town_id?: string;
   case_number?: string;
   public_access_code?: string;
+  publicAccessCode?: string;
+  caseNumber?: string;
   status?: string;
   property_address?: string;
   violation_type?: string;
   specific_code_violated?: string;
   abatement_deadline?: string;
   zba_appeal_deadline?: string;
-  data?: {
-    public_access_code?: string;
-    case_number?: string;
-    town_id?: string;
-  };
+  data?: DataBag;
 };
 
 function publicCodeFromCase(c: CaseRow): string {
-  const root = c.public_access_code;
-  const nested = c.data?.public_access_code;
-  return normalizeAccessInput((root ?? nested ?? '') as string);
+  const d = c.data || {};
+  const raw =
+    c.public_access_code ??
+    c.publicAccessCode ??
+    d.public_access_code ??
+    d.publicAccessCode;
+  return normalizeAccessInput(raw ?? '');
 }
 
 function caseNumberFromCase(c: CaseRow): string {
-  const root = c.case_number;
-  const nested = c.data?.case_number;
-  return normalizeAccessInput((root ?? nested ?? '') as string);
+  const d = c.data || {};
+  const raw = c.case_number ?? c.caseNumber ?? d.case_number ?? d.caseNumber;
+  return normalizeAccessInput(raw ?? '');
+}
+
+/** App-generated codes avoid 0/O and 1/I; notices/fonts often confuse them. */
+function lookupVariants(primary: string): string[] {
+  const out = new Set<string>([primary]);
+  if (primary.includes('1')) out.add(primary.replace(/1/g, 'I'));
+  if (primary.includes('I')) out.add(primary.replace(/I/g, '1'));
+  if (primary.includes('0')) out.add(primary.replace(/0/g, 'O'));
+  if (primary.includes('O')) out.add(primary.replace(/O/g, '0'));
+  return [...out];
+}
+
+async function tryFilter(
+  Case: { filter: (q: Record<string, string>) => Promise<CaseRow[]> },
+  q: Record<string, string>
+): Promise<CaseRow[]> {
+  try {
+    const rows = await Case.filter(q);
+    return rows?.length ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+function rowMatchesCode(c: CaseRow, tryCode: string): boolean {
+  if (publicCodeFromCase(c) === tryCode) return true;
+  if (caseNumberFromCase(c) === tryCode) return true;
+  const scan = (obj: unknown, depth: number): boolean => {
+    if (depth > 3 || !obj || typeof obj !== 'object') return false;
+    for (const v of Object.values(obj as Record<string, unknown>)) {
+      if (typeof v === 'string' && normalizeAccessInput(v) === tryCode) return true;
+      if (v && typeof v === 'object' && !Array.isArray(v) && scan(v, depth + 1)) return true;
+    }
+    return false;
+  };
+  return scan(c, 0);
 }
 
 /**
  * Resolve a case by public access code or (fallback) case number.
- * Some environments store fields only on `data`; `filter` may not hit those rows — scan is last resort.
+ * Tries snake_case + camelCase filters, 1/I and 0/O variants, then scans recent cases.
  */
 async function findCaseByCode(
   base44: {
@@ -57,19 +103,34 @@ async function findCaseByCode(
 ): Promise<CaseRow | null> {
   if (!code) return null;
 
-  let rows = await base44.asServiceRole.entities.Case.filter({ public_access_code: code });
-  if (rows?.length) return rows[0];
+  const Case = base44.asServiceRole.entities.Case;
+  const variants = lookupVariants(code);
 
-  rows = await base44.asServiceRole.entities.Case.filter({ case_number: code });
-  if (rows?.length) return rows[0];
-
-  const MAX_SCAN = 8000;
-  const all = await base44.asServiceRole.entities.Case.list('-created_date', MAX_SCAN);
-  for (const c of all) {
-    if (publicCodeFromCase(c) === code) return c;
+  for (const tryCode of variants) {
+    const filterQueries: Record<string, string>[] = [
+      { public_access_code: tryCode },
+      { publicAccessCode: tryCode },
+      { case_number: tryCode },
+      { caseNumber: tryCode },
+    ];
+    for (const q of filterQueries) {
+      const rows = await tryFilter(Case, q);
+      if (rows.length) return rows[0];
+    }
   }
-  for (const c of all) {
-    if (caseNumberFromCase(c) === code) return c;
+
+  const MAX_SCAN = 20000;
+  let all: CaseRow[] = [];
+  try {
+    all = (await Case.list('-created_date', MAX_SCAN)) || [];
+  } catch {
+    all = [];
+  }
+
+  for (const tryCode of variants) {
+    for (const c of all) {
+      if (rowMatchesCode(c, tryCode)) return c;
+    }
   }
   return null;
 }
@@ -94,6 +155,7 @@ Deno.serve(async (req) => {
       return Response.json({ found: false });
     }
 
+    const d = c.data || {};
     const [allDocs, allNotices] = await Promise.all([
       base44.asServiceRole.entities.Document.filter({ case_id: c.id as string }),
       base44.asServiceRole.entities.Notice.filter({ case_id: c.id as string }),
@@ -106,8 +168,8 @@ Deno.serve(async (req) => {
       found: true,
       case: {
         id: c.id,
-        town_id: c.town_id ?? c.data?.town_id,
-        case_number: c.case_number ?? c.data?.case_number,
+        town_id: c.town_id ?? d.town_id,
+        case_number: c.case_number ?? c.caseNumber ?? d.case_number ?? d.caseNumber,
         status: c.status,
         property_address: c.property_address,
         violation_type: c.violation_type,
