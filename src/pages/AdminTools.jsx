@@ -365,7 +365,7 @@ export default function AdminTools() {
       <h1 className="sr-only">Admin Tools</h1>
       <PageHeader
         title="Admin Tools"
-        description="Town of Bow Code Enforcement Administrative Utilities"
+        description="Municipality profile, enforcement deadlines, Meridian (AI) context, users, audit log, and security"
         helpTitle="Admin tools"
         helpContent={
           <>
