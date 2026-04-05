@@ -28,6 +28,18 @@ export function isPublicAppPath(pathname) {
   );
 }
 
+/**
+ * Skip Base44 public-settings fetch and user bootstrap (same idea as the old public-portal-only shortcut).
+ * On some Base44 deployments the anonymous public-settings call returns 403 / auth_required, which
+ * breaks prospect pages like /welcome before React can render.
+ */
+export function shouldSkipAuthBootstrap(pathname) {
+  const p = normalizePath(pathname);
+  if (p === '/') return true;
+  const prefixes = ['/welcome', '/public-portal'];
+  return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+}
+
 export function isTownInactive(municipality) {
   if (!municipality) return false;
   return !(

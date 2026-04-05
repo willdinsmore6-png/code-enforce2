@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
-import { isUnassignedAllowedPath } from '@/lib/authRoutePolicy';
+import { isUnassignedAllowedPath, shouldSkipAuthBootstrap } from '@/lib/authRoutePolicy';
 import { getPostLoginReturnUrl } from '@/lib/loginReturnUrl';
 
 const AuthContext = createContext();
@@ -24,11 +24,17 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
-    // Public portal only: skip auth bootstrap (anonymous lookup)
-    if (window.location.pathname.includes('public-portal')) {
-      setIsLoadingPublicSettings(false);
-      setIsLoadingAuth(false);
+    // Marketing + public portal: skip public-settings fetch (often 403 / auth_required for anonymous users on Base44).
+    // Still load the signed-in user when a token exists so staff keep their session on these pages.
+    if (shouldSkipAuthBootstrap(window.location.pathname)) {
       setAuthError(null);
+      setIsLoadingPublicSettings(false);
+      if (appParams.token) {
+        await checkUserAuth();
+      } else {
+        setIsLoadingAuth(false);
+        setIsAuthenticated(false);
+      }
       return;
     }
 
