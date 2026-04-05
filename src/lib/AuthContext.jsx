@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { isUnassignedAllowedPath } from '@/lib/authRoutePolicy';
+import { getPostLoginReturnUrl } from '@/lib/loginReturnUrl';
 
 const AuthContext = createContext();
 
@@ -157,7 +158,7 @@ export const AuthProvider = ({ children }) => {
     base44.auth.logout(shouldRedirect ? window.location.href : undefined);
   };
 
-  const navigateToLogin = () => base44.auth.redirectToLogin(window.location.href);
+  const navigateToLogin = () => base44.auth.redirectToLogin(getPostLoginReturnUrl());
 
   return (
     <AuthContext.Provider value={{ 

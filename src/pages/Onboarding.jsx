@@ -7,9 +7,8 @@ import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 export default function Onboarding() {
   const { user } = useAuth();
 
-  const handleLogout = async () => {
-    await base44.auth.logout();
-    window.location.href = '/login';
+  const handleLogout = () => {
+    base44.auth.logout(`${window.location.origin}/`);
   };
 
   // Pre-fills an email so they don't have to type much

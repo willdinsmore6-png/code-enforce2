@@ -41,6 +41,8 @@ import {
   isInactiveSubscriptionAllowedPath,
   isBlockingAuthError,
 } from '@/lib/authRoutePolicy';
+import { base44 } from '@/api/base44Client';
+import { getPostLoginReturnUrl } from '@/lib/loginReturnUrl';
 
 const AuthenticatedApp = () => {
   const {
@@ -66,7 +68,7 @@ const AuthenticatedApp = () => {
     if (isBlockingAuthError(authError)) return;
 
     if (!user && !authError && !publicPath) {
-      window.location.href = '/login';
+      base44.auth.redirectToLogin(getPostLoginReturnUrl());
       return;
     }
 

@@ -1,0 +1,18 @@
+{
+  "name": "Code Enforce Pro",
+  "short_name": "Code Enforce",
+  "description": "Municipal code enforcement — cases, deadlines, court tools, and public portal.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://base44.com/logo_v2.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
