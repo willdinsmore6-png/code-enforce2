@@ -57,7 +57,8 @@ Deno.serve(async (req) => {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/success`,
+      // Stripe replaces {CHECKOUT_SESSION_ID}; keeps users on the correct app origin and aids support lookup.
+      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/subscribe?canceled=true`,
       metadata: { town_id: String(town_id) },
       subscription_data: { metadata: { town_id: String(town_id) } },
