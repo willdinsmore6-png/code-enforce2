@@ -12,6 +12,14 @@ import { Label } from '@/components/ui/label';
 import StatusBadge from '../components/shared/StatusBadge';
 import { format } from 'date-fns';
 
+/** Match server: ignore spaces/dashes, uppercase (notices often group characters). */
+function normalizePortalCode(raw) {
+  return String(raw ?? '')
+    .trim()
+    .replace(/[\s\-_]/g, '')
+    .toUpperCase();
+}
+
 export default function PublicPortal() {
   const [accessCode, setAccessCode] = useState('');
   const [caseData, setCaseData] = useState(null);
@@ -45,7 +53,7 @@ export default function PublicPortal() {
 
     try {
       const response = await base44.functions.invoke('lookupCaseByCode', {
-        access_code: accessCode.trim().toUpperCase(),
+        access_code: normalizePortalCode(accessCode),
       });
       if (response.data?.error) {
         setSearchError(response.data.error);
@@ -155,8 +163,8 @@ export default function PublicPortal() {
               <h2 className="font-semibold">Look Up Your Case</h2>
               <HelpTip title="Access code" align="start">
                 <p>
-                  Enter the code exactly as shown on your violation notice (letters and numbers). It is not your case number unless the
-                  town printed the same value for both.
+                  Enter the <strong>public access code</strong> from your notice (spaces and dashes are optional). If that does not
+                  work, try the <strong>case number</strong> shown in the staff app for the same case.
                 </p>
                 <p>If the code fails, check for typos and try again, or contact the code office — they can re-send or verify the code.</p>
               </HelpTip>
@@ -169,7 +177,7 @@ export default function PublicPortal() {
           <ClearableInput
             value={accessCode}
             onChange={e => setAccessCode(e.target.value.toUpperCase())}
-            placeholder="Enter access code (e.g., A1B2C3D4)"
+            placeholder="e.g. Y19BKLAV or case number"
             className="flex-1 uppercase"
             required
           />
