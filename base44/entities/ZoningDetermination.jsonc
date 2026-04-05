@@ -1,0 +1,126 @@
+{
+  "name": "ZoningDetermination",
+  "type": "object",
+  "properties": {
+    "town_id": {
+      "type": "string",
+      "description": "Municipality owning this record (multi-tenant)"
+    },
+    "file_number": {
+      "type": "string",
+      "description": "Human-readable file id, e.g. ZD-2026-001"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_progress",
+        "legal_review",
+        "issued",
+        "superseded",
+        "withdrawn"
+      ],
+      "default": "draft"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "parcel_id": {
+      "type": "string"
+    },
+    "map_block_lot": {
+      "type": "string",
+      "description": "Map / block / lot as used on assessor maps"
+    },
+    "applicant_name": {
+      "type": "string"
+    },
+    "applicant_contact": {
+      "type": "string"
+    },
+    "applicant_is_agent": {
+      "type": "boolean",
+      "default": false
+    },
+    "request_category": {
+      "type": "string",
+      "enum": [
+        "use_compliance",
+        "structure_compliance",
+        "nonconforming_status",
+        "history_review",
+        "variance_path",
+        "special_exception",
+        "other"
+      ],
+      "default": "other"
+    },
+    "request_summary": {
+      "type": "string",
+      "description": "Questions asked; scope of review requested"
+    },
+    "zoning_district_recorded": {
+      "type": "string",
+      "description": "District or zone as asserted or on file"
+    },
+    "related_case_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional related enforcement case ids"
+    },
+    "determination_text": {
+      "type": "string",
+      "description": "Formal written determination for the property file"
+    },
+    "legal_basis": {
+      "type": "string",
+      "description": "RSA sections, ordinance chapters, plan references"
+    },
+    "conditions": {
+      "type": "string",
+      "description": "Conditions, caveats, or reliance on submitted plans"
+    },
+    "staff_notes_internal": {
+      "type": "string"
+    },
+    "prepared_by": {
+      "type": "string"
+    },
+    "issued_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "effective_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": ["town_id", "property_address", "request_summary"],
+  "rls": {
+    "create": {
+      "$or": [
+        { "user_condition": { "role": "admin" } },
+        { "user_condition": { "role": "superadmin" } },
+        { "user_condition": { "role": "user" } }
+      ]
+    },
+    "read": {
+      "$or": [
+        { "user_condition": { "role": "superadmin" } },
+        { "data.town_id": "{{user.town_id}}" }
+      ]
+    },
+    "update": {
+      "$or": [
+        { "user_condition": { "role": "superadmin" } },
+        { "data.town_id": "{{user.town_id}}" }
+      ]
+    },
+    "delete": {
+      "$or": [
+        { "user_condition": { "role": "superadmin" } },
+        { "user_condition": { "role": "admin" } }
+      ]
+    }
+  }
+}

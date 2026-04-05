@@ -130,7 +130,19 @@ export default function DocumentVault() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
       <PageHeader 
         title="Document Vault" 
-        description={`Archive for ${municipality?.town_name || 'Active Town'}. Indexed by property and case number.`} 
+        description={`Archive for ${municipality?.town_name || 'Active Town'}. Indexed by property and case number.`}
+        helpTitle="Document vault"
+        helpContent={
+          <>
+            <p>
+              Browse every uploaded file for your town, grouped by property. Filter by type or search by address / case number.
+            </p>
+            <p>
+              Deleting a document removes it from the vault and the case history — confirm before proceeding. For court-ready bundles, use{' '}
+              <strong>Generate court packet</strong> on the case detail page.
+            </p>
+          </>
+        }
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-8">

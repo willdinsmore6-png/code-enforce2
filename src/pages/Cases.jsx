@@ -56,6 +56,16 @@ export default function Cases() {
       <PageHeader 
         title="Cases" 
         description="All enforcement cases and violations"
+        helpTitle="Cases list"
+        helpContent={
+          <>
+            <p>Search by address, case number, or owner. Filter by status to focus on active work.</p>
+            <p>
+              Open a case to manage investigations, notices, documents, <strong>court packet export</strong>, and deadlines. New complaints
+              start from <strong>New Complaint</strong>.
+            </p>
+          </>
+        }
         actions={
           <Link to="/new-complaint">
             <Button className="gap-2"><Plus className="w-4 h-4" /> New Complaint</Button>

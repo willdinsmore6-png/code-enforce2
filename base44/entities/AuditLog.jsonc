@@ -5,6 +5,10 @@
     "case_id": {
       "type": "string"
     },
+    "zoning_determination_id": {
+      "type": "string",
+      "description": "Staff notes attached to a zoning determination file"
+    },
     "town_id": {
       "type": "string",
       "description": "Denormalized for RLS filtering"
@@ -36,11 +40,7 @@
       "format": "date-time"
     }
   },
-  "required": [
-    "case_id",
-    "entity_type",
-    "action"
-  ],
+  "required": ["entity_type", "action"],
   "rls": {
     "create": {
       "$or": [

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Compass, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X } from 'lucide-react';
+import HelpTip from '@/components/shared/HelpTip';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -30,7 +31,9 @@ export default function CompassPage() {
   const [planFile, setPlanFile] = useState(null);
   const planInputRef = useRef(null);
   const [cases, setCases] = useState([]);
+  const [zoningDeterminations, setZoningDeterminations] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
+  const [selectedZoningDetermination, setSelectedZoningDetermination] = useState('');
   const messagesEndRef = useRef(null);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -46,17 +49,31 @@ export default function CompassPage() {
 
   // Persistent town-specific filtering for Super Admins
   useEffect(() => {
-    async function loadCases() {
+    async function loadCasesAndZoning() {
       const activeTownId = municipality?.id || user?.town_id;
-      if (!activeTownId) return;
       try {
-        const c = await base44.entities.Case.filter({ town_id: activeTownId });
-        setCases(c.filter(ca => !['resolved', 'closed'].includes(ca.status)));
+        if (activeTownId) {
+          const [c, zd] = await Promise.all([
+            base44.entities.Case.filter({ town_id: activeTownId }),
+            base44.entities.ZoningDetermination.filter({ town_id: activeTownId }, '-created_date', 150),
+          ]);
+          setCases(c.filter((ca) => !['resolved', 'closed'].includes(ca.status)));
+          setZoningDeterminations(zd || []);
+          return;
+        }
+        if (user?.role === 'superadmin') {
+          const [c, zd] = await Promise.all([
+            base44.entities.Case.list('-created_date', 100),
+            base44.entities.ZoningDetermination.list('-created_date', 150),
+          ]);
+          setCases((c || []).filter((ca) => !['resolved', 'closed'].includes(ca.status)));
+          setZoningDeterminations(zd || []);
+        }
       } catch (error) {
-        console.error('Error loading cases:', error);
+        console.error('Error loading Compass context lists:', error);
       }
     }
-    loadCases();
+    loadCasesAndZoning();
   }, [municipality, user]);
 
   useEffect(() => {
@@ -126,7 +143,10 @@ export default function CompassPage() {
     setInput('');
     setSending(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
-    const messagePayload = { role: 'user', content: msg + caseContext };
+    const zdContext = selectedZoningDetermination
+      ? ` [Analyzing zoning determination ID: ${selectedZoningDetermination}]`
+      : '';
+    const messagePayload = { role: 'user', content: msg + caseContext + zdContext };
 
     const file_urls = [];
     const ordinanceUrls = townConfig?.ordinance_docs || [];
@@ -211,18 +231,43 @@ export default function CompassPage() {
     setInput(`Please analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Does a violation exist? What specific RSA or local ordinance applies?`);
   }
 
+  function askWithZoningDetermination() {
+    if (!selectedZoningDetermination) return;
+    const z = zoningDeterminations.find((r) => r.id === selectedZoningDetermination);
+    if (!z) return;
+    setInput(
+      `Please review zoning determination file ${z.file_number || z.id.slice(0, 8)} for ${z.property_address}. Using the request, site review notes, exhibits, and any draft determination on file, assess whether the reasoning is sound and cite the most relevant RSA sections and local ordinance provisions.`
+    );
+  }
+
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
 
   return (
-    <div className="flex flex-col h-full max-h-screen overflow-hidden">
-      <div className="flex-shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
               <Compass className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">Compass AI</h1>
+              <div className="flex items-center gap-1">
+                <h1 className="text-lg font-bold">Compass AI</h1>
+                <HelpTip title="Using Compass AI" align="start">
+                  <p>
+                    Compass answers questions using NH land-use context, your <strong>town settings</strong> (if configured), and optional{' '}
+                    <strong>ordinance PDFs</strong> you upload under Settings.
+                  </p>
+                  <p>
+                    Use the <strong>Enforcement case</strong> or <strong>Zoning determination</strong> dropdown to attach context; your message
+                    is tagged so the assistant can load that file’s investigations, documents, and notes.
+                  </p>
+                  <p>
+                    Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins can open{' '}
+                    <strong>Settings</strong> to edit timelines, penalties, and training documents.
+                  </p>
+                </HelpTip>
+              </div>
               <p className="text-xs text-muted-foreground">NH Land Use & Zoning Advisor {townConfig && <span> · {townConfig.town_name}</span>}</p>
             </div>
           </div>
@@ -233,7 +278,7 @@ export default function CompassPage() {
         </div>
 
         {showConfig && isAdmin && (
-          <div className="mt-4 max-w-5xl mx-auto bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+          <div className="mx-auto mt-4 max-h-[min(70vh,28rem)] max-w-5xl overflow-y-auto overscroll-contain rounded-xl border border-indigo-200 bg-indigo-50 p-5 sm:max-h-[min(75vh,36rem)] md:max-h-[min(80vh,40rem)]">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-indigo-600" />
@@ -270,20 +315,51 @@ export default function CompassPage() {
           </div>
         )}
 
-        <div className="mt-3 max-w-5xl mx-auto flex items-center gap-2">
-          <select value={selectedCase} onChange={e => setSelectedCase(e.target.value)} className="flex h-8 text-xs rounded-md border border-input bg-transparent px-3 py-1 w-full max-w-sm">
-            <option value="">— Analyze a specific case —</option>
-            {cases.map(c => <option key={c.id} value={c.id}>{c.case_number || 'Case'} — {c.property_address}</option>)}
-          </select>
-          {selectedCase && <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 text-xs">Analyze</Button>}
+        <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-1 items-center gap-2 min-w-0">
+            <select value={selectedCase} onChange={(e) => setSelectedCase(e.target.value)} className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm">
+              <option value="">— Enforcement case —</option>
+              {cases.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.case_number || 'Case'} — {c.property_address}
+                </option>
+              ))}
+            </select>
+            {selectedCase ? (
+              <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 shrink-0 text-xs">
+                Prompt
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex flex-1 items-center gap-2 min-w-0">
+            <select
+              value={selectedZoningDetermination}
+              onChange={(e) => setSelectedZoningDetermination(e.target.value)}
+              className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm"
+            >
+              <option value="">— Zoning determination file —</option>
+              {zoningDeterminations.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.file_number || 'ZD'} — {z.property_address}
+                </option>
+              ))}
+            </select>
+            {selectedZoningDetermination ? (
+              <Button size="sm" variant="outline" onClick={askWithZoningDetermination} className="h-8 shrink-0 text-xs">
+                Prompt
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 max-w-5xl mx-auto w-full space-y-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}>
-              <ReactMarkdown className="text-sm prose prose-sm max-w-none">{msg.content.replace(/\s*\[Analyzing case ID:.*?\]/g, '')}</ReactMarkdown>
+              <ReactMarkdown className="text-sm prose prose-sm max-w-none">
+                {msg.content.replace(/\s*\[Analyzing (?:case|zoning determination) ID:[^\]]+\]/g, '')}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
@@ -291,7 +367,7 @@ export default function CompassPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4 space-y-2">
+      <div className="shrink-0 border-t border-border bg-card px-4 py-4 space-y-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))]">
         {planFile && (
           <div className="max-w-5xl mx-auto flex items-center gap-2 text-xs text-muted-foreground">
             <FileText className="w-3.5 h-3.5" />

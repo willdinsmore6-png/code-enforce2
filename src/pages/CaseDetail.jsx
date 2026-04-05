@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 
 import StatusBadge from '../components/shared/StatusBadge';
+import HelpTip from '@/components/shared/HelpTip';
 import CaseTimeline from '../components/case/CaseTimeline';
 import CaseNotices from '../components/case/CaseNotices';
 import CaseDocuments from '../components/case/CaseDocuments';
@@ -265,6 +266,18 @@ export default function CaseDetail() {
           </div>
 
           <div className="flex flex-col items-end gap-1">
+            <div className="mb-0.5 flex items-center gap-1 self-end">
+              <HelpTip title="Court packet & actions" align="end" side="bottom">
+                <p>
+                  <strong>Generate court packet</strong> builds a PDF from this case’s investigations, documents, notices, and related
+                  records. When it finishes, use <strong>Download PDF</strong> for a time-limited secure link.
+                </p>
+                <p>
+                  <strong>Timeline</strong> opens suggested enforcement milestones. <strong>Edit Case</strong> updates assignment, address,
+                  and violation details. Status changes are saved immediately from the dropdown.
+                </p>
+              </HelpTip>
+            </div>
             <div className="flex gap-2 flex-wrap justify-end">
             <Button
               variant="outline"

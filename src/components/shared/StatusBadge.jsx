@@ -10,6 +10,13 @@ const statusConfig = {
   court_action: { label: 'Court Action', className: 'bg-rose-50 text-rose-700 border-rose-200' },
   resolved: { label: 'Resolved', className: 'bg-green-50 text-green-700 border-green-200' },
   closed: { label: 'Closed', className: 'bg-slate-50 text-slate-600 border-slate-200' },
+  /* Zoning determination workflow */
+  draft: { label: 'Draft', className: 'bg-slate-50 text-slate-600 border-slate-200' },
+  in_progress: { label: 'In progress', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  legal_review: { label: 'Legal review', className: 'bg-violet-50 text-violet-700 border-violet-200' },
+  issued: { label: 'Issued', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  superseded: { label: 'Superseded', className: 'bg-amber-50 text-amber-800 border-amber-200' },
+  withdrawn: { label: 'Withdrawn', className: 'bg-slate-50 text-slate-500 border-slate-200' },
 };
 
 const priorityConfig = {

@@ -173,7 +173,7 @@ export default function SuperAdminDashboard() {
   };
 
   if (user?.role !== 'superadmin') return <div className="p-8 text-center text-slate-500">SuperAdmin Access Required.</div>;
-  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>;
+  if (loading) return <div className="flex min-h-[50vh] items-center justify-center bg-slate-50 py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>;
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl p-4 sm:p-6 lg:p-8">

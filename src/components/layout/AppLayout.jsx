@@ -15,7 +15,7 @@ export default function AppLayout() {
   const maintenanceNotice = appPublicSettings?.maintenance_notice;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
+    <div className="flex max-h-dvh min-h-0 h-dvh flex-col overflow-hidden bg-background">
       <a href="#main-content" className="skip-to-main">Skip to main content</a>
       
       {/* GLOBAL MAINTENANCE BANNER */}
@@ -37,12 +37,12 @@ export default function AppLayout() {
         <MobileNav />
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav aria-label="Main navigation" className="hidden md:flex">
           <Sidebar />
         </nav>
         <main
-          className="flex-1 overflow-y-auto scroll-smooth bg-gradient-to-b from-primary/[0.04] via-background to-background dark:from-primary/[0.07] dark:via-background dark:to-background"
+          className="min-h-0 flex-1 overflow-y-auto scroll-smooth bg-gradient-to-b from-primary/[0.04] via-background to-background dark:from-primary/[0.07] dark:via-background dark:to-background"
           id="main-content"
         >
           <SubscriptionGate>

@@ -206,7 +206,7 @@ export default function Deadlines() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex min-h-[50vh] items-center justify-center py-16">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     );
@@ -235,6 +235,18 @@ export default function Deadlines() {
           municipality
             ? `Automated dates use ${municipality.town_name}’s config (e.g. ${abDaysThisCase ?? municipality.compliance_days_zoning}-day abatement for this violation category, ${municipality.zba_appeal_days}-day ZBA window from notice). Add deadlines on the case to track court dates and custom milestones.`
             : 'Select a case to see suggested dates from your town configuration and statutory guidance.'
+        }
+        helpTitle="Timeline & next steps"
+        helpContent={
+          <>
+            <p>
+              Pick a case to see a <strong>suggested workflow</strong> based on status and your town’s configured day counts. These are
+              guides, not legal advice — adjust for your ordinances and counsel.
+            </p>
+            <p>
+              Case-specific deadlines are managed on the case record. Use <strong>Ask Compass AI</strong> for statute and process questions.
+            </p>
+          </>
         }
         actions={
           <Link to="/compass">

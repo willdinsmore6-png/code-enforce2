@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download, Mail } from 'lucide-react';
+import HelpTip from '@/components/shared/HelpTip';
 import DocumentPreview from '../components/case/DocumentPreview';
 import ClearableInput from '../components/shared/ClearableInput';
 import { Button } from '@/components/ui/button';
@@ -103,23 +104,41 @@ export default function PublicPortal() {
           ← Back to App
         </button>
       )}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Globe className="w-5 h-5 text-primary" />
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Globe className="h-5 w-5 text-primary" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Code-Enforce</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold tracking-tight">Code-Enforce</h1>
+            <HelpTip title="Public portal">
+              <p>
+                This page is for <strong>property owners and respondents</strong>. You do not log in here — use the access code printed on
+                your notice to view your case summary, download notices, and (when offered) upload proof of compliance.
+              </p>
+              <p>Staff use the main app to manage cases; share only the access code you intend the recipient to use.</p>
+            </HelpTip>
+          </div>
           <p className="text-sm text-muted-foreground">Municipal Code Compliance System</p>
         </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border p-6 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Search className="w-5 h-5 text-primary" />
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Search className="h-5 w-5 text-primary" />
           </div>
-          <div>
-            <h2 className="font-semibold">Look Up Your Case</h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <h2 className="font-semibold">Look Up Your Case</h2>
+              <HelpTip title="Access code" align="start">
+                <p>
+                  Enter the code exactly as shown on your violation notice (letters and numbers). It is not your case number unless the
+                  town printed the same value for both.
+                </p>
+                <p>If the code fails, check for typos and try again, or contact the code office — they can re-send or verify the code.</p>
+              </HelpTip>
+            </div>
             <p className="text-sm text-muted-foreground">Enter the access code from your Notice of Violation</p>
           </div>
         </div>
@@ -278,13 +297,23 @@ export default function PublicPortal() {
           {/* Submit Abatement Proof */}
           {!submitted ? (
             <div className="bg-card rounded-xl border border-border p-5">
-              <button
-                onClick={() => setShowAbatementForm(!showAbatementForm)}
-                className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-              >
-                <Upload className="w-4 h-4" />
-                Submit Proof of Abatement / Upload Document
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAbatementForm(!showAbatementForm)}
+                  className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                >
+                  <Upload className="h-4 w-4" />
+                  Submit Proof of Abatement / Upload Document
+                </button>
+                <HelpTip title="Submitting proof" align="start">
+                  <p>
+                    Use this to send <strong>photos or documents</strong> that show the violation has been corrected. A file is required
+                    before submit.
+                  </p>
+                  <p>Add short notes describing what was done. Staff will review and may follow up through the case.</p>
+                </HelpTip>
+              </div>
               {showAbatementForm && (
                 <form onSubmit={handleAbatementSubmit} className="mt-4 space-y-4">
                   <div className="space-y-1.5">

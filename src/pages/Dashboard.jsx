@@ -57,6 +57,16 @@ export default function Dashboard() {
       <PageHeader 
         title="Dashboard" 
         description="Overview of all enforcement cases and upcoming deadlines"
+        helpTitle="Dashboard"
+        helpContent={
+          <>
+            <p>Counts reflect your current municipality (or all cases for superadmin views without a town filter).</p>
+            <p>
+              <strong>Recent cases</strong> and <strong>upcoming deadlines</strong> are shortcuts into the full case and timeline tools. Use{' '}
+              <strong>New Complaint</strong> to intake a violation.
+            </p>
+          </>
+        }
         actions={
           <Link to="/new-complaint">
             <Button>New Complaint</Button>

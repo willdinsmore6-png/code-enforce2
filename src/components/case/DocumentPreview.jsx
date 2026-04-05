@@ -73,7 +73,7 @@ export default function DocumentPreview({ document, open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="flex max-h-[90dvh] min-h-0 max-w-4xl flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="truncate pr-4">{document.title}</DialogTitle>

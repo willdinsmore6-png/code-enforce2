@@ -6,6 +6,7 @@ import {
   Plus,
   CalendarClock,
   Scale,
+  ScrollText,
   FolderOpen,
   BookOpen,
   Globe,
@@ -25,6 +26,7 @@ import { useAuth } from '@/lib/AuthContext';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/cases', icon: FileText, label: 'Cases' },
+  { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
   { path: '/new-complaint', icon: Plus, label: 'New Complaint' },
   { path: '/investigations', icon: Search, label: 'Investigations' },
   { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
@@ -84,7 +86,7 @@ export default function MobileNav() {
 
       {/* Slide-in Drawer */}
       <div className={cn(
-        "md:hidden fixed top-0 left-0 h-full w-[280px] bg-sidebar text-sidebar-foreground z-50 flex flex-col transition-transform duration-300 ease-in-out",
+        "md:hidden fixed top-0 left-0 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col bg-sidebar text-sidebar-foreground z-50 transition-transform duration-300 ease-in-out",
         open ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Drawer Header */}

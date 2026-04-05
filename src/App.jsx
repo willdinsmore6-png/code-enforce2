@@ -24,6 +24,8 @@ import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
 import Report from './pages/Report';
 import DocumentVault from './pages/DocumentVault';
+import ZoningDeterminations from './pages/ZoningDeterminations';
+import ZoningDeterminationDetail from './pages/ZoningDeterminationDetail';
 import AdminTools from './pages/AdminTools';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import PageNotFound from './lib/PageNotFound';
@@ -155,6 +157,8 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
+        <Route path="/zoning-determinations" element={<ZoningDeterminations />} />
+        <Route path="/zoning-determinations/:id" element={<ZoningDeterminationDetail />} />
         <Route path="/new-complaint" element={<NewComplaint />} />
         <Route path="/investigations" element={<Investigations />} />
         <Route path="/deadlines" element={<Deadlines />} />

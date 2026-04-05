@@ -235,6 +235,16 @@ export default function AdminTools() {
       <PageHeader
         title="Admin Tools"
         description="Town of Bow Code Enforcement Administrative Utilities"
+        helpTitle="Admin tools"
+        helpContent={
+          <>
+            <p>
+              <strong>Municipality</strong> updates branding and public-facing details. <strong>Users</strong> manages accounts for your
+              town. <strong>Audit log</strong> shows key actions; <strong>Security</strong> covers access-related settings.
+            </p>
+            <p>Changes here affect everyone in the municipality — double-check before saving destructive actions.</p>
+          </>
+        }
       />
 
       <Tabs defaultValue="municipality">

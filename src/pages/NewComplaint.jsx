@@ -84,7 +84,23 @@ export default function NewComplaint() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
-      <PageHeader title="New Complaint" description="File a new code enforcement complaint" />
+      <PageHeader
+        title="New Complaint"
+        description="File a new code enforcement complaint"
+        helpTitle="New complaint"
+        helpContent={
+          <>
+            <p>
+              Enter the <strong>property</strong> and <strong>violation</strong> details. Complainant can stay anonymous if allowed by your
+              policy. Priority helps triage; abatement and ZBA deadlines are seeded automatically from defaults.
+            </p>
+            <p>
+              After save you land on the new <strong>case</strong> — add investigations, notices, and documents there. A{' '}
+              <strong>public access code</strong> is created so the owner can use the public portal when you share it.
+            </p>
+          </>
+        }
+      />
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Complaint Info */}

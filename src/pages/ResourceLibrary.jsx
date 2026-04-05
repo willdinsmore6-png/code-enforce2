@@ -3,6 +3,7 @@ import BuildingCodeLookup from '../components/BuildingCodeLookup';
 import PageHeader from '../components/shared/PageHeader';
 import { base44 } from '@/api/base44Client';
 import { BookOpen, Search, ChevronDown, ChevronUp, Sparkles, X, RefreshCw } from 'lucide-react';
+import HelpTip from '@/components/shared/HelpTip';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
@@ -61,6 +62,23 @@ export default function ResourceLibrary() {
       <PageHeader
         title="Resource Library"
         description={`Ordinances and reference materials for ${townName}${state ? `, ${state}` : ''}.`}
+        helpTitle="Resource library"
+        helpContent={
+          <>
+            <p>
+              Expand each card to read definitions and guidance your administrators have curated for <strong>{townName}</strong>. Use the
+              search filter to narrow long lists.
+            </p>
+            <p>
+              At the top, <strong>Code & plan assistant</strong> runs a separate AI review for ad-hoc code questions and plan uploads — it
+              does not replace your formal case file.
+            </p>
+            <p>
+              <strong>Admins:</strong> Open <strong>AI curator</strong> to have the agent draft or update Resource entries. Review everything
+              before relying on it in the field.
+            </p>
+          </>
+        }
         actions={
           isAdmin ? (
             <Button
@@ -200,8 +218,25 @@ function AICuratePanel({ onClose, townId, townName, state }) {
   return (
     <div className="mb-8 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
       <div className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white dark:bg-slate-950">
-        <span className="text-xs font-bold uppercase tracking-wide text-slate-200">AI resource curator</span>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-xs font-bold uppercase tracking-wide text-slate-200">AI resource curator</span>
+          <HelpTip
+            title="AI resource curator"
+            className="text-slate-300 hover:bg-white/10 hover:text-white"
+            contentClassName="border-slate-200"
+            align="start"
+          >
+            <p>
+              Chat with the curator to add or refine <strong>Resource</strong> library entries for this town. It is instructed to set{' '}
+              <strong>town_id</strong> correctly so rows stay visible under your security rules.
+            </p>
+            <p>
+              <strong>Auto-sync</strong> asks for a broad jurisdictional pass — always verify titles and text before using them in enforcement
+              decisions.
+            </p>
+          </HelpTip>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
             variant="outline"

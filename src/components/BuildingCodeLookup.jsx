@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { HardHat, Send, Loader2, FileUp, X, ClipboardCheck, ImageIcon } from 'lucide-react';
+import HelpTip from '@/components/shared/HelpTip';
 import ReactMarkdown from 'react-markdown';
 import { toast } from '@/components/ui/use-toast';
 
@@ -54,7 +55,7 @@ export default function BuildingCodeLookup({ townName, state, townId }) {
       const isImage = selectedFile && isImageFile(selectedFile);
       const isPdf = selectedFile?.name?.toLowerCase().endsWith('.pdf');
 
-      const prompt = `You are "The Registrar," a building code and zoning compliance specialist for ${locationContext}.
+      const prompt = `You are a building code and zoning compliance assistant for ${locationContext}.
 ${jurisdictionNote}
 
 ${selectedFile ? `A ${isImage ? 'plan/drawing IMAGE' : isPdf ? 'PDF document' : 'file'} was submitted for review.
@@ -90,7 +91,7 @@ User question: ${question.trim() || 'Perform a structured code compliance review
       console.error('Lookup failed:', error);
       toast({
         title: 'Review failed',
-        description: error?.message || 'The Registrar could not complete the review. Try a smaller file or a photo export of your plan.',
+        description: error?.message || 'The assistant could not complete the review. Try a smaller file or a photo export of your plan.',
         variant: 'destructive',
       });
     } finally {
@@ -101,9 +102,27 @@ User question: ${question.trim() || 'Perform a structured code compliance review
   return (
     <div className="mb-8 bg-card rounded-xl border border-border overflow-hidden shadow-sm text-left">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-slate-900 text-white">
-        <HardHat className="w-5 h-5 text-amber-500" />
-        <div>
-          <p className="text-sm font-bold uppercase tracking-wider">The Registrar: Code research & plan review</p>
+        <HardHat className="w-5 h-5 shrink-0 text-amber-500" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-bold uppercase tracking-wider">Code & plan assistant</p>
+            <HelpTip
+              title="Code & plan assistant"
+              className="text-slate-300 hover:bg-white/10 hover:text-white"
+              contentClassName="border-slate-200"
+              align="start"
+            >
+              <p>
+                Ask building-code or zoning questions in plain language, or attach a <strong>PDF, photo, or scan</strong> of a plan
+                for a structured review.
+              </p>
+              <p>
+                The model uses your town/state context and may search the web for typical code topics. Output is <strong>not</strong>{' '}
+                a formal determination — always confirm with your building official or counsel.
+              </p>
+              <p>Uploads are processed for this request only; they are not stored as part of a case file unless you add them elsewhere.</p>
+            </HelpTip>
+          </div>
           <p className="text-[10px] text-slate-400 font-mono italic tracking-tight">
             Text + visual/PDF review · Ephemeral upload · {townName || 'Jurisdiction'}
           </p>
@@ -169,7 +188,7 @@ User question: ${question.trim() || 'Perform a structured code compliance review
         {answer && (
           <div className="mt-4 bg-slate-50 rounded-lg p-5 border border-slate-200 text-left">
             <div className="flex justify-between items-center mb-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrar findings</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assistant summary</p>
               <Button
                 variant="ghost"
                 size="sm"

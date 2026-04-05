@@ -239,6 +239,15 @@ export default function CourtActions() {
       <PageHeader
         title="Court Actions"
         description="Track court filings, hearings, and dispositions"
+        helpTitle="Court actions"
+        helpContent={
+          <>
+            <p>
+              Link each record to a case. Track filing dates, court type, next hearings, and outcomes so the enforcement file stays complete.
+            </p>
+            <p>For evidence packages and hearing binders, build the <strong>court packet</strong> on the case detail page, then add any extra filings here.</p>
+          </>
+        }
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

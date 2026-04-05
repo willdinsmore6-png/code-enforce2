@@ -266,7 +266,7 @@ export default function Investigations() {
           ]);
         }
 
-        setInvestigations(invData || []);
+        setInvestigations((invData || []).filter((inv) => !inv.zoning_determination_id));
         setCases(caseData || []);
       } catch (err) {
         console.error("Load failed:", err);
@@ -363,6 +363,19 @@ export default function Investigations() {
       <PageHeader
         title="Investigations"
         description="Field investigations and site inspection records"
+        helpTitle="Investigations"
+        helpContent={
+          <>
+            <p>
+              Log site visits tied to an <strong>enforcement case</strong>: photos, field notes, warrant flags, and violation confirmation.
+              Saving can advance the case toward investigation status.
+            </p>
+            <p>
+              Zoning determination site reviews live on the <strong>Zoning determinations</strong> file, not in this list. Edit an entry from
+              the row actions when you need to correct notes or add photos later.
+            </p>
+          </>
+        }
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

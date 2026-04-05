@@ -5,6 +5,7 @@ import {
   Search,
   CalendarClock,
   Scale,
+  ScrollText,
   FolderOpen,
   BookOpen,
   Globe,
@@ -23,6 +24,7 @@ import { useAuth } from '@/lib/AuthContext';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/cases', icon: FileText, label: 'Cases' },
+  { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
   { path: '/new-complaint', icon: Plus, label: 'New Complaint' },
   { path: '/investigations', icon: Search, label: 'Investigations' },
   { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
