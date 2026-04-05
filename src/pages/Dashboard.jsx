@@ -108,8 +108,8 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-border/80 bg-card/90 shadow-sm ring-1 ring-black/[0.05] dark:ring-white/[0.05]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="font-semibold">Upcoming Deadlines</h2>
-            <Link to="/deadlines" className="text-sm text-primary font-medium flex items-center gap-1 hover:underline">
-              View all <ArrowRight className="w-3.5 h-3.5" />
+            <Link to="/deadlines" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              View timeline <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           <div className="divide-y divide-border">

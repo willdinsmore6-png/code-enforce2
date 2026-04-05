@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
@@ -19,7 +19,6 @@ import NewComplaint from './pages/NewComplaint';
 import Investigations from './pages/Investigations';
 import Deadlines from './pages/Deadlines';
 import CourtActions from './pages/CourtActions';
-import ActionWizard from './pages/ActionWizard';
 import CompassPage from './pages/Compass';
 import ResourceLibrary from './pages/ResourceLibrary';
 import PublicPortal from './pages/PublicPortal';
@@ -160,7 +159,7 @@ const AuthenticatedApp = () => {
         <Route path="/investigations" element={<Investigations />} />
         <Route path="/deadlines" element={<Deadlines />} />
         <Route path="/court-actions" element={<CourtActions />} />
-        <Route path="/wizard" element={<ActionWizard />} />
+        <Route path="/wizard" element={<Navigate to="/deadlines" replace />} />
         <Route path="/compass" element={<CompassPage />} />
         <Route path="/resources" element={<ResourceLibrary />} />
         <Route path="/documents" element={<DocumentVault />} />

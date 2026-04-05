@@ -1,8 +1,20 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, FileText, Search, Bell, Scale, 
-  FolderOpen, Wand2, BookOpen, Globe, ChevronLeft, 
-  ChevronRight, Shield, Plus, LogOut, Settings, Compass
+import {
+  LayoutDashboard,
+  FileText,
+  Search,
+  CalendarClock,
+  Scale,
+  FolderOpen,
+  BookOpen,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  Plus,
+  LogOut,
+  Settings,
+  Compass,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -13,10 +25,9 @@ const navItems = [
   { path: '/cases', icon: FileText, label: 'Cases' },
   { path: '/new-complaint', icon: Plus, label: 'New Complaint' },
   { path: '/investigations', icon: Search, label: 'Investigations' },
-  { path: '/deadlines', icon: Bell, label: 'Deadlines' },
+  { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
   { path: '/court-actions', icon: Scale, label: 'Court Actions' },
   { path: '/documents', icon: FolderOpen, label: 'Document Vault' },
-  { path: '/wizard', icon: Wand2, label: 'Action Wizard' },
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },

@@ -15,6 +15,7 @@ import {
 
 import {
   ArrowLeft,
+  CalendarClock,
   Clock,
   MapPin,
   User,
@@ -22,7 +23,7 @@ import {
   Globe,
   Pencil,
   Trash2,
-  Download
+  Download,
 } from 'lucide-react';
 
 import StatusBadge from '../components/shared/StatusBadge';
@@ -292,6 +293,12 @@ export default function CaseDetail() {
               </Button>
             )}
 
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Link to={`/deadlines?case=${caseData.id}`}>
+                <CalendarClock className="h-3.5 w-3.5" /> Timeline
+              </Link>
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -335,6 +342,7 @@ export default function CaseDetail() {
                 <SelectValue placeholder="Update status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="pending_review">Pending Review</SelectItem>
                 <SelectItem value="intake">Intake</SelectItem>
                 <SelectItem value="investigation">Investigation</SelectItem>
                 <SelectItem value="notice_sent">Notice Sent</SelectItem>
