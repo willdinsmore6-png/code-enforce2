@@ -7,9 +7,160 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import ClearableInput, { CasePropertySuggestList } from '@/components/shared/ClearableInput';
-import { filterRecordsForProperty, normalizePropertyAddressKey } from '@/lib/propertyAddress';
+import ClearableInput from '@/components/shared/ClearableInput';
+import { filterRecordsForProperty, normalizePropertyAddressKey, normalizeParcelKey } from '@/lib/propertyAddress';
+import { cn } from '@/lib/utils';
 import StatusBadge from '@/components/shared/StatusBadge';
+
+/** Inlined so Base44/Git sync applies changes with the page file only. */
+const CLOSED_STATUS = new Set(['resolved', 'closed']);
+function isCaseConsideredOpen(c) {
+  const s = String(c?.status || '').toLowerCase();
+  return !CLOSED_STATUS.has(s);
+}
+function casePropertyAddress(c) {
+  return String(c.property_address || c.data?.property_address || '').trim();
+}
+function caseParcelId(c) {
+  return String(
+    c.parcel_id || c.data?.parcel_id || c.map_parcel_id || c.data?.map_parcel_id || ''
+  ).trim();
+}
+function sortCasesForSuggestions(a, b) {
+  const ao = isCaseConsideredOpen(a) ? 0 : 1;
+  const bo = isCaseConsideredOpen(b) ? 0 : 1;
+  if (ao !== bo) return ao - bo;
+  return String(b.created_date || '').localeCompare(String(a.created_date || ''));
+}
+function buildAddressSuggestionRows(cases, limit = 200) {
+  const sorted = [...(cases || [])].sort(sortCasesForSuggestions);
+  const byNorm = new Map();
+  for (const c of sorted) {
+    const label = casePropertyAddress(c);
+    if (!label) continue;
+    const nk = normalizePropertyAddressKey(label);
+    if (!nk) continue;
+    const pid = caseParcelId(c);
+    const open = isCaseConsideredOpen(c);
+    if (!byNorm.has(nk)) {
+      byNorm.set(nk, { label, normKey: nk, parcel_id: pid || null, open });
+    } else {
+      const cur = byNorm.get(nk);
+      if (!cur.parcel_id && pid) cur.parcel_id = pid;
+      if (open) cur.open = true;
+    }
+  }
+  return [...byNorm.values()].slice(0, limit);
+}
+function buildParcelSuggestionRows(cases, limit = 150) {
+  const sorted = [...(cases || [])].sort(sortCasesForSuggestions);
+  const byPid = new Map();
+  for (const c of sorted) {
+    const pid = caseParcelId(c);
+    if (!pid) continue;
+    const nk = normalizeParcelKey(pid);
+    if (!nk) continue;
+    const addr = casePropertyAddress(c);
+    const open = isCaseConsideredOpen(c);
+    if (!byPid.has(nk)) {
+      byPid.set(nk, { label: pid, normKey: nk, addressHint: addr || null, open });
+    } else {
+      const cur = byPid.get(nk);
+      if (!cur.addressHint && addr) cur.addressHint = addr;
+      if (open) cur.open = true;
+    }
+  }
+  return [...byPid.values()].slice(0, limit);
+}
+function filterAddressRows(rows, query, max = 12) {
+  const q = query.trim();
+  const nq = normalizePropertyAddressKey(q);
+  if (!q) {
+    const openRows = rows.filter((r) => r.open);
+    const pool = openRows.length > 0 ? openRows : rows;
+    return pool.slice(0, max);
+  }
+  const ql = q.toLowerCase();
+  return rows
+    .filter((r) => r.label.toLowerCase().includes(ql) || (nq && r.normKey.includes(nq)))
+    .slice(0, max);
+}
+function filterParcelRows(rows, query, max = 12) {
+  const q = query.trim();
+  const nq = normalizeParcelKey(q);
+  if (!q) {
+    const openRows = rows.filter((r) => r.open);
+    const pool = openRows.length > 0 ? openRows : rows;
+    return pool.slice(0, max);
+  }
+  const ql = q.toLowerCase();
+  return rows
+    .filter((r) => r.label.toLowerCase().includes(ql) || (nq && r.normKey.includes(nq)))
+    .slice(0, max);
+}
+function CasePropertySuggestList({
+  cases,
+  mode,
+  query,
+  open: panelOpen,
+  onPickAddress,
+  onPickParcel,
+  className,
+  maxItems = 12,
+}) {
+  const rows = useMemo(() => {
+    if (mode === 'address') return buildAddressSuggestionRows(cases);
+    return buildParcelSuggestionRows(cases);
+  }, [cases, mode]);
+  const filtered = useMemo(() => {
+    if (mode === 'address') return filterAddressRows(rows, query, maxItems);
+    return filterParcelRows(rows, query, maxItems);
+  }, [mode, rows, query, maxItems]);
+  if (!panelOpen || filtered.length === 0) return null;
+  return (
+    <ul
+      className={cn(
+        'absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md',
+        className
+      )}
+      role="listbox"
+      aria-label={mode === 'address' ? 'Address suggestions from cases' : 'Parcel ID suggestions from cases'}
+    >
+      {filtered.map((row) => (
+        <li key={row.normKey}>
+          <button
+            type="button"
+            role="option"
+            className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (mode === 'address') onPickAddress(row.label, row.parcel_id || '');
+              else onPickParcel(row.label);
+            }}
+          >
+            {mode === 'address' ? (
+              <>
+                <span className="font-medium leading-tight">{row.label}</span>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                  {row.open && <span className="text-primary">Open case</span>}
+                  {row.parcel_id && <span className="font-mono">{row.parcel_id}</span>}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-mono text-sm font-medium leading-tight">{row.label}</span>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                  {row.open && <span className="text-primary">Open case</span>}
+                  {row.addressHint && <span className="line-clamp-1">{row.addressHint}</span>}
+                </span>
+              </>
+            )}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function PropertyWorkspacePage() {
   const { municipality } = useAuth();
