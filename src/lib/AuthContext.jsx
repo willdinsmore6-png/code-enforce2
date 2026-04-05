@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
-    // Marketing + public portal: skip public-settings fetch (often 403 / auth_required for anonymous users on Base44).
+    // Public portal: skip public-settings fetch (often 403 / auth_required for anonymous users on Base44).
     // Still load the signed-in user when a token exists so staff keep their session on these pages.
     if (shouldSkipAuthBootstrap(window.location.pathname)) {
       setAuthError(null);

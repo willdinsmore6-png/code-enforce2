@@ -61,12 +61,7 @@ export const appParams = {
 export function getEffectiveAppBaseUrl() {
 	if (!isNode) {
 		const h = window.location.hostname;
-		if (
-			h === 'www.code-enforce.com' ||
-			h === 'code-enforce.com' ||
-			h === 'www.code-enforcepro.com' ||
-			h === 'code-enforcepro.com'
-		) {
+		if (h === 'www.code-enforce.com' || h === 'code-enforce.com') {
 			return window.location.origin;
 		}
 	}

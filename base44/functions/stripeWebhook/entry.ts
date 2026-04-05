@@ -3,7 +3,7 @@ import Stripe from 'npm:stripe@14.21.0';
 
 type AdminClient = ReturnType<typeof createClientFromRequest>['asServiceRole'];
 
-const DEFAULT_APP_URL = 'https://www.code-enforcepro.com';
+const DEFAULT_APP_URL = 'https://code-enforce.com';
 const DEFAULT_SUBSCRIPTION_NOTIFY_EMAIL = 'support@code-enforce.com';
 
 function appLoginUrl(): string {

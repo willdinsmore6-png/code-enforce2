@@ -2,7 +2,7 @@
   "name": "Code Enforce Pro",
   "short_name": "Code Enforce",
   "description": "Municipal code enforcement — cases, deadlines, court tools, and public portal.",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#020617",

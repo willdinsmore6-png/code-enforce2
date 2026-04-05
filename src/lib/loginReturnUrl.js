@@ -1,5 +1,5 @@
 /** Staff home after sign-in (matches App router). */
-export const STAFF_HOME_PATH = '/dashboard';
+export const STAFF_HOME_PATH = '/';
 
 /**
  * True when the app is running as an installed PWA (home screen / dock).
@@ -31,7 +31,7 @@ function pwaReturnOrigin() {
 
 /**
  * URL passed to Base44 `redirectToLogin` so after OAuth the user lands in the right place.
- * - Installed PWA → canonical or current origin + /dashboard
+ * - Installed PWA → canonical or current origin + staff home (/)
  * - Browser tab → current page (unchanged behavior)
  */
 export function getPostLoginReturnUrl() {

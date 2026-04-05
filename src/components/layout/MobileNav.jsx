@@ -25,7 +25,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 const navItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/cases', icon: FileText, label: 'Cases' },
   { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
   { path: '/new-complaint', icon: Plus, label: 'New Complaint' },
@@ -56,7 +56,7 @@ export default function MobileNav() {
   const primaryNav = isSuperadminShell ? superadminShellNav : navItems;
 
   const isActive = (path) =>
-    path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(path);
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   useEffect(() => {
     if (!open) return undefined;

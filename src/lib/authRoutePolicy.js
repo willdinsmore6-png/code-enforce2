@@ -10,10 +10,8 @@ function normalizePath(pathname) {
   return p;
 }
 
-/** Routes that do not require an active town or paid subscription (incl. marketing home). */
+/** Routes that do not require an active town or paid subscription. */
 export const PUBLIC_ROUTE_PREFIXES = [
-  '/',
-  '/welcome',
   '/public-portal',
   '/report',
   '/subscribe',
@@ -29,15 +27,11 @@ export function isPublicAppPath(pathname) {
 }
 
 /**
- * Skip Base44 public-settings fetch and user bootstrap (same idea as the old public-portal-only shortcut).
- * On some Base44 deployments the anonymous public-settings call returns 403 / auth_required, which
- * breaks prospect pages like /welcome before React can render.
+ * Skip Base44 public-settings fetch for paths that must stay anonymous (public portal).
  */
 export function shouldSkipAuthBootstrap(pathname) {
   const p = normalizePath(pathname);
-  if (p === '/') return true;
-  const prefixes = ['/welcome', '/public-portal'];
-  return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+  return p === '/public-portal' || p.startsWith('/public-portal/');
 }
 
 export function isTownInactive(municipality) {
@@ -52,11 +46,9 @@ export function userHasNoTown(user) {
   return !user?.town_id || user.town_id === 'Null';
 }
 
-/** Logged-in user with no town — not the marketing `/` (they are redirected to app then onboarding). */
+/** Logged-in user with no town may only use public flows (incl. onboarding instructions). */
 export function isUnassignedAllowedPath(pathname) {
-  const p = normalizePath(pathname);
-  const prefixes = ['/welcome', '/public-portal', '/report', '/subscribe', '/success', '/onboarding'];
-  return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+  return isPublicAppPath(pathname);
 }
 
 /** Inactive subscription: same as public — paywall lives at /subscribe. */

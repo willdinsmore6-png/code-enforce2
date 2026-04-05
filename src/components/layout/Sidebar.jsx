@@ -23,7 +23,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 const navItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/cases', icon: FileText, label: 'Cases' },
   { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
   { path: '/new-complaint', icon: Plus, label: 'New Complaint' },
@@ -57,7 +57,7 @@ export default function Sidebar() {
   function renderNavItem(item, activeClass, inactiveClass, iconActiveClass) {
     const isActive =
       location.pathname === item.path ||
-      (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+      (item.path !== '/' && location.pathname.startsWith(item.path));
     return (
       <Link
         key={item.path}

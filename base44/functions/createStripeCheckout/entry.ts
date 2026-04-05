@@ -17,7 +17,7 @@ function appOrigin(req: Request, body: { app_origin?: string }): string {
       return new URL(referer).origin;
     } catch { /* ignore */ }
   }
-  return 'https://www.code-enforcepro.com';
+  return 'https://code-enforce.com';
 }
 
 Deno.serve(async (req) => {

@@ -174,7 +174,7 @@ export default function PublicPortal() {
       {isLoggedIn && (
         <button
           type="button"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
           className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           ← Back to App
