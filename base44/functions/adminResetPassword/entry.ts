@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
         <p>Hello,</p>
         <p>An administrator has requested a password reset for your account on the Bow NH Code Enforcement system.</p>
         <p>Please visit the login page and use the <strong>"Forgot Password"</strong> option to set a new password:</p>
-        <p><a href="${Deno.env.get('APP_URL') || Deno.env.get('PUBLIC_APP_URL') || 'https://www.code-enforce.com'}">Go to Login Page</a></p>
+        <p><a href="${Deno.env.get('APP_URL') || Deno.env.get('PUBLIC_APP_URL') || 'https://www.code-enforcepro.com'}">Go to Login Page</a></p>
         <p>If you did not request this, please ignore this email or contact your administrator.</p>
         <br/>
         <p>Bow Code Enforcement Team</p>
