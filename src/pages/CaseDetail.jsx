@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
+import { auditTownId, logAuditEntry } from '@/lib/logAuditClient';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -40,7 +41,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 export default function CaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, impersonatedMunicipality } = useAuth();
+  const { user, impersonatedMunicipality, municipality } = useAuth();
 
   const [caseData, setCaseData] = useState(null);
   const [investigations, setInvestigations] = useState([]);
@@ -133,11 +134,22 @@ export default function CaseDetail() {
   }, [caseData?.assigned_officer, users]);
 
   async function updateStatus(newStatus) {
+    const prevStatus = caseData?.status;
     await base44.entities.Case.update(id, { status: newStatus });
-    setCaseData(prev => ({ ...prev, status: newStatus }));
+    setCaseData((prev) => ({ ...prev, status: newStatus }));
+    logAuditEntry(user, impersonatedMunicipality, {
+      case_id: id,
+      case_number: caseData?.case_number,
+      town_id: auditTownId(caseData, municipality),
+      entity_type: 'Case',
+      entity_id: id,
+      action: 'Updated case',
+      changes: { status: { from: prevStatus, to: newStatus } },
+    }).catch((err) => console.warn('Audit log failed', err));
   }
 
   async function updatePath(path) {
+    const prevPath = caseData?.compliance_path;
     await base44.entities.Case.update(id, {
       compliance_path: path,
       daily_penalty_rate:
@@ -145,9 +157,18 @@ export default function CaseDetail() {
           ? caseData.is_first_offense
             ? 275
             : 550
-          : caseData.daily_penalty_rate
+          : caseData.daily_penalty_rate,
     });
-    setCaseData(prev => ({ ...prev, compliance_path: path }));
+    setCaseData((prev) => ({ ...prev, compliance_path: path }));
+    logAuditEntry(user, impersonatedMunicipality, {
+      case_id: id,
+      case_number: caseData?.case_number,
+      town_id: auditTownId(caseData, municipality),
+      entity_type: 'Case',
+      entity_id: id,
+      action: 'Updated case',
+      changes: { compliance_path: { from: prevPath, to: path } },
+    }).catch((err) => console.warn('Audit log failed', err));
   }
 
   async function handleDeleteCase() {
@@ -436,13 +457,23 @@ export default function CaseDetail() {
               value={caseData.assigned_officer ? caseData.assigned_officer : '_none'}
               onValueChange={async (v) => {
                 const next = v && v !== '_none' ? v : null;
+                const prevOfficer = caseData?.assigned_officer;
                 await base44.entities.Case.update(id, {
-                  assigned_officer: next
+                  assigned_officer: next,
                 });
                 setCaseData((prev) => ({
                   ...prev,
-                  assigned_officer: next
+                  assigned_officer: next,
                 }));
+                logAuditEntry(user, impersonatedMunicipality, {
+                  case_id: id,
+                  case_number: caseData?.case_number,
+                  town_id: auditTownId(caseData, municipality),
+                  entity_type: 'Case',
+                  entity_id: id,
+                  action: 'Updated case',
+                  changes: { assigned_officer: { from: prevOfficer, to: next } },
+                }).catch((err) => console.warn('Audit log failed', err));
               }}
             >
               <SelectTrigger className="h-auto text-sm">
@@ -556,7 +587,7 @@ export default function CaseDetail() {
             </div>
           </div>
 
-          <CaseNotes caseId={id} caseNumber={caseData.case_number} />
+          <CaseNotes caseId={id} caseNumber={caseData.case_number} caseRecord={caseData} />
         </TabsContent>
 
         <TabsContent value="notices">

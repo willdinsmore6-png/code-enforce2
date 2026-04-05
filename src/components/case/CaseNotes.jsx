@@ -5,10 +5,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { StickyNote, Plus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
-import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
+import { logAuditEntry, auditTownId } from '@/lib/logAuditClient';
 
-export default function CaseNotes({ caseId, caseNumber }) {
-  const { user, impersonatedMunicipality } = useAuth();
+export default function CaseNotes({ caseId, caseNumber, caseRecord }) {
+  const { user, impersonatedMunicipality, municipality } = useAuth();
   const [notes, setNotes] = useState([]);
   const [input, setInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -25,17 +25,15 @@ export default function CaseNotes({ caseId, caseNumber }) {
   async function handleSave() {
     if (!input.trim()) return;
     setSaving(true);
-    const note = await base44.functions.invoke(
-      'logAudit',
-      mergeActingTownPayload(user, impersonatedMunicipality, {
-        case_id: caseId,
-        case_number: caseNumber,
-        entity_type: 'Case',
-        entity_id: caseId,
-        action: 'User note',
-        changes: JSON.stringify({ note: input.trim() }),
-      })
-    );
+    await logAuditEntry(user, impersonatedMunicipality, {
+      case_id: caseId,
+      case_number: caseNumber,
+      town_id: auditTownId(caseRecord, municipality),
+      entity_type: 'Case',
+      entity_id: caseId,
+      action: 'User note',
+      changes: JSON.stringify({ note: input.trim() }),
+    }).catch((err) => console.warn('Audit log failed', err));
     // Optimistic add
     const newNote = {
       id: Date.now(),

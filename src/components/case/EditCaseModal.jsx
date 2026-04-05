@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
+import { auditTownId, logAuditEntry } from '@/lib/logAuditClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function EditCaseModal({ caseData, open, onClose, onSave }) {
-  const { user, impersonatedMunicipality } = useAuth();
+  const { user, impersonatedMunicipality, municipality } = useAuth();
   const [form, setForm] = useState({});
   const [users, setUsers] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -56,19 +56,15 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
         : form.assigned_officer;
     await base44.entities.Case.update(caseData.id, { ...form, assigned_officer });
     if (Object.keys(changes).length > 0) {
-      base44.functions
-        .invoke(
-          'logAudit',
-          mergeActingTownPayload(user, impersonatedMunicipality, {
-            case_id: caseData.id,
-            case_number: caseData.case_number,
-            entity_type: 'Case',
-            entity_id: caseData.id,
-            action: 'Updated case',
-            changes,
-          })
-        )
-        .catch(() => {});
+      logAuditEntry(user, impersonatedMunicipality, {
+        case_id: caseData.id,
+        case_number: caseData.case_number,
+        town_id: auditTownId(caseData, municipality),
+        entity_type: 'Case',
+        entity_id: caseData.id,
+        action: 'Updated case',
+        changes,
+      }).catch((err) => console.warn('Audit log failed', err));
     }
     onSave({ ...caseData, ...form, assigned_officer });
     setSaving(false);

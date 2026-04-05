@@ -14,13 +14,15 @@ Deno.serve(async (req) => {
 
     if (case_id) {
       const rows = await base44.asServiceRole.entities.Case.filter({ id: case_id });
-      const c = rows?.[0];
+      const c = rows?.[0] as Record<string, unknown> | undefined;
       if (c) {
+        const cTown =
+          String(c.town_id || (c.data as { town_id?: string } | undefined)?.town_id || '').trim();
         if (user.role === 'superadmin') {
-          const denied = checkActingTownAccess(user, body, c.town_id);
+          const denied = checkActingTownAccess(user, body, cTown || undefined);
           if (denied) return denied;
         }
-        if (!town_id) town_id = c.town_id || '';
+        if (!town_id) town_id = cTown;
       }
     }
 
@@ -28,13 +30,15 @@ Deno.serve(async (req) => {
       const zrows = await base44.asServiceRole.entities.ZoningDetermination.filter({
         id: zoning_determination_id,
       });
-      const zd = zrows?.[0];
+      const zd = zrows?.[0] as Record<string, unknown> | undefined;
       if (zd) {
+        const zTown =
+          String(zd.town_id || (zd.data as { town_id?: string } | undefined)?.town_id || '').trim();
         if (user.role === 'superadmin') {
-          const denied = checkActingTownAccess(user, body, zd.town_id);
+          const denied = checkActingTownAccess(user, body, zTown || undefined);
           if (denied) return denied;
         }
-        if (!town_id) town_id = zd.town_id || '';
+        if (!town_id) town_id = zTown;
       }
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
@@ -38,6 +38,53 @@ export default function AdminTools() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
+  const [adminTab, setAdminTab] = useState('municipality');
+
+  const loadAuditLogs = useCallback(async () => {
+    if (!municipality?.id) {
+      setAuditLogs([]);
+      setLogsLoading(false);
+      return;
+    }
+    setLogsLoading(true);
+    try {
+      const townId = String(municipality.id);
+      const [byTown, caseList] = await Promise.all([
+        base44.entities.AuditLog.filter({ town_id: townId }, '-timestamp', 2500),
+        base44.entities.Case.list('-created_date', 6000),
+      ]);
+      const caseIds = new Set(
+        (caseList || [])
+          .filter((c) => String(c.town_id || c.data?.town_id || '') === townId)
+          .map((c) => c.id)
+      );
+      let recent = [];
+      try {
+        recent = (await base44.entities.AuditLog.list('-timestamp', 800)) || [];
+      } catch {
+        recent = [];
+      }
+      const orphans = recent.filter(
+        (l) =>
+          l.case_id &&
+          (!l.town_id || String(l.town_id).trim() === '') &&
+          caseIds.has(l.case_id)
+      );
+      const map = new Map();
+      for (const l of [...(byTown || []), ...orphans]) {
+        if (l?.id) map.set(l.id, l);
+      }
+      const merged = [...map.values()].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      setAuditLogs(merged);
+    } catch (e) {
+      console.error(e);
+      setAuditLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [municipality?.id]);
 
   useEffect(() => {
     if (municipality) {
@@ -69,15 +116,8 @@ export default function AdminTools() {
     } else if (municipality) {
       setInviteTownId(municipality.id);
     }
-    if (municipality?.id) {
-      base44.entities.AuditLog.filter({ town_id: municipality.id }, '-timestamp', 500).then(logs => {
-        setAuditLogs(logs || []);
-        setLogsLoading(false);
-      });
-    } else {
-      setLogsLoading(false);
-    }
-  }, [municipality?.id, user, impersonatedMunicipality]);
+    loadAuditLogs();
+  }, [municipality?.id, user, impersonatedMunicipality, loadAuditLogs]);
 
   const filteredLogs = auditLogs.filter(log =>
     !filterCase || (log.case_number || '').toLowerCase().includes(filterCase.toLowerCase()) ||
@@ -247,7 +287,13 @@ export default function AdminTools() {
         }
       />
 
-      <Tabs defaultValue="municipality">
+      <Tabs
+        value={adminTab}
+        onValueChange={(v) => {
+          setAdminTab(v);
+          if (v === 'audit') loadAuditLogs();
+        }}
+      >
         <TabsList className="mb-6">
           <TabsTrigger value="municipality" className="gap-1.5"><Building2 className="w-3.5 h-3.5" /> Municipality</TabsTrigger>
           <TabsTrigger value="users" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Users</TabsTrigger>
@@ -483,8 +529,12 @@ export default function AdminTools() {
                   <p className="text-sm text-muted-foreground">All edits to cases, notices, and documents</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input placeholder="Filter by case #..." value={filterCase} onChange={e => setFilterCase(e.target.value)} className="w-44" />
+                <Button variant="outline" size="sm" onClick={() => loadAuditLogs()} disabled={logsLoading} className="gap-1.5">
+                  {logsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+                  Refresh
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportToCSV} disabled={filteredLogs.length === 0} className="gap-1.5">
                   <Download className="w-4 h-4" /> Export CSV
                 </Button>

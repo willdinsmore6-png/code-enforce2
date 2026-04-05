@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { StickyNote, Plus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
-import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
+import { logAuditEntry } from '@/lib/logAuditClient';
 
 function parseNoteBody(changes) {
   if (changes == null) return '';
@@ -23,7 +23,7 @@ function parseNoteBody(changes) {
   return String(changes);
 }
 
-export default function DeterminationNotes({ zoningDeterminationId, fileNumber }) {
+export default function DeterminationNotes({ zoningDeterminationId, fileNumber, townId }) {
   const { user, impersonatedMunicipality } = useAuth();
   const [notes, setNotes] = useState([]);
   const [input, setInput] = useState('');
@@ -54,18 +54,16 @@ export default function DeterminationNotes({ zoningDeterminationId, fileNumber }
   async function handleSave() {
     if (!input.trim()) return;
     setSaving(true);
-    await base44.functions.invoke(
-      'logAudit',
-      mergeActingTownPayload(user, impersonatedMunicipality, {
-        case_id: '',
-        zoning_determination_id: zoningDeterminationId,
-        case_number: fileNumber || '',
-        entity_type: 'ZoningDetermination',
-        entity_id: zoningDeterminationId,
-        action: 'User note',
-        changes: JSON.stringify({ note: input.trim() }),
-      })
-    );
+    await logAuditEntry(user, impersonatedMunicipality, {
+      case_id: '',
+      zoning_determination_id: zoningDeterminationId,
+      case_number: fileNumber || '',
+      town_id: townId || '',
+      entity_type: 'ZoningDetermination',
+      entity_id: zoningDeterminationId,
+      action: 'User note',
+      changes: JSON.stringify({ note: input.trim() }),
+    }).catch((err) => console.warn('Audit log failed', err));
     const newNote = {
       id: Date.now(),
       zoning_determination_id: zoningDeterminationId,

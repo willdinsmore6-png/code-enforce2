@@ -51,7 +51,7 @@ function parseRelatedCaseIds(text) {
 
 export default function ZoningDeterminationDetail() {
   const { id } = useParams();
-  const { user, impersonatedMunicipality } = useAuth();
+  const { user, impersonatedMunicipality, municipality } = useAuth();
 
   const [zd, setZd] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -482,7 +482,11 @@ export default function ZoningDeterminationDetail() {
 
         <TabsContent value="notes">
           <div className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
-            <DeterminationNotes zoningDeterminationId={zd.id} fileNumber={zd.file_number} />
+            <DeterminationNotes
+              zoningDeterminationId={zd.id}
+              fileNumber={zd.file_number}
+              townId={zd.town_id || zd.data?.town_id || municipality?.id}
+            />
           </div>
         </TabsContent>
       </Tabs>
