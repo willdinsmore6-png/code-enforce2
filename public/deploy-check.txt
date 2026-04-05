@@ -1,4 +1,0 @@
-code-enforce2
-branch: main
-includes: Admin enforcement defaults, Meridian settings in Admin, property autocomplete (commit 7bcc695+)
-if-you-see-this-file-the-latest-static-assets-were-deployed

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import PageHeader from '../components/shared/PageHeader';
-import CasePropertySuggestList from '@/components/shared/CasePropertySuggestList';
+import { CasePropertySuggestList } from '@/components/shared/ClearableInput';
 import { format, addDays } from 'date-fns';
 import { generatePublicAccessCode } from '@/lib/publicAccessCode';
 

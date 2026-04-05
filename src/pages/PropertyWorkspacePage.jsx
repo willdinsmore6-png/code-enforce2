@@ -7,8 +7,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import ClearableInput from '@/components/shared/ClearableInput';
-import CasePropertySuggestList from '@/components/shared/CasePropertySuggestList';
+import ClearableInput, { CasePropertySuggestList } from '@/components/shared/ClearableInput';
 import { filterRecordsForProperty, normalizePropertyAddressKey } from '@/lib/propertyAddress';
 import StatusBadge from '@/components/shared/StatusBadge';
 
