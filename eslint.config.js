@@ -2,14 +2,15 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
+import pluginJsxA11y from "eslint-plugin-jsx-a11y";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
 
 export default [
   {
     files: [
+      "src/App.jsx",
       "src/components/**/*.{js,mjs,cjs,jsx}",
       "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
     ],
     ignores: ["src/lib/**/*", "src/components/ui/**/*"],
     ...pluginJs.configs.recommended,
@@ -32,9 +33,27 @@ export default [
     plugins: {
       react: pluginReact,
       "react-hooks": pluginReactHooks,
+      "jsx-a11y": pluginJsxA11y,
       "unused-imports": pluginUnusedImports,
     },
     rules: {
+      ...pluginJsxA11y.flatConfigs.recommended.rules,
+      "jsx-a11y/anchor-is-valid": [
+        "error",
+        {
+          components: ["Link"],
+          specialLink: ["to"],
+          aspects: ["noHref", "invalidHref", "preferButton"],
+        },
+      ],
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        {
+          tags: [],
+          roles: ["tabpanel", "region"],
+          allowExpressionValues: true,
+        },
+      ],
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",

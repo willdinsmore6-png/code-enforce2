@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import { Clock, AlertTriangle } from 'lucide-react'; // Added icons
+import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button'; // Added button
 
 import AppLayout from './components/layout/AppLayout';

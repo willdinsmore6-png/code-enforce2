@@ -475,7 +475,7 @@ export default function Report() {
                   <div key={i} className="relative" role="listitem">
                     <img
                       src={p.preview}
-                      alt={`Evidence photo ${i + 1}: ${p.name}`}
+                      alt={`Evidence ${i + 1}: ${p.name}`}
                       className="h-20 w-20 rounded-lg border border-border object-cover"
                     />
                     <button

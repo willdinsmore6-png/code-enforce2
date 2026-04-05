@@ -118,8 +118,9 @@ export default function Subscribe() {
             <h2 className="text-lg font-semibold mb-4">Your Municipality</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-sm text-slate-400">Town / City Name *</label>
+                <label htmlFor="subscribe-town-name" className="text-sm text-slate-400">Town / City Name *</label>
                 <input
+                  id="subscribe-town-name"
                   type="text"
                   value={townName}
                   onChange={e => setTownName(e.target.value)}
@@ -128,8 +129,9 @@ export default function Subscribe() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm text-slate-400">State</label>
+                <label htmlFor="subscribe-town-state" className="text-sm text-slate-400">State</label>
                 <select
+                  id="subscribe-town-state"
                   value={townState}
                   onChange={e => setTownState(e.target.value)}
                   className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

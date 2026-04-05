@@ -495,7 +495,7 @@ export default function Investigations() {
                         return (
                           <a key={i} href={url} target="_blank" rel="noopener noreferrer" title={url.split('/').pop()}>
                             {isImage ? (
-                              <img src={url} alt={`Photo ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
+                              <img src={url} alt={`Investigation attachment ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
                             ) : (
                               <div className="w-20 h-20 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-1 hover:bg-accent transition-colors">
                                 <FileText className="w-6 h-6 text-muted-foreground" />

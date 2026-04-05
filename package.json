@@ -91,6 +91,7 @@
     "base44": "^0.0.50",
     "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9.19.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
