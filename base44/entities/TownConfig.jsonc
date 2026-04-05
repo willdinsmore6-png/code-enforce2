@@ -101,6 +101,15 @@
     "agreement_accepted_by": {
       "type": "string",
       "description": "Email of the user who accepted the agreement"
+    },
+    "gis_map_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Optional link to municipal GIS / parcel viewer"
+    },
+    "adopted_building_codes_summary": {
+      "type": "string",
+      "description": "Adopted code editions and amendments for staff / assistant context"
     }
   },
   "required": [
