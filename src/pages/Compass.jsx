@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Compass, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X } from 'lucide-react';
+import { Sparkles, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X, Info } from 'lucide-react';
 import HelpTip from '@/components/shared/HelpTip';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/AuthContext';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 export default function CompassPage() {
   const { user, municipality } = useAuth();
@@ -34,6 +35,7 @@ export default function CompassPage() {
   const [zoningDeterminations, setZoningDeterminations] = useState([]);
   const [selectedCase, setSelectedCase] = useState('');
   const [selectedZoningDetermination, setSelectedZoningDetermination] = useState('');
+  const [showReviewWaitNotice, setShowReviewWaitNotice] = useState(false);
   const messagesEndRef = useRef(null);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -80,7 +82,7 @@ export default function CompassPage() {
           setZoningDeterminations(zd || []);
         }
       } catch (error) {
-        console.error('Error loading Compass context lists:', error);
+        console.error('Error loading Meridian context lists:', error);
       }
     }
     loadCasesAndZoning();
@@ -106,7 +108,7 @@ export default function CompassPage() {
       const conv = await base44.agents.createConversation({
         agent_name: 'compass',
         metadata: {
-          name: 'Compass Session',
+          name: `${MERIDIAN_DISPLAY_NAME} session`,
           town_id: municipality?.id || user?.town_id || null,
         },
       });
@@ -134,11 +136,12 @@ export default function CompassPage() {
     setMessages([]);
     setDocsSharedWithAgent(false);
     setPlanFile(null);
+    setShowReviewWaitNotice(false);
     if (planInputRef.current) planInputRef.current.value = '';
     const conv = await base44.agents.createConversation({
       agent_name: 'compass',
       metadata: {
-        name: 'Compass Session',
+        name: `${MERIDIAN_DISPLAY_NAME} session`,
         town_id: municipality?.id || user?.town_id || null,
       },
     });
@@ -152,6 +155,9 @@ export default function CompassPage() {
     const msg = input.trim();
     setInput('');
     setSending(true);
+    if (selectedCase || selectedZoningDetermination) {
+      setShowReviewWaitNotice(true);
+    }
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
     const zdContext = selectedZoningDetermination
       ? ` [Analyzing zoning determination ID: ${selectedZoningDetermination}]`
@@ -239,6 +245,7 @@ export default function CompassPage() {
     const c = cases.find(ca => ca.id === selectedCase);
     if (!c) return;
     setInput(`Please analyze case ${c.case_number || c.id.slice(0, 8)} at ${c.property_address}. Does a violation exist? What specific RSA or local ordinance applies?`);
+    setShowReviewWaitNotice(true);
   }
 
   function askWithZoningDetermination() {
@@ -248,6 +255,7 @@ export default function CompassPage() {
     setInput(
       `Please review zoning determination file ${z.file_number || z.id.slice(0, 8)} for ${z.property_address}. Using the request, site review notes, exhibits, and any draft determination on file, assess whether the reasoning is sound and cite the most relevant RSA sections and local ordinance provisions.`
     );
+    setShowReviewWaitNotice(true);
   }
 
   const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
@@ -258,19 +266,19 @@ export default function CompassPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Compass className="w-5 h-5 text-white" />
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-1">
-                <h1 className="text-lg font-bold">Compass AI</h1>
-                <HelpTip title="Using Compass AI" align="start">
+                <h1 className="text-lg font-bold">{MERIDIAN_DISPLAY_NAME}</h1>
+                <HelpTip title={`Using ${MERIDIAN_DISPLAY_NAME}`} align="start">
                   <p>
-                    Compass answers questions using NH land-use context, your <strong>town settings</strong> (if configured), and optional{' '}
+                    {MERIDIAN_DISPLAY_NAME} answers questions using NH land-use context, your <strong>town settings</strong> (if configured), and optional{' '}
                     <strong>ordinance PDFs</strong> you upload under Settings.
                   </p>
                   <p>
-                    Use the <strong>Enforcement case</strong> or <strong>Zoning determination</strong> dropdown to attach context; your message
-                    is tagged so the assistant can load that file’s investigations, documents, and notes.
+                    Use the <strong>Enforcement case</strong> or <strong>Zoning determination</strong> dropdown, then <strong>Analyze</strong>, to
+                    load that matter into the chat so the assistant can review investigations, documents, and notes.
                   </p>
                   <p>
                     Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins can open{' '}
@@ -337,7 +345,7 @@ export default function CompassPage() {
             </select>
             {selectedCase ? (
               <Button size="sm" variant="outline" onClick={askWithCase} className="h-8 shrink-0 text-xs">
-                Prompt
+                Analyze
               </Button>
             ) : null}
           </div>
@@ -356,11 +364,33 @@ export default function CompassPage() {
             </select>
             {selectedZoningDetermination ? (
               <Button size="sm" variant="outline" onClick={askWithZoningDetermination} className="h-8 shrink-0 text-xs">
-                Prompt
+                Analyze
               </Button>
             ) : null}
           </div>
         </div>
+
+        {showReviewWaitNotice && (
+          <div className="relative mx-auto mt-3 max-w-5xl rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 pr-10 text-xs text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-50">
+            <Info
+              className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400"
+              aria-hidden
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-2 rounded-md p-0.5 text-sky-800 hover:bg-sky-100 dark:text-sky-200 dark:hover:bg-sky-900/60"
+              onClick={() => setShowReviewWaitNotice(false)}
+              aria-label="Dismiss notice"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <p className="pl-7 leading-relaxed">
+              <span className="font-semibold text-sky-900 dark:text-sky-100">Reviews can take a little while.</span>{' '}
+              {MERIDIAN_DISPLAY_NAME} keeps working in the background, so you can leave this page if you need to — when you come back here,
+              your answer will appear in this chat.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 max-w-5xl mx-auto w-full space-y-4">
@@ -396,7 +426,7 @@ export default function CompassPage() {
               onChange={(ev) => setPlanFile(ev.target.files?.[0] || null)}
             />
           </label>
-          <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Compass… (optional: attach a plan)" className="flex-1" disabled={sending} />
+          <Input value={input} onChange={e => setInput(e.target.value)} placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}… (optional: attach a plan)`} className="flex-1" disabled={sending} />
           <Button type="submit" disabled={sending || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
         </form>
       </div>

@@ -303,6 +303,10 @@ export default function CaseDetail() {
                   records. When it finishes, use <strong>Download PDF</strong> for a time-limited secure link.
                 </p>
                 <p>
+                  For a <strong>complete packet</strong> for counsel or court, download that PDF and also pull any other attachments you need
+                  from the <strong>Documents</strong> tab below (photos, NOVs, correspondence, etc.).
+                </p>
+                <p>
                   <strong>Timeline</strong> opens suggested enforcement milestones. <strong>Edit Case</strong> updates assignment, address,
                   and violation details. Status changes are saved immediately from the dropdown.
                 </p>
@@ -404,6 +408,15 @@ export default function CaseDetail() {
               <p className="text-xs text-muted-foreground text-right max-w-sm leading-snug">
                 {exportStatus}
               </p>
+            ) : null}
+            {generatedDocId ? (
+              <div className="mt-2 max-w-md rounded-lg border border-amber-200/90 bg-amber-50 px-3 py-2.5 text-left text-xs leading-relaxed text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-50">
+                <p className="font-semibold text-amber-900 dark:text-amber-100">Complete packet for attorney or court</p>
+                <p className="mt-1 text-amber-900/95 dark:text-amber-100/95">
+                  Download the court packet with <strong>Download PDF</strong>, then open the <strong>Documents</strong> tab below and
+                  download any other files you want to include. Together they form the full set you can pass to counsel or bring to court.
+                </p>
+              </div>
             ) : null}
           </div>
         </div>
@@ -624,6 +637,13 @@ export default function CaseDetail() {
         </TabsContent>
 
         <TabsContent value="documents">
+          {generatedDocId ? (
+            <p className="mb-3 rounded-lg border border-amber-200/90 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-50">
+              <span className="font-semibold">Court packet:</span> If you generated a court packet PDF above, download it from{' '}
+              <strong>Download PDF</strong>, then use the list here to download any other attachments for a complete file for counsel or
+              court.
+            </p>
+          ) : null}
           <CaseDocuments
             caseId={id}
             documents={documents}

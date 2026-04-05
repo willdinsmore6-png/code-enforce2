@@ -15,11 +15,12 @@ import {
   Plus,
   LogOut,
   Settings,
-  Compass,
+  Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,7 +31,7 @@ const navItems = [
   { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
   { path: '/court-actions', icon: Scale, label: 'Court Actions' },
   { path: '/documents', icon: FolderOpen, label: 'Document Vault' },
-  { path: '/compass', icon: Compass, label: 'Compass AI' },
+  { path: '/compass', icon: Sparkles, label: MERIDIAN_DISPLAY_NAME },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
 ];

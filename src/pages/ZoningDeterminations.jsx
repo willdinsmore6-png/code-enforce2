@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, ScrollText, ArrowRight } from 'lucide-react';
 import StatusBadge from '@/components/shared/StatusBadge';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 function nextFileNumber(existing, year) {
   const prefix = `ZD-${year}-`;
@@ -124,7 +125,7 @@ export default function ZoningDeterminations() {
               After opening a file, fill in the <strong>Record</strong> tab, attach documents, add site reviews and notes, then{' '}
               <strong>Export property packet</strong> for the permanent PDF.
             </p>
-            <p>In <strong>Compass AI</strong>, pick your file from the zoning dropdown so the assistant reads the same context.</p>
+            <p>In <strong>{MERIDIAN_DISPLAY_NAME}</strong>, pick your file from the zoning dropdown, then <strong>Analyze</strong>, so the assistant reads the same context.</p>
           </>
         }
         actions={

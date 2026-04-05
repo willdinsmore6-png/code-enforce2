@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Shield, Lock, CheckCircle, AlertTriangle, Building2, Scale } from 'lucide-react';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 export default function Subscribe() {
   const { user, municipality, refreshMunicipality } = useAuth();
@@ -180,7 +181,7 @@ export default function Subscribe() {
               <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> 1. AI Decision-Support Tool — Not Legal Authority
               </h3>
-              <p>The AI-powered violation detection, Compass advisor, and automated recommendations provided by this platform are <strong>decision-support tools only</strong>. They do not constitute legal advice or final enforcement authority. The licensed building official, code enforcement officer, or duly authorized municipal representative is the <strong>sole final authority</strong> on all code interpretations, violation determinations, and enforcement actions. Your municipality accepts full responsibility for all enforcement actions taken using this tool.</p>
+              <p>The AI-powered violation detection, <strong>{MERIDIAN_DISPLAY_NAME}</strong> assistant, and automated recommendations provided by this platform are <strong>decision-support tools only</strong>. They do not constitute legal advice or final enforcement authority. The licensed building official, code enforcement officer, or duly authorized municipal representative is the <strong>sole final authority</strong> on all code interpretations, violation determinations, and enforcement actions. Your municipality accepts full responsibility for all enforcement actions taken using this tool.</p>
             </div>
             <div>
               <h3 className="font-semibold text-white mb-1">2. Data Custodianship</h3>

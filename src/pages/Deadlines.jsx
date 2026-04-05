@@ -10,7 +10,7 @@ import {
   FileText,
   Scale,
   Clock,
-  Compass,
+  Sparkles,
   ChevronRight,
   Info,
   ShieldCheck,
@@ -23,6 +23,7 @@ import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { buildEnforcementTimeline, abatementDaysForCase } from '@/lib/enforcementTimeline';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 function buildRecommendations(config) {
   const abatementDays = config?.compliance_days_zoning ?? 30;
@@ -244,14 +245,14 @@ export default function Deadlines() {
               guides, not legal advice — adjust for your ordinances and counsel.
             </p>
             <p>
-              Case-specific deadlines are managed on the case record. Use <strong>Ask Compass AI</strong> for statute and process questions.
+              Case-specific deadlines are managed on the case record. Use <strong>{MERIDIAN_DISPLAY_NAME}</strong> for statute and process questions.
             </p>
           </>
         }
         actions={
           <Link to="/compass">
             <Button variant="outline" size="sm" className="gap-2 shadow-sm">
-              <Compass className="h-4 w-4 text-primary" /> Ask Compass AI
+              <Sparkles className="h-4 w-4 text-primary" /> Open {MERIDIAN_DISPLAY_NAME}
             </Button>
           </Link>
         }
