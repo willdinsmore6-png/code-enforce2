@@ -13,22 +13,90 @@ function emailFromName(): string {
   return Deno.env.get('SUBSCRIPTION_EMAIL_FROM_NAME') || 'CodeEnforce Pro';
 }
 
-/** Best-effort: never throw; webhook must still 200 after DB updates. */
+/** Comma- or semicolon-separated addresses — you receive a separate "[Admin copy]" email (Base44 SendEmail may not support BCC). */
+function parseNotifyEmails(): string[] {
+  const raw = Deno.env.get('SUBSCRIPTION_NOTIFY_EMAIL') || Deno.env.get('SUBSCRIPTION_ADMIN_EMAIL') || '';
+  return raw
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function sendOneEmail(
+  admin: AdminClient,
+  payload: { to: string; subject: string; body: string }
+): Promise<void> {
+  await admin.integrations.Core.SendEmail({
+    to: payload.to,
+    from_name: emailFromName(),
+    subject: payload.subject,
+    body: payload.body,
+  });
+}
+
+/**
+ * Sends to the subscriber, then one message per SUBSCRIPTION_NOTIFY_EMAIL (admin copy).
+ * Never throws — webhook must still return 200 after DB updates.
+ */
 async function sendSubscriptionEmail(
   admin: AdminClient,
-  opts: { to: string; subject: string; html: string }
+  opts: {
+    to: string;
+    subject: string;
+    html: string;
+    /** Appended only on admin copies (subscriber identity / town id). */
+    adminFooterHtml?: string;
+  }
 ): Promise<void> {
   try {
-    await admin.integrations.Core.SendEmail({
-      to: opts.to,
-      from_name: emailFromName(),
-      subject: opts.subject,
-      body: opts.html,
-    });
+    await sendOneEmail(admin, { to: opts.to, subject: opts.subject, body: opts.html });
     console.log(`Subscription email sent: ${opts.subject} → ${opts.to}`);
   } catch (e) {
     console.error('Subscription email failed (non-fatal):', e);
   }
+
+  const notify = parseNotifyEmails();
+  const adminBody =
+    opts.html +
+    (opts.adminFooterHtml
+      ? `<p style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">${opts.adminFooterHtml}</p>`
+      : '');
+
+  for (const copyTo of notify) {
+    try {
+      await sendOneEmail(admin, {
+        to: copyTo,
+        subject: `[Admin copy] ${opts.subject}`,
+        body: adminBody,
+      });
+      console.log(`Subscription admin copy sent → ${copyTo}`);
+    } catch (e) {
+      console.error(`Subscription admin copy failed (${copyTo}):`, e);
+    }
+  }
+}
+
+/** When the customer has no email in Stripe, still notify admins (if configured). */
+async function sendAdminOnlyAlert(
+  admin: AdminClient,
+  opts: { subject: string; html: string }
+): Promise<void> {
+  const notify = parseNotifyEmails();
+  for (const copyTo of notify) {
+    try {
+      await sendOneEmail(admin, { to: copyTo, subject: opts.subject, body: opts.html });
+      console.log(`Subscription admin-only alert sent → ${copyTo}`);
+    } catch (e) {
+      console.error(`Subscription admin-only alert failed (${copyTo}):`, e);
+    }
+  }
+}
+
+function emailFromCheckoutSessionPayload(s: Stripe.Checkout.Session): string | null {
+  const fromDetails = s.customer_details?.email;
+  if (fromDetails) return fromDetails;
+  if (s.customer_email) return s.customer_email;
+  return null;
 }
 
 async function resolveRecipientEmail(
@@ -38,9 +106,9 @@ async function resolveRecipientEmail(
 ): Promise<string | null> {
   if (eventType === 'checkout.session.completed') {
     const s = obj as Stripe.Checkout.Session;
-    const fromDetails = s.customer_details?.email;
-    if (fromDetails) return fromDetails;
-    if (s.customer_email) return s.customer_email;
+    const direct = emailFromCheckoutSessionPayload(s);
+    if (direct) return direct;
+
     const cid = typeof s.customer === 'string' ? s.customer : s.customer && typeof s.customer === 'object' && 'id' in s.customer
       ? (s.customer as { id: string }).id
       : null;
@@ -48,6 +116,27 @@ async function resolveRecipientEmail(
       const c = await stripe.customers.retrieve(cid);
       if (!c.deleted && 'email' in c && c.email) return c.email;
     }
+
+    // Webhook payload may be minimal (e.g. thin events / API version) — load full session from Stripe.
+    const sessionId = typeof s.id === 'string' ? s.id : null;
+    if (sessionId) {
+      try {
+        const full = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] });
+        const fromFull = emailFromCheckoutSessionPayload(full);
+        if (fromFull) return fromFull;
+        const cust = full.customer;
+        const cid2 = typeof cust === 'string' ? cust : cust && typeof cust === 'object' && 'id' in cust
+          ? (cust as { id: string }).id
+          : null;
+        if (cid2) {
+          const c2 = await stripe.customers.retrieve(cid2);
+          if (!c2.deleted && 'email' in c2 && c2.email) return c2.email;
+        }
+      } catch (e) {
+        console.warn('checkout.session retrieve for email failed:', e);
+      }
+    }
+
     return null;
   }
 
@@ -179,14 +268,28 @@ Deno.serve(async (req) => {
             const town = await admin.entities.TownConfig.get(townId);
             if (town?.town_name) townName = String(town.town_name);
           } catch { /* optional */ }
+          const adminFooter =
+            `<strong>Admin note:</strong> Subscriber email: ${escapeHtml(to || '(none)')} · Town ID: <code>${escapeHtml(townId)}</code>`;
+
           if (to) {
             await sendSubscriptionEmail(admin, {
               to,
               subject: `CodeEnforce Pro — subscription active for ${townName}`,
               html: startedEmailHtml(townName, loginUrl),
+              adminFooterHtml: adminFooter,
             });
           } else {
             console.warn(`checkout.session.completed: no customer email for town ${townId}`);
+            await sendAdminOnlyAlert(admin, {
+              subject: `[CodeEnforce] Subscription activated — no Stripe customer email (${townName})`,
+              html: `
+                <div style="font-family:system-ui,sans-serif;max-width:600px;line-height:1.5;color:#1e293b;">
+                  <p>Checkout completed and town <strong>${escapeHtml(townName)}</strong> was activated.</p>
+                  <p>Stripe did not provide a customer email on the session — the subscriber may not get the automated welcome email.</p>
+                  <p>Town ID: <code>${escapeHtml(townId)}</code></p>
+                  <p style="font-size:14px;color:#64748b;">Set <code>SUBSCRIPTION_NOTIFY_EMAIL</code> on the webhook function to receive this alert.</p>
+                </div>`,
+            });
           }
         }
       } else {
@@ -207,14 +310,27 @@ Deno.serve(async (req) => {
             const town = await admin.entities.TownConfig.get(townId);
             if (town?.town_name) townName = String(town.town_name);
           } catch { /* optional */ }
+          const adminFooter =
+            `<strong>Admin note:</strong> Subscriber email: ${escapeHtml(to || '(none)')} · Town ID: <code>${escapeHtml(townId)}</code>`;
+
           if (to) {
             await sendSubscriptionEmail(admin, {
               to,
               subject: `CodeEnforce Pro — subscription ended for ${townName}`,
               html: cancelledEmailHtml(townName, loginUrl),
+              adminFooterHtml: adminFooter,
             });
           } else {
             console.warn(`customer.subscription.deleted: no customer email for town ${townId}`);
+            await sendAdminOnlyAlert(admin, {
+              subject: `[CodeEnforce] Subscription ended — no Stripe customer email (${townName})`,
+              html: `
+                <div style="font-family:system-ui,sans-serif;max-width:600px;line-height:1.5;color:#1e293b;">
+                  <p>Subscription deleted and town <strong>${escapeHtml(townName)}</strong> was deactivated.</p>
+                  <p>No customer email on file in Stripe for this event.</p>
+                  <p>Town ID: <code>${escapeHtml(townId)}</code></p>
+                </div>`,
+            });
           }
         }
       }
