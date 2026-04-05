@@ -51,11 +51,12 @@ export default function Profile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await base44.functions.invoke('updateUserProfile', {
+      const res = await base44.functions.invoke('updateUserProfile', {
         full_name: full_name.trim(),
         phone: phone.trim(),
         title: title.trim(),
       });
+      if (res.data?.error) throw new Error(res.data.error);
       await checkAppState();
     } catch (err) {
       alert(err.message || 'Could not save profile');

@@ -97,6 +97,7 @@ export default function SuperAdminDashboard() {
   const [profileEditUser, setProfileEditUser] = useState(null);
   const [profileForm, setProfileForm] = useState({ full_name: '', phone: '', title: '' });
   const [pwdResetUser, setPwdResetUser] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     if (user?.role !== 'superadmin') return;
@@ -105,25 +106,82 @@ export default function SuperAdminDashboard() {
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
+    const warnings = [];
+
     try {
-      const [townsRes, usersRes, casesData] = await Promise.all([
+      const casesPromise = impersonatedMunicipality
+        ? base44.entities.Case.filter({ town_id: impersonatedMunicipality.id }, '-created_date', 1000)
+        : base44.entities.Case.list('-created_date', 1000);
+
+      const [townsSettled, usersSettled, casesSettled] = await Promise.allSettled([
         base44.functions.invoke('listTownsForSuperadmin', superadminDashboardPayload({})),
         base44.functions.invoke('getUsers', { all: true }),
-        impersonatedMunicipality
-          ? base44.entities.Case.filter({ town_id: impersonatedMunicipality.id }, '-created_date', 1000)
-          : base44.entities.Case.list('-created_date', 1000),
+        casesPromise,
       ]);
-      const rawTowns = townsRes.data?.towns || [];
+
+      let rawTowns = [];
+      if (townsSettled.status === 'fulfilled') {
+        const tr = townsSettled.value;
+        if (tr.data?.error) {
+          warnings.push(`Towns (function): ${tr.data.error}`);
+        } else {
+          rawTowns = tr.data?.towns || [];
+        }
+      } else {
+        warnings.push(`Towns (function): ${townsSettled.reason?.message || String(townsSettled.reason)}`);
+      }
+
+      const townsFnFailed =
+        townsSettled.status === 'rejected' ||
+        (townsSettled.status === 'fulfilled' && townsSettled.value?.data?.error);
+      if (!rawTowns.length && townsFnFailed) {
+        try {
+          const fallback = await base44.entities.TownConfig.list('-created_date', 500);
+          if (fallback?.length) {
+            rawTowns = fallback;
+            warnings.push(
+              'Loaded towns via client TownConfig.list(). Ensure listTownsForSuperadmin is deployed (functionsDir + entry.ts layout) for preview/production.'
+            );
+          }
+        } catch (fe) {
+          warnings.push(`Towns (client fallback): ${fe.message || 'failed'}`);
+        }
+      }
+
       setTowns(
         rawTowns.map((t) => ({
           ...t,
           is_active: normalizeActive(t.is_active),
         }))
       );
-      setAllUsers(usersRes.data?.users || []);
-      setAllCases(casesData || []);
+
+      if (usersSettled.status === 'fulfilled') {
+        const ur = usersSettled.value;
+        if (ur.data?.error) {
+          warnings.push(`Users: ${ur.data.error}`);
+          setAllUsers([]);
+        } else {
+          setAllUsers(ur.data?.users || []);
+        }
+      } else {
+        warnings.push(`Users: ${usersSettled.reason?.message || String(usersSettled.reason)}`);
+        setAllUsers([]);
+      }
+
+      if (casesSettled.status === 'fulfilled') {
+        setAllCases(casesSettled.value || []);
+      } else {
+        warnings.push(`Cases: ${casesSettled.reason?.message || String(casesSettled.reason)}`);
+        setAllCases([]);
+      }
+
+      if (warnings.length) {
+        setLoadError(warnings.join('\n'));
+      }
     } catch (err) {
       console.error('Load failed:', err);
+      setLoadError(err.message || 'Unexpected load error');
     }
     setLoading(false);
   }
@@ -375,6 +433,12 @@ export default function SuperAdminDashboard() {
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           You are viewing as <strong>{impersonatedMunicipality.town_name}</strong>. Case metrics below are scoped to that town.
           Town and user lists still show <strong>all</strong> municipalities. Use the purple banner to exit when finished.
+        </div>
+      )}
+
+      {loadError && (
+        <div className="mb-4 whitespace-pre-wrap rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <strong>Dashboard data notice:</strong> {loadError}
         </div>
       )}
 

@@ -4,7 +4,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    
+
     // 1. Basic Security Check
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.role !== 'admin' && user.role !== 'superadmin') {
@@ -12,15 +12,23 @@ Deno.serve(async (req) => {
     }
 
     // 2. Safely parse the "all: true" flag from the frontend
-    let params = {};
+    let params: Record<string, unknown> = {};
     try {
       const body = await req.json();
-      params = body || {};
-    } catch (e) {
-      params = {}; // Handle empty requests
+      params = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    } catch (_e) {
+      params = {};
     }
 
-    const { town_id: requestedTownId, all: showAll, acting_town_id: actingTownId } = params;
+    const requestedTownId = params.town_id as string | undefined;
+    const showAll = params.all;
+    const actingTownId = params.acting_town_id as string | undefined;
+
+    const wantAllUsers =
+      showAll === true ||
+      showAll === 'true' ||
+      showAll === 1 ||
+      showAll === '1';
 
     // 3. Fetch EVERYONE using the Service Role (Bypasses all RLS)
     let users = await base44.asServiceRole.entities.User.list();
@@ -28,25 +36,25 @@ Deno.serve(async (req) => {
     // 4. Filter the list based on the request
     if (user.role === 'superadmin' && actingTownId) {
       // Impersonation: scope to the active municipality only (strongest filter)
-      users = users.filter(u => (u.town_id || u.data?.town_id) === actingTownId);
-    } else if (showAll === true && user.role === 'superadmin') {
-      console.log(`SuperAdmin viewing all users`);
+      users = users.filter((u) => (u.town_id || u.data?.town_id) === actingTownId);
+    } else if (wantAllUsers && user.role === 'superadmin') {
+      // all users
     } else if (requestedTownId) {
       // Used for impersonation: only show users for that specific town
-      users = users.filter(u => (u.town_id || u.data?.town_id) === requestedTownId);
+      users = users.filter((u) => (u.town_id || u.data?.town_id) === requestedTownId);
     } else if (user.town_id && user.town_id !== 'Null') {
       // Default: only show users in the same town as the logged-in admin
-      users = users.filter(u => (u.town_id || u.data?.town_id) === user.town_id);
+      users = users.filter((u) => (u.town_id || u.data?.town_id) === user.town_id);
     } else {
       // Show unassigned users if the admin has no town set
-      users = users.filter(u => !u.town_id || u.town_id === 'Null');
+      users = users.filter((u) => !u.town_id || u.town_id === 'Null');
     }
 
     // Exclude the system build account from the list
-    users = users.filter(u => u.email !== 'will@buildwithme.biz');
+    users = users.filter((u) => u.email !== 'will@buildwithme.biz');
 
     return Response.json({ users });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: (error as Error).message }, { status: 500 });
   }
 });
