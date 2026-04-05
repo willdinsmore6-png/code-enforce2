@@ -103,10 +103,22 @@
   }
   /* Skip to main content link */
   .skip-to-main {
-    @apply absolute top-0 left-0 -translate-y-full focus:translate-y-0 z-50 bg-primary text-primary-foreground px-4 py-2;
+    @apply absolute left-4 top-0 z-[100] -translate-y-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-md transition-transform focus:translate-y-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground;
   }
   /* Screen reader only content */
   .sr-only {
     @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+  }
+}
+
+/* WCAG 2.3.3 — respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

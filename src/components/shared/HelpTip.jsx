@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { CircleHelp } from 'lucide-react';
@@ -14,6 +15,7 @@ export default function HelpTip({
   align = 'start',
   side = 'bottom',
 }) {
+  const titleId = useId();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -34,12 +36,15 @@ export default function HelpTip({
         align={align}
         side={side}
         sideOffset={6}
+        aria-labelledby={titleId}
         className={cn(
           'w-[min(22rem,calc(100vw-2rem))] max-h-[min(70dvh,26rem)] overflow-y-auto overscroll-contain border-border p-4 text-sm shadow-md',
           contentClassName
         )}
       >
-        <p className="font-semibold leading-tight text-foreground">{title}</p>
+        <p id={titleId} className="font-semibold leading-tight text-foreground">
+          {title}
+        </p>
         <div className="mt-2 space-y-2 leading-relaxed text-muted-foreground [&_strong]:font-medium [&_strong]:text-foreground">
           {children}
         </div>

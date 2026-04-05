@@ -60,13 +60,15 @@ export default function Sidebar() {
       <Link
         key={item.path}
         to={item.path}
+        aria-current={isActive ? 'page' : undefined}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 min-h-[40px]",
           isActive ? activeClass : inactiveClass
         )}
       >
-        <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && iconActiveClass)} />
+        <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && iconActiveClass)} aria-hidden="true" />
         {!collapsed && <span className="truncate">{item.label}</span>}
+        {collapsed && <span className="sr-only">{item.label}</span>}
       </Link>
     );
   }
@@ -78,9 +80,19 @@ export default function Sidebar() {
     )}>
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-sidebar-border/30">
-          {municipality?.logo_url
-            ? <img src={municipality.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
-            : <Shield className="w-5 h-5 text-sidebar-primary" />}
+          {municipality?.logo_url ? (
+            <img
+              src={municipality.logo_url}
+              alt={
+                municipality?.short_name || municipality?.town_name
+                  ? `${municipality.short_name || municipality.town_name} logo`
+                  : 'Municipality logo'
+              }
+              className="w-full h-full object-contain p-0.5"
+            />
+          ) : (
+            <Shield className="w-5 h-5 text-sidebar-primary" aria-hidden="true" />
+          )}
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
@@ -142,20 +154,25 @@ export default function Sidebar() {
       </nav>
 
       <button
+        type="button"
         onClick={() => logout()}
+        aria-label="Log out"
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150",
+          "flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm font-medium transition-all duration-150 min-h-[40px]",
           "text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent/50"
         )}
       >
-        <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-        {!collapsed && <span className="truncate">Logout</span>}
+        <LogOut className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true" />
+        {!collapsed && <span className="truncate">Log out</span>}
       </button>
       <button
+        type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-12 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Expand sidebar navigation' : 'Collapse sidebar navigation'}
+        className="flex h-12 min-h-[44px] w-full items-center justify-center border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        {collapsed ? <ChevronRight className="w-4 h-4" aria-hidden="true" /> : <ChevronLeft className="w-4 h-4" aria-hidden="true" />}
       </button>
     </aside>
   );

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Shield, Lock, CheckCircle, AlertTriangle, Building2, Scale } from 'lucide-react';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
+import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 export default function Subscribe() {
   const { user, municipality, refreshMunicipality } = useAuth();
@@ -73,9 +74,10 @@ export default function Subscribe() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+    <PublicPageShell mainClassName="outline-none min-h-dvh bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+    <div>
       {/* Header with Logout Button */}
-      <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
             <Building2 className="w-5 h-5 text-white" />
@@ -94,7 +96,7 @@ export default function Subscribe() {
             Logout
           </Button>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-4xl mx-auto px-6 py-16">
         {/* Hero */}
@@ -235,5 +237,6 @@ export default function Subscribe() {
         </div>
       </div>
     </div>
+    </PublicPageShell>
   );
 }

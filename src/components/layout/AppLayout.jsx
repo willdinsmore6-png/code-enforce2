@@ -20,10 +20,14 @@ export default function AppLayout() {
       
       {/* GLOBAL MAINTENANCE BANNER */}
       {maintenanceNotice && (
-        <div className={`w-full py-2 px-4 text-center text-xs font-bold flex items-center justify-center gap-2 z-[60] shadow-md animate-in slide-in-from-top duration-300 ${
-          isMaintenance ? 'bg-red-600 text-white' : 'bg-amber-500 text-slate-900'
-        }`}>
-          <AlertTriangle className="w-3.5 h-3.5" />
+        <div
+          role={isMaintenance ? 'alert' : 'status'}
+          aria-live={isMaintenance ? 'assertive' : 'polite'}
+          className={`w-full py-2 px-4 text-center text-xs font-bold flex items-center justify-center gap-2 z-[60] shadow-md animate-in slide-in-from-top duration-300 ${
+            isMaintenance ? 'bg-red-600 text-white' : 'bg-amber-500 text-slate-900'
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span>{maintenanceNotice}</span>
           {user?.role === 'superadmin' && (
             <span className="ml-2 px-1.5 py-0.5 bg-black/20 rounded text-[10px] uppercase">Admin View</span>
@@ -42,8 +46,9 @@ export default function AppLayout() {
           <Sidebar />
         </nav>
         <main
-          className="min-h-0 flex-1 overflow-y-auto scroll-smooth bg-gradient-to-b from-primary/[0.04] via-background to-background dark:from-primary/[0.07] dark:via-background dark:to-background"
+          className="min-h-0 flex-1 overflow-y-auto scroll-smooth bg-gradient-to-b from-primary/[0.04] via-background to-background outline-none dark:from-primary/[0.07] dark:via-background dark:to-background"
           id="main-content"
+          tabIndex={-1}
         >
           <SubscriptionGate>
             <Outlet />

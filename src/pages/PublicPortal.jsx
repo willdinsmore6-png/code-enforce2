@@ -18,6 +18,7 @@ import {
   mapEntityCaseToPortalSummary,
   PUBLIC_PORTAL_DOC_TYPES,
 } from '@/lib/publicCaseLookup';
+import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 export default function PublicPortal() {
   const [accessCode, setAccessCode] = useState('');
@@ -168,11 +169,13 @@ export default function PublicPortal() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
+    <PublicPageShell mainClassName="outline-none min-h-dvh bg-background">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
       {isLoggedIn && (
         <button
+          type="button"
           onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+          className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           ← Back to App
         </button>
@@ -226,21 +229,31 @@ export default function PublicPortal() {
           </div>
         </div>
 
-        <form onSubmit={handleSearch} className="flex gap-3">
-          <ClearableInput
-            value={accessCode}
-            onChange={e => setAccessCode(e.target.value.toUpperCase())}
-            placeholder="e.g. YK9B2L4A or CE-2026-9980"
-            className="flex-1 uppercase"
-            required
-          />
-          <Button type="submit" disabled={searching}>
+        <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end" aria-busy={searching}>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Label htmlFor="portal-access-code">Access code or case number</Label>
+            <ClearableInput
+              id="portal-access-code"
+              name="access_code"
+              autoComplete="off"
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+              placeholder="e.g. YK9B2L4A or CE-2026-9980"
+              className="flex-1 uppercase"
+              required
+              aria-describedby="portal-access-hint"
+            />
+            <p id="portal-access-hint" className="text-xs text-muted-foreground">
+              Use the code from your notice or the case number your municipality gave you.
+            </p>
+          </div>
+          <Button type="submit" disabled={searching} className="shrink-0 sm:mb-0">
             {searching ? 'Searching...' : 'Look Up'}
           </Button>
         </form>
 
         {notFound && (
-          <div className="mt-3 space-y-2 text-sm text-destructive">
+          <div className="mt-3 space-y-2 text-sm text-destructive" role="alert">
             <p>
               {searchError
                 ? searchError
@@ -420,9 +433,15 @@ export default function PublicPortal() {
                     <div className="relative">
                       <Textarea value={abatementNotes} onChange={e => setAbatementNotes(e.target.value)} rows={3} placeholder="Describe what you've done to correct the violation..." className="pr-8" />
                       {abatementNotes && (
-                        <button type="button" onClick={() => setAbatementNotes('')}
-                          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
-                          <span className="text-xs">✕</span>
+                        <button
+                          type="button"
+                          onClick={() => setAbatementNotes('')}
+                          className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:text-foreground"
+                          aria-label="Clear notes"
+                        >
+                          <span className="text-xs" aria-hidden="true">
+                            ✕
+                          </span>
                         </button>
                       )}
                     </div>
@@ -444,5 +463,6 @@ export default function PublicPortal() {
         </div>
       )}
     </div>
+    </PublicPageShell>
   );
 }

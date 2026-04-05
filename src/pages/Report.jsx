@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, Upload, X, AlertTriangle, MapPin, Camera, FileText, Shield, Building2 } from 'lucide-react';
+import { SkipToMainLink, PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 const VIOLATION_TYPES = [
   { value: 'junk_debris', label: 'Junk / Debris / Abandoned Vehicles' },
@@ -175,37 +176,42 @@ export default function Report() {
 
   if (townLoadError === 'invalid') {
     return (
+      <PublicPageShell mainClassName="outline-none min-h-dvh">
       <div className={`${reportShell} flex items-center justify-center p-6`}>
         <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
-          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" />
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" aria-hidden="true" />
           <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">Invalid report link</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             This URL does not match an active municipality. Use the &quot;Report a violation&quot; link from your town&apos;s official website, or contact your code enforcement office.
           </p>
         </div>
       </div>
+      </PublicPageShell>
     );
   }
 
   if (townLoadError === 'inactive') {
     return (
+      <PublicPageShell mainClassName="outline-none min-h-dvh">
       <div className={`${reportShell} flex items-center justify-center p-6`}>
         <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
-          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" />
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-amber-500" aria-hidden="true" />
           <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">Reporting unavailable</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             This municipality&apos;s online reporting is not active. Please call or email your town&apos;s code enforcement office.
           </p>
         </div>
       </div>
+      </PublicPageShell>
     );
   }
 
   if (townLoadError === 'none') {
     return (
+      <PublicPageShell mainClassName="outline-none min-h-dvh">
       <div className={`${reportShell} flex items-center justify-center p-6`}>
         <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
-          <Building2 className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <Building2 className="mx-auto mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
           <h1 className="mb-2 text-lg font-bold tracking-tight text-foreground">No active municipalities</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Public reporting is not configured yet. For assistance, contact{' '}
@@ -216,15 +222,17 @@ export default function Report() {
           </p>
         </div>
       </div>
+      </PublicPageShell>
     );
   }
 
   if (result?.success) {
     return (
+      <PublicPageShell mainClassName="outline-none min-h-dvh">
       <div className={`${reportShell} flex items-center justify-center p-4`}>
         <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-8 text-center shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
-            <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
           </div>
           <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Report submitted</h1>
           <p className="mb-6 text-muted-foreground">
@@ -245,11 +253,13 @@ export default function Report() {
           </p>
         </div>
       </div>
+      </PublicPageShell>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/[0.06] via-background to-background">
+      <SkipToMainLink />
       <header className="border-b border-border/80 bg-card/70 backdrop-blur-sm" role="banner">
         <div className="mx-auto max-w-2xl px-4 py-4 sm:py-5">
           <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06]">
@@ -283,7 +293,7 @@ export default function Report() {
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-2xl px-4 py-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-8 outline-none">
         <div className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm ring-1 ring-black/[0.03] sm:p-8 dark:ring-white/[0.05]">
           {townLoadError === 'choose' && !townConfig && (
             <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100">

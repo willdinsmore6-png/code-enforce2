@@ -2,6 +2,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { Building2, Mail, LogOut, Info } from 'lucide-react';
+import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 export default function Onboarding() {
   const { user } = useAuth();
@@ -15,7 +16,8 @@ export default function Onboarding() {
   const mailtoLink = `mailto:admin@://code-enforce.com Town Onboarding Request&body=User: ${user?.email}%0D%0A%0D%0AI need to be linked to the following municipality:%0D%0A- Town Name:%0D%0A- State:`;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 font-sans">
+    <PublicPageShell mainClassName="outline-none min-h-dvh bg-slate-900 font-sans text-white">
+    <div className="flex min-h-[70vh] items-center justify-center p-6">
       <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl text-center">
         
         {/* Icon */}
@@ -54,5 +56,6 @@ export default function Onboarding() {
         </div>
       </div>
     </div>
+    </PublicPageShell>
   );
 }

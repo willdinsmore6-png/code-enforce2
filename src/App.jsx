@@ -118,13 +118,17 @@ const AuthenticatedApp = () => {
   // If maintenance is ON, and user is NOT a SuperAdmin, and they aren't on a public route: LOCK THEM OUT
   if (isMaintenanceActive && !isSuperAdmin && !publicPath && !isLoadingPublicSettings && !isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
+      <div
+        className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center"
+        role="status"
+        aria-live="polite"
+      >
         <div className="max-w-md w-full space-y-8 animate-in zoom-in-95 duration-500">
           <div className="relative">
             <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
-              <Clock className="w-12 h-12 text-amber-500" />
+              <Clock className="w-12 h-12 text-amber-500" aria-hidden="true" />
             </div>
-            <div className="absolute top-0 right-1/4 w-3 h-3 bg-red-500 rounded-full animate-ping" />
+            <div className="absolute top-0 right-1/4 w-3 h-3 bg-red-500 rounded-full animate-ping motion-reduce:animate-none" aria-hidden="true" />
           </div>
 
           <div className="space-y-4">
@@ -151,8 +155,9 @@ const AuthenticatedApp = () => {
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
-        <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900" role="status" aria-live="polite">
+        <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin" aria-hidden="true" />
+        <span className="sr-only">Loading application…</span>
       </div>
     );
   }
@@ -165,8 +170,9 @@ const AuthenticatedApp = () => {
   
   if (!user && !publicPath) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
-        <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900" role="status" aria-live="polite">
+        <div className="w-10 h-10 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin" aria-hidden="true" />
+        <span className="sr-only">Signing in…</span>
       </div>
     );
   }
@@ -207,7 +213,7 @@ export default function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <a href="#main-content" className="sr-only focus:not-sr-only">Skip to main content</a>
+          <Toaster />
           <AuthenticatedApp />
         </Router>
       </QueryClientProvider>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { Building2, LogOut, UserCheck, Mail, ArrowRight, Copy, Check } from 'lucide-react';
+import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 export default function UnassignedUserScreen() {
   const [copied, setCopied] = useState(false);
@@ -22,12 +23,13 @@ export default function UnassignedUserScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-center p-6">
+    <PublicPageShell mainClassName="outline-none min-h-dvh bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+    <div className="flex min-h-[70vh] items-center justify-center p-6">
       <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
         
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center mx-auto mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
-            <Building2 className="w-8 h-8" />
+            <Building2 className="w-8 h-8" aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-bold mb-2 tracking-tight">Account Not Linked</h1>
           <p className="text-slate-400 text-sm leading-relaxed">
@@ -92,5 +94,6 @@ export default function UnassignedUserScreen() {
         </div>
       </div>
     </div>
+    </PublicPageShell>
   );
 }
