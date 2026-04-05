@@ -17,6 +17,20 @@ const statusConfig = {
   issued: { label: 'Issued', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   superseded: { label: 'Superseded', className: 'bg-amber-50 text-amber-800 border-amber-200' },
   withdrawn: { label: 'Withdrawn', className: 'bg-slate-50 text-slate-500 border-slate-200' },
+  /* Building permit */
+  submitted: { label: 'Submitted', className: 'bg-sky-50 text-sky-800 border-sky-200' },
+  under_review: { label: 'Under review', className: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+  denied: { label: 'Denied', className: 'bg-red-50 text-red-800 border-red-200' },
+  expired: { label: 'Expired', className: 'bg-slate-50 text-slate-600 border-slate-200' },
+  cancelled: { label: 'Cancelled', className: 'bg-slate-50 text-slate-500 border-slate-200' },
+  /* Land use application */
+  completeness: { label: 'Completeness review', className: 'bg-blue-50 text-blue-800 border-blue-200' },
+  abutter_notice: { label: 'Abutter notice', className: 'bg-amber-50 text-amber-900 border-amber-200' },
+  hearing_scheduled: { label: 'Hearing scheduled', className: 'bg-violet-50 text-violet-800 border-violet-200' },
+  continued: { label: 'Continued', className: 'bg-orange-50 text-orange-800 border-orange-200' },
+  deliberation: { label: 'Deliberation', className: 'bg-purple-50 text-purple-800 border-purple-200' },
+  nod_draft: { label: 'NOD draft', className: 'bg-teal-50 text-teal-900 border-teal-200' },
+  nod_issued: { label: 'NOD issued', className: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
 };
 
 const priorityConfig = {
