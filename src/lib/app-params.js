@@ -52,3 +52,18 @@ const getAppParams = () => {
 export const appParams = {
 	...getAppParams()
 }
+
+/**
+ * Base URL used for `/login` and auth redirects. When the app is served on both www and apex,
+ * `VITE_BASE44_APP_BASE_URL` often points at only one (e.g. https://code-enforce.com), which
+ * sends www visitors to the other host. For production hosts we always use the current origin.
+ */
+export function getEffectiveAppBaseUrl() {
+	if (!isNode) {
+		const h = window.location.hostname;
+		if (h === 'www.code-enforce.com' || h === 'code-enforce.com') {
+			return window.location.origin;
+		}
+	}
+	return appParams.appBaseUrl || import.meta.env.VITE_BASE44_APP_BASE_URL || '';
+}
