@@ -28,7 +28,6 @@ import ZoningDeterminations from './pages/ZoningDeterminations';
 import ZoningDeterminationDetail from './pages/ZoningDeterminationDetail';
 import AdminTools from './pages/AdminTools';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
-import Profile from './pages/Profile';
 import PageNotFound from './lib/PageNotFound';
 import Onboarding from './pages/Onboarding';
 import Subscribe from './pages/Subscribe';
@@ -95,13 +94,12 @@ const AuthenticatedApp = () => {
     publicPath,
   ]);
 
-  /** Superadmin without an active town impersonation: only global dashboard + profile inside the app shell. */
+  /** Superadmin without an active town impersonation: only global dashboard inside the app shell. */
   useEffect(() => {
     if (isLoadingAuth || isLoadingPublicSettings || !user) return;
     if (user.role !== 'superadmin' || impersonatedMunicipality) return;
     if (publicPath) return;
     if (path === '/superadmin' || path.startsWith('/superadmin/')) return;
-    if (path === '/profile' || path.startsWith('/profile/')) return;
     navigate('/superadmin', { replace: true });
   }, [
     user,
@@ -197,7 +195,6 @@ const AuthenticatedApp = () => {
         <Route path="/documents" element={<DocumentVault />} />
         <Route path="/admin" element={<AdminTools />} />
         <Route path="/superadmin" element={<SuperAdminDashboard />} />
-        <Route path="/profile" element={<Profile />} />
       </Route>
 
       <Route path="*" element={<PageNotFound />} />

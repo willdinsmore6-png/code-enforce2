@@ -18,7 +18,6 @@ import {
   Shield,
   LogOut,
   ShieldCheck,
-  UserCircle,
 } from 'lucide-react';
 import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
@@ -36,17 +35,13 @@ const navItems = [
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
-  { path: '/profile', icon: UserCircle, label: 'My profile' },
 ];
 
 const adminItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
-const superadminShellNav = [
-  { path: '/superadmin', icon: ShieldCheck, label: 'Global Dashboard' },
-  { path: '/profile', icon: UserCircle, label: 'My profile' },
-];
+const superadminShellNav = [{ path: '/superadmin', icon: ShieldCheck, label: 'Global Dashboard' }];
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);

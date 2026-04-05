@@ -16,7 +16,6 @@ import {
   LogOut,
   Settings,
   Compass,
-  UserCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -34,7 +33,6 @@ const navItems = [
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
-  { path: '/profile', icon: UserCircle, label: 'My profile' },
 ];
 
 const adminNavItems = [
@@ -46,10 +44,7 @@ const superAdminNavItems = [
 ];
 
 /** Logged-in superadmin not impersonating a town: minimal navigation only. */
-const superadminShellNav = [
-  { path: '/superadmin', icon: Shield, label: 'Global Dashboard' },
-  { path: '/profile', icon: UserCircle, label: 'My profile' },
-];
+const superadminShellNav = [{ path: '/superadmin', icon: Shield, label: 'Global Dashboard' }];
 
 export default function Sidebar() {
   const location = useLocation();

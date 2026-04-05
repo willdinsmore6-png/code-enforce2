@@ -36,7 +36,6 @@ import {
   Zap,
   Copy,
   Trash2,
-  Pencil,
   KeyRound,
 } from 'lucide-react';
 
@@ -94,8 +93,6 @@ export default function SuperAdminDashboard() {
 
   const [confirmingTown, setConfirmingTown] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [profileEditUser, setProfileEditUser] = useState(null);
-  const [profileForm, setProfileForm] = useState({ full_name: '', phone: '', title: '' });
   const [pwdResetUser, setPwdResetUser] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
@@ -358,45 +355,6 @@ export default function SuperAdminDashboard() {
       setAllUsers((prev) => prev.map((row) => (row.id === u.id ? { ...row, role } : row)));
     } catch (err) {
       alert(err.message || 'Could not update role');
-    }
-    setIsUpdatingStatus(false);
-  }
-
-  function openProfileEdit(u) {
-    setProfileEditUser(u);
-    setProfileForm({
-      full_name: u.full_name || u.name || '',
-      phone: u.phone || '',
-      title: u.title || '',
-    });
-  }
-
-  async function handleSaveUserProfile(e) {
-    e?.preventDefault();
-    if (!profileEditUser) return;
-    setIsUpdatingStatus(true);
-    try {
-      const res = await base44.functions.invoke(
-        'updateUserProfile',
-        superadminDashboardPayload({
-          userId: profileEditUser.id,
-          full_name: profileForm.full_name.trim(),
-          phone: profileForm.phone.trim(),
-          title: profileForm.title.trim(),
-        })
-      );
-      if (res.data?.error) throw new Error(res.data.error);
-      const next = {
-        full_name: profileForm.full_name.trim(),
-        phone: profileForm.phone.trim(),
-        title: profileForm.title.trim(),
-      };
-      setAllUsers((prev) =>
-        prev.map((row) => (row.id === profileEditUser.id ? { ...row, ...next } : row))
-      );
-      setProfileEditUser(null);
-    } catch (err) {
-      alert(err?.message || err?.data?.error || 'Save failed');
     }
     setIsUpdatingStatus(false);
   }
@@ -739,16 +697,6 @@ export default function SuperAdminDashboard() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex justify-end gap-0.5">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-slate-600"
-                            title="Edit profile (display name, phone, title)"
-                            onClick={() => openProfileEdit(u)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           {u.email ? (
                             <Button
                               type="button"
@@ -907,68 +855,6 @@ export default function SuperAdminDashboard() {
               Delete
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!profileEditUser} onOpenChange={() => setProfileEditUser(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit user profile</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveUserProfile} className="space-y-3 text-sm">
-            <p className="text-xs text-slate-600">
-              Updates the User record (display name, phone, title). Login email is not changed here.
-            </p>
-            <div className="flex flex-wrap items-center gap-2 rounded-md border bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-700">
-              <span className="break-all">id: {profileEditUser?.id}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="ml-auto h-7 shrink-0 text-xs"
-                onClick={() => profileEditUser?.id && copyToClipboard(profileEditUser.id)}
-              >
-                <Copy className="mr-1 h-3 w-3" /> Copy
-              </Button>
-            </div>
-            <div className="space-y-1">
-              <Label>Email</Label>
-              <Input value={profileEditUser?.email || ''} disabled className="bg-muted" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="sa-profile-name">Display name</Label>
-              <Input
-                id="sa-profile-name"
-                value={profileForm.full_name}
-                onChange={(e) => setProfileForm((p) => ({ ...p, full_name: e.target.value }))}
-                placeholder="Shown on cases and lists"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="sa-profile-title">Job title</Label>
-              <Input
-                id="sa-profile-title"
-                value={profileForm.title}
-                onChange={(e) => setProfileForm((p) => ({ ...p, title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="sa-profile-phone">Phone</Label>
-              <Input
-                id="sa-profile-phone"
-                value={profileForm.phone}
-                onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))}
-              />
-            </div>
-            <DialogFooter className="gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setProfileEditUser(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isUpdatingStatus}>
-                {isUpdatingStatus ? 'Saving…' : 'Save profile'}
-              </Button>
-            </DialogFooter>
-          </form>
         </DialogContent>
       </Dialog>
 
