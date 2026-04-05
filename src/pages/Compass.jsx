@@ -51,19 +51,29 @@ export default function CompassPage() {
   useEffect(() => {
     async function loadCasesAndZoning() {
       const activeTownId = municipality?.id || user?.town_id;
+      const townKey = activeTownId != null && activeTownId !== '' ? String(activeTownId) : '';
       try {
-        if (activeTownId) {
-          const [c, zd] = await Promise.all([
-            base44.entities.Case.filter({ town_id: activeTownId }),
-            base44.entities.ZoningDetermination.filter({ town_id: activeTownId }, '-created_date', 150),
+        if (townKey) {
+          const [byRoot, byDataBag, zd] = await Promise.all([
+            base44.entities.Case.filter({ town_id: townKey }, '-created_date', 500).catch(() => []),
+            base44.entities.Case.filter({ 'data.town_id': townKey }, '-created_date', 500).catch(() => []),
+            base44.entities.ZoningDetermination.filter({ town_id: townKey }, '-created_date', 150).catch(() => []),
           ]);
-          setCases(c.filter((ca) => !['resolved', 'closed'].includes(ca.status)));
+          const caseMap = new Map();
+          for (const ca of [...(byRoot || []), ...(byDataBag || [])]) {
+            if (ca?.id) caseMap.set(ca.id, ca);
+          }
+          const merged = [...caseMap.values()].filter(
+            (ca) => !['resolved', 'closed'].includes(ca.status)
+          );
+          merged.sort((a, b) => String(b.created_date || '').localeCompare(String(a.created_date || '')));
+          setCases(merged);
           setZoningDeterminations(zd || []);
           return;
         }
         if (user?.role === 'superadmin') {
           const [c, zd] = await Promise.all([
-            base44.entities.Case.list('-created_date', 100),
+            base44.entities.Case.list('-created_date', 2500),
             base44.entities.ZoningDetermination.list('-created_date', 150),
           ]);
           setCases((c || []).filter((ca) => !['resolved', 'closed'].includes(ca.status)));
