@@ -3,19 +3,28 @@ import Stripe from 'npm:stripe@14.21.0';
 
 type AdminClient = ReturnType<typeof createClientFromRequest>['asServiceRole'];
 
+const DEFAULT_APP_URL = 'https://www.code-enforce.com';
+const DEFAULT_SUBSCRIPTION_NOTIFY_EMAIL = 'support@code-enforce.com';
+
 function appLoginUrl(): string {
   const u = Deno.env.get('PUBLIC_APP_URL') || Deno.env.get('APP_URL');
   if (u) return u.replace(/\/$/, '');
-  return 'https://codeenforce.base44.app';
+  return DEFAULT_APP_URL;
 }
 
 function emailFromName(): string {
   return Deno.env.get('SUBSCRIPTION_EMAIL_FROM_NAME') || 'CodeEnforce Pro';
 }
 
-/** Comma- or semicolon-separated addresses — you receive a separate "[Admin copy]" email (Base44 SendEmail may not support BCC). */
+/**
+ * Comma- or semicolon-separated addresses — separate "[Admin copy]" emails (Base44 SendEmail may not support BCC).
+ * Defaults to support@code-enforce.com when unset; override with SUBSCRIPTION_NOTIFY_EMAIL.
+ */
 function parseNotifyEmails(): string[] {
-  const raw = Deno.env.get('SUBSCRIPTION_NOTIFY_EMAIL') || Deno.env.get('SUBSCRIPTION_ADMIN_EMAIL') || '';
+  const raw =
+    Deno.env.get('SUBSCRIPTION_NOTIFY_EMAIL') ||
+    Deno.env.get('SUBSCRIPTION_ADMIN_EMAIL') ||
+    DEFAULT_SUBSCRIPTION_NOTIFY_EMAIL;
   return raw
     .split(/[,;]+/)
     .map((s) => s.trim())
@@ -287,7 +296,7 @@ Deno.serve(async (req) => {
                   <p>Checkout completed and town <strong>${escapeHtml(townName)}</strong> was activated.</p>
                   <p>Stripe did not provide a customer email on the session — the subscriber may not get the automated welcome email.</p>
                   <p>Town ID: <code>${escapeHtml(townId)}</code></p>
-                  <p style="font-size:14px;color:#64748b;">Set <code>SUBSCRIPTION_NOTIFY_EMAIL</code> on the webhook function to receive this alert.</p>
+                  <p style="font-size:14px;color:#64748b;">Admin copies go to <code>${escapeHtml(DEFAULT_SUBSCRIPTION_NOTIFY_EMAIL)}</code> by default; override with <code>SUBSCRIPTION_NOTIFY_EMAIL</code>.</p>
                 </div>`,
             });
           }
