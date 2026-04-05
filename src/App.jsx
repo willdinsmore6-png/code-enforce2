@@ -33,6 +33,7 @@ import Onboarding from './pages/Onboarding';
 import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
 import LandingRoute from './pages/LandingPage';
+import ProspectWelcomePage from './pages/ProspectWelcomePage';
 import {
   isPublicAppPath,
   isTownInactive,
@@ -183,6 +184,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingRoute />} />
+      <Route path="/welcome" element={<ProspectWelcomePage />} />
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />

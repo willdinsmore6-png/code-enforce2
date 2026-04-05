@@ -13,6 +13,7 @@ function normalizePath(pathname) {
 /** Routes that do not require an active town or paid subscription (incl. marketing home). */
 export const PUBLIC_ROUTE_PREFIXES = [
   '/',
+  '/welcome',
   '/public-portal',
   '/report',
   '/subscribe',
@@ -42,7 +43,7 @@ export function userHasNoTown(user) {
 /** Logged-in user with no town — not the marketing `/` (they are redirected to app then onboarding). */
 export function isUnassignedAllowedPath(pathname) {
   const p = normalizePath(pathname);
-  const prefixes = ['/public-portal', '/report', '/subscribe', '/success', '/onboarding'];
+  const prefixes = ['/welcome', '/public-portal', '/report', '/subscribe', '/success', '/onboarding'];
   return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
 }
 
