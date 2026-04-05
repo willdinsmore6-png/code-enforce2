@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 
+function isFunctionNotFound(err) {
+  const m = String(err?.message || '').toLowerCase();
+  if (m.includes('404') || m.includes('not found')) return true;
+  if (err?.response?.status === 404) return true;
+  return false;
+}
+
 export default function Profile() {
   const { user, impersonatedMunicipality, checkAppState } = useAuth();
   const [full_name, setFullName] = useState('');
@@ -29,6 +36,7 @@ export default function Profile() {
             ? { all: true }
             : mergeActingTownPayload(user, impersonatedMunicipality, {});
         const res = await base44.functions.invoke('getUsers', payload);
+        if (res.data?.error) throw new Error(res.data.error);
         const row = (res.data?.users || []).find((u) => u.id === user.id);
         if (!cancelled && row) {
           setFullName(row.full_name || '');
@@ -36,7 +44,26 @@ export default function Profile() {
           setTitle(row.title || '');
         }
       } catch (e) {
-        console.error(e);
+        if (isFunctionNotFound(e) && user?.id) {
+          try {
+            const rows = await base44.entities.User.filter({ id: user.id });
+            const row = rows?.[0];
+            if (!cancelled && row) {
+              setFullName(row.full_name || '');
+              setPhone(row.phone || '');
+              setTitle(row.title || '');
+            }
+          } catch (e2) {
+            console.error(e2);
+            if (!cancelled) {
+              setFullName(user.full_name || user.name || '');
+              setPhone(user.phone || '');
+              setTitle(user.title || '');
+            }
+          }
+        } else {
+          console.error(e);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -50,21 +77,29 @@ export default function Profile() {
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
+    const patch = {
+      full_name: full_name.trim(),
+      phone: phone.trim(),
+      title: title.trim(),
+    };
     try {
-      const res = await base44.functions.invoke('updateUserProfile', {
-        full_name: full_name.trim(),
-        phone: phone.trim(),
-        title: title.trim(),
-      });
+      const res = await base44.functions.invoke('updateUserProfile', patch);
       if (res.data?.error) throw new Error(res.data.error);
       await checkAppState();
     } catch (err) {
-      const m = err?.message || '';
-      alert(
-        m.includes('404') || m.includes('Not Found')
-          ? 'Profile save failed (function not found). Deploy backend functions from this project (updateUserProfile at base44/functions/updateUserProfile/entry.ts) or run base44 deploy.'
-          : m || 'Could not save profile'
-      );
+      if (isFunctionNotFound(err) && user?.id) {
+        try {
+          await base44.entities.User.update(user.id, patch);
+          await checkAppState();
+        } catch (err2) {
+          alert(
+            err2?.message ||
+              'Could not save profile. In the Base44 dashboard, ensure the User entity allows members to update their own row (or add the updateUserProfile function under Functions).'
+          );
+        }
+      } else {
+        alert(err?.message || 'Could not save profile');
+      }
     } finally {
       setSaving(false);
     }
