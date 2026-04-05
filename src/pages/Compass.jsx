@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Send, Upload, Settings, Loader2, Building2, FileText, Trash2, RotateCcw, X, Info } from 'lucide-react';
+import { Sparkles, Send, Upload, Loader2, RotateCcw, X, Info } from 'lucide-react';
 import HelpTip from '@/components/shared/HelpTip';
 import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
@@ -16,18 +15,6 @@ export default function CompassPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [townConfig, setTownConfig] = useState(null);
-  const [showConfig, setShowConfig] = useState(false);
-  const [configForm, setConfigForm] = useState({ 
-    town_name: '', state: 'NH', compliance_days_zoning: 30, 
-    compliance_days_building: 30, zba_appeal_days: 30, 
-    penalty_first_offense: 275, penalty_subsequent: 550, 
-    specific_regulations: '', notes: '' 
-  });
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadedDocNames, setUploadedDocNames] = useState([]);
-  const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
   const [docsSharedWithAgent, setDocsSharedWithAgent] = useState(false);
   const [planFile, setPlanFile] = useState(null);
   const planInputRef = useRef(null);
@@ -37,17 +24,6 @@ export default function CompassPage() {
   const [selectedZoningDetermination, setSelectedZoningDetermination] = useState('');
   const [showReviewWaitNotice, setShowReviewWaitNotice] = useState(false);
   const messagesEndRef = useRef(null);
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-
-  useEffect(() => {
-    if (municipality) {
-      setTownConfig(municipality);
-      setConfigForm(f => ({ ...f, ...municipality }));
-      setUploadedDocNames(municipality.ordinance_doc_names || []);
-    } else {
-      setShowConfig(isAdmin);
-    }
-  }, [municipality, isAdmin]);
 
   // Persistent town-specific filtering for Super Admins
   useEffect(() => {
@@ -165,7 +141,7 @@ export default function CompassPage() {
     const messagePayload = { role: 'user', content: msg + caseContext + zdContext };
 
     const file_urls = [];
-    const ordinanceUrls = townConfig?.ordinance_docs || [];
+    const ordinanceUrls = municipality?.ordinance_docs || [];
     if (ordinanceUrls.length > 0 && !docsSharedWithAgent) {
       file_urls.push(...ordinanceUrls);
       setDocsSharedWithAgent(true);
@@ -186,58 +162,6 @@ export default function CompassPage() {
 
     await base44.agents.addMessage(conversation, messagePayload);
     setSending(false);
-  }
-
-  async function saveConfig(e) {
-    e.preventDefault();
-    setSavingConfig(true);
-    try {
-      if (townConfig?.id) {
-        const updated = await base44.entities.TownConfig.update(townConfig.id, configForm);
-        setTownConfig(updated);
-      } else {
-        const created = await base44.entities.TownConfig.create({ ...configForm, is_active: true });
-        setTownConfig(created);
-      }
-      setShowConfig(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingConfig(false);
-    }
-  }
-
-  async function handleDocUpload(e) {
-    const file = e.target.files[0];
-    if (!file || !townConfig?.id) return;
-    setUploadingDoc(true);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const existingDocs = townConfig.ordinance_docs || [];
-      const existingNames = townConfig.ordinance_doc_names || [];
-      const newDocEntry = { url: file_url, name: file.name, uploaded_at: new Date().toISOString() };
-      const updated = await base44.entities.TownConfig.update(townConfig.id, {
-        ordinance_docs: [...existingDocs, file_url],
-        ordinance_doc_names: [...existingNames, newDocEntry],
-      });
-      setTownConfig(updated);
-      setUploadedDocNames(updated.ordinance_doc_names || []);
-      setLastUploadedDoc(file.name);
-      setTimeout(() => setLastUploadedDoc(null), 4000);
-    } finally {
-      setUploadingDoc(false);
-    }
-  }
-
-  async function removeDocument(index) {
-    const newDocNames = (townConfig.ordinance_doc_names || []).filter((_, i) => i !== index);
-    const newDocs = (townConfig.ordinance_docs || []).filter((_, i) => i !== index);
-    const updated = await base44.entities.TownConfig.update(townConfig.id, {
-      ordinance_docs: newDocs,
-      ordinance_doc_names: newDocNames,
-    });
-    setTownConfig(updated);
-    setUploadedDocNames(newDocNames);
   }
 
   async function askWithCase() {
@@ -273,65 +197,32 @@ export default function CompassPage() {
                 <h1 className="text-lg font-bold">{MERIDIAN_DISPLAY_NAME}</h1>
                 <HelpTip title={`Using ${MERIDIAN_DISPLAY_NAME}`} align="start">
                   <p>
-                    {MERIDIAN_DISPLAY_NAME} answers questions using NH land-use context, your <strong>town settings</strong> (if configured), and optional{' '}
-                    <strong>ordinance PDFs</strong> you upload under Settings.
+                    {MERIDIAN_DISPLAY_NAME} answers questions using NH land-use context, your <strong>town settings</strong> from{' '}
+                    <strong>Admin → Municipality</strong>, and optional <strong>ordinance PDFs</strong> uploaded there.
                   </p>
                   <p>
                     Use the <strong>Enforcement case</strong> or <strong>Zoning determination</strong> dropdown, then <strong>Analyze</strong>, to
                     load that matter into the chat so the assistant can review investigations, documents, and notes.
                   </p>
                   <p>
-                    Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins can open{' '}
-                    <strong>Settings</strong> to edit timelines, penalties, and training documents.
+                    Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins configure
+                    deadlines, penalties, regulations, and training files under{' '}
+                    <Link to="/admin" className="font-medium underline underline-offset-2">
+                      Admin Tools → Municipality
+                    </Link>
+                    .
                   </p>
                 </HelpTip>
               </div>
-              <p className="text-xs text-muted-foreground">NH Land Use & Zoning Advisor {townConfig && <span> · {townConfig.town_name}</span>}</p>
+              <p className="text-xs text-muted-foreground">
+                NH Land Use &amp; Zoning Advisor{municipality?.town_name ? ` · ${municipality.town_name}` : ''}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5"><RotateCcw className="w-3.5 h-3.5" /> New Chat</Button>
-            {isAdmin && <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-1.5"><Settings className="w-3.5 h-3.5" /> Settings</Button>}
           </div>
         </div>
-
-        {showConfig && isAdmin && (
-          <div className="mx-auto mt-4 max-h-[min(70vh,28rem)] max-w-5xl overflow-y-auto overscroll-contain rounded-xl border border-indigo-200 bg-indigo-50 p-5 sm:max-h-[min(75vh,36rem)] md:max-h-[min(80vh,40rem)]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                <h3 className="font-semibold text-indigo-900">Town Configuration</h3>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowConfig(false)}><X className="w-4 h-4" /></Button>
-            </div>
-            <form onSubmit={saveConfig} className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="space-y-1"><Label className="text-xs">Town Name</Label><Input value={configForm.town_name} onChange={e => setConfigForm({...configForm, town_name: e.target.value})} required /></div>
-                <div className="space-y-1"><Label className="text-xs">State</Label><Input value={configForm.state} onChange={e => setConfigForm({...configForm, state: e.target.value})} /></div>
-                <div className="space-y-1"><Label className="text-xs">Penalty ($)</Label><Input type="number" value={configForm.penalty_first_offense} onChange={e => setConfigForm({...configForm, penalty_first_offense: +e.target.value})} /></div>
-                <div className="space-y-1"><Label className="text-xs">ZBA Days</Label><Input type="number" value={configForm.zba_appeal_days} onChange={e => setConfigForm({...configForm, zba_appeal_days: +e.target.value})} /></div>
-              </div>
-              <div className="space-y-1"><Label className="text-xs">Regulations</Label><Textarea rows={3} value={configForm.specific_regulations} onChange={e => setConfigForm({...configForm, specific_regulations: e.target.value})} /></div>
-              <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" disabled={savingConfig}>{savingConfig ? 'Saving...' : 'Save'}</Button>
-                <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent">
-                   <Upload className="w-3 h-3" /> {uploadingDoc ? 'Uploading...' : 'Learn from PDF'}
-                   <input type="file" className="hidden" accept=".pdf,.txt,.png,.jpg,.jpeg,.webp" onChange={handleDocUpload} />
-                </label>
-              </div>
-            </form>
-            {uploadedDocNames.length > 0 && (
-              <div className="mt-4 space-y-1.5 border-t border-indigo-200 pt-3">
-                {uploadedDocNames.map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white px-3 py-1.5 rounded border border-indigo-100 text-xs">
-                    <span className="truncate flex items-center gap-2"><FileText className="w-3 h-3 text-indigo-500" />{doc.name || doc}</span>
-                    <button onClick={() => removeDocument(i)} className="text-red-500"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex flex-1 items-center gap-2 min-w-0">
@@ -410,7 +301,6 @@ export default function CompassPage() {
       <div className="shrink-0 border-t border-border bg-card px-4 py-4 space-y-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))]">
         {planFile && (
           <div className="max-w-5xl mx-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <FileText className="w-3.5 h-3.5" />
             <span className="truncate">Attached: {planFile.name}</span>
             <button type="button" className="text-red-600 hover:underline" onClick={() => { setPlanFile(null); if (planInputRef.current) planInputRef.current.value = ''; }}>Remove</button>
           </div>

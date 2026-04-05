@@ -9,10 +9,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PageHeader from '../components/shared/PageHeader';
-import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, X, Hash, Link2 } from 'lucide-react';
+import { KeyRound, CheckCircle, AlertTriangle, ClipboardList, Download, Building2, Users, Upload, Loader2, UserPlus, X, Hash, Link2, Sparkles, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+
+function numOrDefault(v, fallback) {
+  if (v === '' || v == null) return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
 
 export default function AdminTools() {
   const { user, municipality, impersonatedMunicipality, refreshMunicipality } = useAuth();
@@ -35,10 +42,20 @@ export default function AdminTools() {
     tagline: '', logo_url: '',
     gis_map_url: '',
     adopted_building_codes_summary: '',
+    compliance_days_zoning: 30,
+    compliance_days_building: 30,
+    zba_appeal_days: 30,
+    penalty_first_offense: 275,
+    penalty_subsequent: 550,
+    specific_regulations: '',
+    notes: '',
+    ordinance_docs: [],
+    ordinance_doc_names: [],
   });
   const [savingMuni, setSavingMuni] = useState(false);
   const [muniSaved, setMuniSaved] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingOrdinance, setUploadingOrdinance] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
   const [adminTab, setAdminTab] = useState('municipality');
@@ -104,6 +121,15 @@ export default function AdminTools() {
         address: municipality.address || '',
         gis_map_url: municipality.gis_map_url || '',
         adopted_building_codes_summary: municipality.adopted_building_codes_summary || '',
+        compliance_days_zoning: numOrDefault(municipality.compliance_days_zoning, 30),
+        compliance_days_building: numOrDefault(municipality.compliance_days_building, 30),
+        zba_appeal_days: numOrDefault(municipality.zba_appeal_days, 30),
+        penalty_first_offense: numOrDefault(municipality.penalty_first_offense, 275),
+        penalty_subsequent: numOrDefault(municipality.penalty_subsequent, 550),
+        specific_regulations: municipality.specific_regulations || '',
+        notes: municipality.notes || '',
+        ordinance_docs: municipality.ordinance_docs || [],
+        ordinance_doc_names: municipality.ordinance_doc_names || [],
       }));
     }
   }, [municipality]);
@@ -223,6 +249,55 @@ export default function AdminTools() {
     setUploadingLogo(false);
   }
 
+  async function handleOrdinanceUpload(e) {
+    const file = e.target.files[0];
+    if (!file || !municipality?.id) return;
+    setUploadingOrdinance(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const existingDocs = muniForm.ordinance_docs || [];
+      const existingNames = muniForm.ordinance_doc_names || [];
+      const newDocEntry = { url: file_url, name: file.name, uploaded_at: new Date().toISOString() };
+      const updated = await base44.entities.TownConfig.update(municipality.id, {
+        ordinance_docs: [...existingDocs, file_url],
+        ordinance_doc_names: [...existingNames, newDocEntry],
+      });
+      setMuniForm((f) => ({
+        ...f,
+        ordinance_docs: updated.ordinance_docs || [],
+        ordinance_doc_names: updated.ordinance_doc_names || [],
+      }));
+      if (refreshMunicipality) refreshMunicipality();
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || 'Could not upload ordinance file.');
+    } finally {
+      setUploadingOrdinance(false);
+      if (e.target) e.target.value = '';
+    }
+  }
+
+  async function removeOrdinance(index) {
+    if (!municipality?.id) return;
+    const newNames = (muniForm.ordinance_doc_names || []).filter((_, i) => i !== index);
+    const newDocs = (muniForm.ordinance_docs || []).filter((_, i) => i !== index);
+    try {
+      const updated = await base44.entities.TownConfig.update(municipality.id, {
+        ordinance_docs: newDocs,
+        ordinance_doc_names: newNames,
+      });
+      setMuniForm((f) => ({
+        ...f,
+        ordinance_docs: updated.ordinance_docs || [],
+        ordinance_doc_names: updated.ordinance_doc_names || [],
+      }));
+      if (refreshMunicipality) refreshMunicipality();
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || 'Could not remove file.');
+    }
+  }
+
   async function handleSaveMuni(e) {
     e.preventDefault();
     if (!municipality?.id) return;
@@ -239,6 +314,15 @@ export default function AdminTools() {
         address: muniForm.address,
         gis_map_url: (muniForm.gis_map_url || '').trim(),
         adopted_building_codes_summary: (muniForm.adopted_building_codes_summary || '').trim(),
+        compliance_days_zoning: numOrDefault(muniForm.compliance_days_zoning, 30),
+        compliance_days_building: numOrDefault(muniForm.compliance_days_building, 30),
+        zba_appeal_days: numOrDefault(muniForm.zba_appeal_days, 30),
+        penalty_first_offense: numOrDefault(muniForm.penalty_first_offense, 275),
+        penalty_subsequent: numOrDefault(muniForm.penalty_subsequent, 550),
+        specific_regulations: (muniForm.specific_regulations || '').trim(),
+        notes: (muniForm.notes || '').trim(),
+        ordinance_docs: muniForm.ordinance_docs || [],
+        ordinance_doc_names: muniForm.ordinance_doc_names || [],
       });
     setSavingMuni(false);
     setMuniSaved(true);
@@ -286,8 +370,9 @@ export default function AdminTools() {
         helpContent={
           <>
             <p>
-              <strong>Municipality</strong> updates branding and public-facing details. <strong>Users</strong> manages accounts for your
-              town. <strong>Audit log</strong> shows key actions; <strong>Security</strong> covers access-related settings.
+              <strong>Municipality</strong> updates branding, GIS link, enforcement deadlines (abatement / ZBA appeal windows), penalties,
+              and {MERIDIAN_DISPLAY_NAME} training context (ordinance PDFs, notes). <strong>Users</strong> manages accounts.{' '}
+              <strong>Audit log</strong> shows key actions; <strong>Security</strong> covers access-related settings.
             </p>
             <p>Changes here affect everyone in the municipality — double-check before saving destructive actions.</p>
           </>
@@ -363,6 +448,84 @@ export default function AdminTools() {
                   <Label>Tagline (shown in app header)</Label>
                   <Input value={muniForm.tagline} onChange={e => setMuniForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Code Enforcement Division" />
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Enforcement &amp; deadline defaults</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used when filing new complaints (abatement / ZBA dates, default daily penalty) and in staff deadline guidance. Confirm
+                    with your attorney for your jurisdiction.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="compliance_days_zoning">Abatement / compliance days (zoning)</Label>
+                    <Input
+                      id="compliance_days_zoning"
+                      type="number"
+                      min={0}
+                      value={muniForm.compliance_days_zoning}
+                      onChange={(e) =>
+                        setMuniForm((f) => ({ ...f, compliance_days_zoning: e.target.value === '' ? '' : +e.target.value }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">New complaint abatement deadline</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="compliance_days_building">Compliance days (building)</Label>
+                    <Input
+                      id="compliance_days_building"
+                      type="number"
+                      min={0}
+                      value={muniForm.compliance_days_building}
+                      onChange={(e) =>
+                        setMuniForm((f) => ({ ...f, compliance_days_building: e.target.value === '' ? '' : +e.target.value }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">Reference for building-code matters</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="zba_appeal_days">ZBA appeal window (days)</Label>
+                    <Input
+                      id="zba_appeal_days"
+                      type="number"
+                      min={0}
+                      value={muniForm.zba_appeal_days}
+                      onChange={(e) =>
+                        setMuniForm((f) => ({ ...f, zba_appeal_days: e.target.value === '' ? '' : +e.target.value }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">From complaint intake; RSA 676:5 — verify locally</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="penalty_first_offense">Daily penalty — first offense ($)</Label>
+                    <Input
+                      id="penalty_first_offense"
+                      type="number"
+                      min={0}
+                      value={muniForm.penalty_first_offense}
+                      onChange={(e) =>
+                        setMuniForm((f) => ({ ...f, penalty_first_offense: e.target.value === '' ? '' : +e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="penalty_subsequent">Daily penalty — subsequent ($)</Label>
+                    <Input
+                      id="penalty_subsequent"
+                      type="number"
+                      min={0}
+                      value={muniForm.penalty_subsequent}
+                      onChange={(e) =>
+                        setMuniForm((f) => ({ ...f, penalty_subsequent: e.target.value === '' ? '' : +e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2 space-y-1.5">
                   <Label htmlFor="gis_map_url">GIS / parcel viewer URL (optional)</Label>
                   <Input
@@ -388,9 +551,85 @@ export default function AdminTools() {
                     className="min-h-[120px]"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Does not replace legal advice — documents the editions your building official enforces so Meridian and permit tools stay aligned.
+                    Does not replace legal advice — documents the editions your building official enforces so {MERIDIAN_DISPLAY_NAME} and
+                    workflows stay aligned.
                   </p>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/20 p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
+                  <h3 className="text-sm font-semibold text-indigo-950 dark:text-indigo-100">
+                    {MERIDIAN_DISPLAY_NAME} (AI assistant) context
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Free-text and ordinance files the assistant can use with your town settings. Configure everything here — the{' '}
+                  {MERIDIAN_DISPLAY_NAME} page is chat only.
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="specific_regulations">Local regulations summary</Label>
+                  <Textarea
+                    id="specific_regulations"
+                    rows={4}
+                    value={muniForm.specific_regulations}
+                    onChange={(e) => setMuniForm((f) => ({ ...f, specific_regulations: e.target.value }))}
+                    placeholder="Key zoning articles, setback tables, permit thresholds, special districts…"
+                    className="min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="town_notes">Internal notes (optional)</Label>
+                  <Textarea
+                    id="town_notes"
+                    rows={3}
+                    value={muniForm.notes}
+                    onChange={(e) => setMuniForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="Staff reminders, counsel contacts, seasonal policies…"
+                  />
+                </div>
+                {municipality?.id && (
+                  <div className="space-y-2 border-t border-indigo-200/60 pt-4 dark:border-indigo-900/50">
+                    <Label>Ordinance / training files for {MERIDIAN_DISPLAY_NAME}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      PDFs or text files are attached to the assistant&apos;s context when staff chat. Uploads save immediately.
+                    </p>
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
+                      {uploadingOrdinance ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {uploadingOrdinance ? 'Uploading…' : 'Upload PDF or document'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+                        onChange={handleOrdinanceUpload}
+                      />
+                    </label>
+                    {(muniForm.ordinance_doc_names || []).length > 0 && (
+                      <ul className="space-y-1.5">
+                        {(muniForm.ordinance_doc_names || []).map((doc, i) => (
+                          <li
+                            key={`${doc.url || doc.name || i}-${i}`}
+                            className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs"
+                          >
+                            <span className="flex min-w-0 items-center gap-2 truncate">
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-indigo-500" aria-hidden />
+                              <span className="truncate">{doc.name || doc}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeOrdinance(i)}
+                              className="shrink-0 text-destructive hover:underline"
+                              aria-label={`Remove ${doc.name || 'file'}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
 
               {municipality?.id && (

@@ -33,6 +33,7 @@ export default function PublicPortal() {
   const [abatementNotes, setAbatementNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [zbaAppealDaysHint, setZbaAppealDaysHint] = useState(30);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -42,6 +43,28 @@ export default function PublicPortal() {
   useEffect(() => {
     base44.auth.isAuthenticated().then(setIsLoggedIn);
   }, []);
+
+  useEffect(() => {
+    const tid = caseData?.town_id;
+    if (!tid) {
+      setZbaAppealDaysHint(30);
+      return;
+    }
+    let cancelled = false;
+    base44.entities.TownConfig.get(tid)
+      .then((t) => {
+        if (cancelled || !t) return;
+        const n = Number(t.zba_appeal_days);
+        if (Number.isFinite(n) && n >= 0) setZbaAppealDaysHint(n);
+        else setZbaAppealDaysHint(30);
+      })
+      .catch(() => {
+        if (!cancelled) setZbaAppealDaysHint(30);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [caseData?.town_id]);
 
   useEffect(() => {
     const q = searchParams.get('code') || searchParams.get('access_code');
@@ -329,7 +352,10 @@ export default function PublicPortal() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-blue-800 mb-2">Your Rights</h3>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• You may appeal this decision to the Zoning Board of Adjustment (ZBA) within 30 days of receiving the NOV (RSA 676:5)</li>
+              <li>
+                • You may appeal this decision to the Zoning Board of Adjustment (ZBA) within {zbaAppealDaysHint} days of receiving the NOV
+                (RSA 676:5) — confirm the exact deadline on your notice and with your municipality.
+              </li>
               <li>• You have the right to a hearing before the ZBA</li>
               <li>• You may submit proof of compliance/abatement below</li>
             </ul>

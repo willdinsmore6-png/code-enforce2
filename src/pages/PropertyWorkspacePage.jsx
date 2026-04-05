@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MapPin, FileText, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import ClearableInput from '@/components/shared/ClearableInput';
+import CasePropertySuggestList from '@/components/shared/CasePropertySuggestList';
 import { filterRecordsForProperty, normalizePropertyAddressKey } from '@/lib/propertyAddress';
 import StatusBadge from '@/components/shared/StatusBadge';
 
@@ -19,8 +20,22 @@ export default function PropertyWorkspacePage() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [addressSuggestOpen, setAddressSuggestOpen] = useState(false);
+  const [parcelSuggestOpen, setParcelSuggestOpen] = useState(false);
 
   const townKey = municipality?.id != null ? String(municipality.id) : '';
+
+  const syncQueryParams = useCallback(
+    (addr, pid) => {
+      const next = new URLSearchParams();
+      const a = String(addr || '').trim();
+      const p = String(pid || '').trim();
+      if (a) next.set('address', a);
+      if (p) next.set('parcel_id', p);
+      setSearchParams(next, { replace: true });
+    },
+    [setSearchParams]
+  );
 
   useEffect(() => {
     const q = searchParams.get('address') || '';
@@ -76,6 +91,10 @@ export default function PropertyWorkspacePage() {
               Addresses are matched with a normalized key (abbreviations, punctuation). Prefer your assessor parcel ID when your records
               use it.
             </p>
+            <p>
+              While you type, suggestions come from this town&apos;s loaded cases (open cases first when the field is empty). Choosing an
+              address can fill parcel ID when a case recorded one.
+            </p>
             <p>Use this before filing a new complaint if you are unsure whether a case already exists.</p>
           </div>
         }
@@ -88,29 +107,65 @@ export default function PropertyWorkspacePage() {
           aria-label="Property search"
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+            <div className="relative space-y-2 sm:col-span-2">
               <Label htmlFor="prop-address">Property address</Label>
               <ClearableInput
                 id="prop-address"
                 value={address}
                 onChange={(e) => {
-                  setAddress(e.target.value);
-                  const v = e.target.value.trim();
-                  if (v) setSearchParams({ address: v }, { replace: true });
-                  else setSearchParams({}, { replace: true });
+                  const v = e.target.value;
+                  setAddress(v);
+                  syncQueryParams(v, parcelId);
                 }}
-                placeholder="e.g. 12 Maple Street"
+                onFocus={() => setAddressSuggestOpen(true)}
+                onBlur={() => window.setTimeout(() => setAddressSuggestOpen(false), 180)}
+                placeholder="e.g. 12 Maple Street — type to match open cases"
                 autoComplete="street-address"
+                aria-autocomplete="list"
+                aria-expanded={addressSuggestOpen}
+              />
+              <CasePropertySuggestList
+                cases={cases}
+                mode="address"
+                query={address}
+                open={addressSuggestOpen && cases.length > 0}
+                onPickAddress={(addr, pidHint) => {
+                  setAddress(addr);
+                  if (pidHint) setParcelId(pidHint);
+                  syncQueryParams(addr, pidHint || parcelId);
+                  setAddressSuggestOpen(false);
+                }}
+                onPickParcel={() => {}}
               />
             </div>
-            <div className="space-y-2">
+            <div className="relative space-y-2">
               <Label htmlFor="prop-pid">Map / lot / block or PID (optional)</Label>
               <Input
                 id="prop-pid"
                 value={parcelId}
-                onChange={(e) => setParcelId(e.target.value)}
-                placeholder="Town parcel identifier"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setParcelId(v);
+                  syncQueryParams(address, v);
+                }}
+                onFocus={() => setParcelSuggestOpen(true)}
+                onBlur={() => window.setTimeout(() => setParcelSuggestOpen(false), 180)}
+                placeholder="Town parcel identifier — suggestions from cases"
                 autoComplete="off"
+                aria-autocomplete="list"
+                aria-expanded={parcelSuggestOpen}
+              />
+              <CasePropertySuggestList
+                cases={cases}
+                mode="parcel"
+                query={parcelId}
+                open={parcelSuggestOpen && cases.length > 0}
+                onPickAddress={() => {}}
+                onPickParcel={(pid) => {
+                  setParcelId(pid);
+                  syncQueryParams(address, pid);
+                  setParcelSuggestOpen(false);
+                }}
               />
             </div>
           </div>

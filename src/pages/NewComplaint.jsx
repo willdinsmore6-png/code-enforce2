@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import PageHeader from '../components/shared/PageHeader';
+import CasePropertySuggestList from '@/components/shared/CasePropertySuggestList';
 import { format, addDays } from 'date-fns';
 import { generatePublicAccessCode } from '@/lib/publicAccessCode';
 
@@ -19,6 +20,8 @@ export default function NewComplaint() {
   const { municipality } = useAuth();
   const [saving, setSaving] = useState(false);
   const [townCases, setTownCases] = useState([]);
+  const [addrSuggestOpen, setAddrSuggestOpen] = useState(false);
+  const [pidSuggestOpen, setPidSuggestOpen] = useState(false);
   const [form, setForm] = useState({
     complaint_date: format(new Date(), 'yyyy-MM-dd'),
     property_address: '',
@@ -65,6 +68,21 @@ export default function NewComplaint() {
     [townCases, form.property_address, form.parcel_id]
   );
 
+  const abatementDays = useMemo(() => {
+    const n = Number(municipality?.compliance_days_zoning);
+    return Number.isFinite(n) && n >= 0 ? n : 30;
+  }, [municipality?.compliance_days_zoning]);
+
+  const zbaAppealDays = useMemo(() => {
+    const n = Number(municipality?.zba_appeal_days);
+    return Number.isFinite(n) && n >= 0 ? n : 30;
+  }, [municipality?.zba_appeal_days]);
+
+  const defaultDailyPenalty = useMemo(() => {
+    const n = Number(municipality?.penalty_first_offense);
+    return Number.isFinite(n) && n >= 0 ? n : 275;
+  }, [municipality?.penalty_first_offense]);
+
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   async function handleSubmit(e) {
@@ -81,9 +99,9 @@ export default function NewComplaint() {
         case_number: caseNumber,
         status: 'intake',
         public_access_code: publicCode,
-        abatement_deadline: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
-        zba_appeal_deadline: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
-        daily_penalty_rate: 275,
+        abatement_deadline: format(addDays(new Date(), abatementDays), 'yyyy-MM-dd'),
+        zba_appeal_deadline: format(addDays(new Date(), zbaAppealDays), 'yyyy-MM-dd'),
+        daily_penalty_rate: defaultDailyPenalty,
         total_fines_accrued: 0,
         is_first_offense: true,
       });
@@ -93,14 +111,14 @@ export default function NewComplaint() {
         {
           case_id: newCase.id,
           deadline_type: 'abatement',
-          due_date: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
+          due_date: format(addDays(new Date(), abatementDays), 'yyyy-MM-dd'),
           description: `Abatement deadline for ${form.property_address}`,
           priority: 'high',
         },
         {
           case_id: newCase.id,
           deadline_type: 'zba_appeal',
-          due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+          due_date: format(addDays(new Date(), zbaAppealDays), 'yyyy-MM-dd'),
           description: `ZBA appeal window closes for ${form.property_address}`,
           priority: 'medium',
         }
@@ -163,9 +181,33 @@ export default function NewComplaint() {
         {/* Property Info */}
         <section className="bg-card rounded-xl border border-border p-5 sm:p-6 space-y-4">
           <h2 className="text-base font-semibold">Property Information</h2>
-          <div className="space-y-1.5">
-            <Label>Property Address *</Label>
-            <Input value={form.property_address} onChange={e => update('property_address', e.target.value)} placeholder="123 Main St, Concord, NH 03301" required />
+          <div className="relative space-y-1.5">
+            <Label htmlFor="nc-property-address">Property Address *</Label>
+            <Input
+              id="nc-property-address"
+              value={form.property_address}
+              onChange={(e) => update('property_address', e.target.value)}
+              onFocus={() => setAddrSuggestOpen(true)}
+              onBlur={() => window.setTimeout(() => setAddrSuggestOpen(false), 180)}
+              placeholder="Start typing — suggestions from your town’s cases"
+              autoComplete="street-address"
+              required
+            />
+            <CasePropertySuggestList
+              cases={townCases}
+              mode="address"
+              query={form.property_address}
+              open={addrSuggestOpen && townKey && townCases.length > 0}
+              onPickAddress={(addr, pidHint) => {
+                setForm((f) => ({
+                  ...f,
+                  property_address: addr,
+                  parcel_id: pidHint || f.parcel_id,
+                }));
+                setAddrSuggestOpen(false);
+              }}
+              onPickParcel={() => {}}
+            />
           </div>
           {propertyDuplicates.length > 0 && (
             <div
@@ -206,9 +248,28 @@ export default function NewComplaint() {
               <Label>Property Owner Name</Label>
               <Input value={form.property_owner_name} onChange={e => update('property_owner_name', e.target.value)} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Parcel ID</Label>
-              <Input value={form.parcel_id} onChange={e => update('parcel_id', e.target.value)} placeholder="e.g., 001-042-003" />
+            <div className="relative space-y-1.5">
+              <Label htmlFor="nc-parcel-id">Parcel ID</Label>
+              <Input
+                id="nc-parcel-id"
+                value={form.parcel_id}
+                onChange={(e) => update('parcel_id', e.target.value)}
+                onFocus={() => setPidSuggestOpen(true)}
+                onBlur={() => window.setTimeout(() => setPidSuggestOpen(false), 180)}
+                placeholder="e.g., 001-042-003 — match existing cases"
+                autoComplete="off"
+              />
+              <CasePropertySuggestList
+                cases={townCases}
+                mode="parcel"
+                query={form.parcel_id}
+                open={pidSuggestOpen && townKey && townCases.length > 0}
+                onPickAddress={() => {}}
+                onPickParcel={(pid) => {
+                  update('parcel_id', pid);
+                  setPidSuggestOpen(false);
+                }}
+              />
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
