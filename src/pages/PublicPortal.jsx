@@ -33,9 +33,6 @@ export default function PublicPortal() {
   const [abatementNotes, setAbatementNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  /** @type {'case' | 'permit' | 'land_use'} */
-  const [lookupTarget, setLookupTarget] = useState('case');
-  const [moduleSoon, setModuleSoon] = useState(false);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -59,16 +56,8 @@ export default function PublicPortal() {
     setCaseData(null);
     setDocuments([]);
     setNotices([]);
-    setModuleSoon(false);
 
     const normalized = normalizePublicCode(accessCode);
-
-    if (lookupTarget === 'permit' || lookupTarget === 'land_use') {
-      setSearching(false);
-      setModuleSoon(true);
-      setNotFound(false);
-      return;
-    }
 
     try {
       const raw = await base44.functions.invoke('lookupCaseByCode', {
@@ -200,10 +189,10 @@ export default function PublicPortal() {
             <h1 className="text-2xl font-bold tracking-tight">Code-Enforce</h1>
             <HelpTip title="Public portal">
               <p>
-                This page is for <strong>property owners and applicants</strong>. Use the access or file number your town gave you. Code
-                enforcement lookup is live; building permit and land-use lookups will connect here as those modules roll out.
+                This page is for <strong>property owners and respondents</strong>. Use the <strong>public access code</strong> from your
+                notice or the case number your town gave you.
               </p>
-              <p>Staff use the main app; share only the code or number you intend the recipient to use.</p>
+              <p>Staff use the main app; share only the code you intend the recipient to use.</p>
             </HelpTip>
           </div>
           <p className="text-sm text-muted-foreground">Municipal Code Compliance System</p>
@@ -211,98 +200,38 @@ export default function PublicPortal() {
       </div>
 
       <div className="bg-card rounded-xl border border-border p-6 mb-6">
-        <fieldset className="mb-5 space-y-2 rounded-lg border border-border/80 bg-muted/30 p-4">
-          <legend className="px-1 text-sm font-semibold text-foreground">What are you looking up?</legend>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring hover:bg-background/80">
-              <input
-                type="radio"
-                name="portal_lookup_target"
-                value="case"
-                checked={lookupTarget === 'case'}
-                onChange={() => {
-                  setLookupTarget('case');
-                  setModuleSoon(false);
-                }}
-                className="h-4 w-4 accent-primary"
-              />
-              <span className="text-sm">Code case</span>
-            </label>
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring hover:bg-background/80">
-              <input
-                type="radio"
-                name="portal_lookup_target"
-                value="permit"
-                checked={lookupTarget === 'permit'}
-                onChange={() => {
-                  setLookupTarget('permit');
-                  setModuleSoon(false);
-                }}
-                className="h-4 w-4 accent-primary"
-              />
-              <span className="text-sm">Building permit</span>
-            </label>
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring hover:bg-background/80">
-              <input
-                type="radio"
-                name="portal_lookup_target"
-                value="land_use"
-                checked={lookupTarget === 'land_use'}
-                onChange={() => {
-                  setLookupTarget('land_use');
-                  setModuleSoon(false);
-                }}
-                className="h-4 w-4 accent-primary"
-              />
-              <span className="text-sm">Planning / zoning application</span>
-            </label>
-          </div>
-        </fieldset>
-
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <Search className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
-              <h2 className="font-semibold">
-                {lookupTarget === 'case' && 'Look up your case'}
-                {lookupTarget === 'permit' && 'Look up your building permit'}
-                {lookupTarget === 'land_use' && 'Look up your planning or zoning application'}
-              </h2>
-              {lookupTarget === 'case' && (
-                <HelpTip title="Access code" align="start">
-                  <p>
-                    Use the <strong>8-character public access code</strong> shown in the staff app on the case (blue “Public Portal Access
-                    Code” box) or printed on the notice. Spaces and dashes are optional.
-                  </p>
-                  <p>
-                    Codes use <strong>letters A–Z</strong> and digits <strong>2–9</strong> only (no <strong>0</strong>, <strong>1</strong>,{' '}
-                    <strong>I</strong>, or <strong>O</strong>). If your notice looks like it has a <strong>1</strong>, try the letter{' '}
-                    <strong>I</strong> instead, and vice versa.
-                  </p>
-                  <p>
-                    You can also try the <strong>case number</strong> (e.g. CE-2026-9980) if the town lists it separately from the access
-                    code.
-                  </p>
-                </HelpTip>
-              )}
+              <h2 className="font-semibold">Look up your case</h2>
+              <HelpTip title="Access code" align="start">
+                <p>
+                  Use the <strong>8-character public access code</strong> shown in the staff app on the case (blue “Public Portal Access
+                  Code” box) or printed on the notice. Spaces and dashes are optional.
+                </p>
+                <p>
+                  Codes use <strong>letters A–Z</strong> and digits <strong>2–9</strong> only (no <strong>0</strong>, <strong>1</strong>,{' '}
+                  <strong>I</strong>, or <strong>O</strong>). If your notice looks like it has a <strong>1</strong>, try the letter{' '}
+                  <strong>I</strong> instead, and vice versa.
+                </p>
+                <p>
+                  You can also try the <strong>case number</strong> (e.g. CE-2026-9980) if the town lists it separately from the access
+                  code.
+                </p>
+              </HelpTip>
             </div>
             <p className="text-sm text-muted-foreground">
-              {lookupTarget === 'case' && '8-character code from the case or notice — or your case number'}
-              {lookupTarget === 'permit' && 'You will use the permit file number or applicant access code your town provides (online lookup coming soon).'}
-              {lookupTarget === 'land_use' && 'You will use the application or file number from the planning or zoning office (online lookup coming soon).'}
+              8-character code from the case or notice — or your case number
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end" aria-busy={searching}>
           <div className="min-w-0 flex-1 space-y-1.5">
-            <Label htmlFor="portal-access-code">
-              {lookupTarget === 'case' && 'Access code or case number'}
-              {lookupTarget === 'permit' && 'Permit file number or code (optional for now)'}
-              {lookupTarget === 'land_use' && 'Application file number (optional for now)'}
-            </Label>
+            <Label htmlFor="portal-access-code">Access code or case number</Label>
             <ClearableInput
               id="portal-access-code"
               name="access_code"
@@ -315,11 +244,7 @@ export default function PublicPortal() {
               aria-describedby="portal-access-hint"
             />
             <p id="portal-access-hint" className="text-xs text-muted-foreground">
-              {lookupTarget === 'case' && 'Use the code from your notice or the case number your municipality gave you.'}
-              {lookupTarget === 'permit' &&
-                'Online permit lookup is not connected yet. You may still enter a reference to save time later — or call the building department.'}
-              {lookupTarget === 'land_use' &&
-                'Online application lookup is not connected yet. Enter your file number for your records — or call the planning office.'}
+              Use the code from your notice or the case number your municipality gave you.
             </p>
           </div>
           <Button type="submit" disabled={searching} className="shrink-0 sm:mb-0">
@@ -327,32 +252,7 @@ export default function PublicPortal() {
           </Button>
         </form>
 
-        {moduleSoon && (
-          <div
-            className="mt-4 rounded-lg border border-primary/35 bg-primary/5 p-4 text-sm text-foreground"
-            role="status"
-            aria-live="polite"
-          >
-            <p className="font-medium">
-              {lookupTarget === 'permit' && 'Building permit public lookup is almost here.'}
-              {lookupTarget === 'land_use' && 'Planning and zoning application lookup is almost here.'}
-            </p>
-            <p className="mt-2 text-muted-foreground">
-              Your municipality is upgrading this portal so you can view status, upload PDF applications, and download issued permits and
-              decisions the same way you do for code enforcement today. For now, contact the office with
-              {accessCode.trim() ? (
-                <>
-                  {' '}
-                  reference <span className="font-mono text-foreground">{accessCode.trim()}</span>.
-                </>
-              ) : (
-                ' your file number.'
-              )}
-            </p>
-          </div>
-        )}
-
-        {notFound && !moduleSoon && (
+        {notFound && (
           <div className="mt-3 space-y-2 text-sm text-destructive" role="alert">
             <p>
               {searchError

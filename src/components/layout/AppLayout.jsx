@@ -6,11 +6,9 @@ import SuperAdminBanner from './SuperAdminBanner';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import CompassBackground from './CompassBackground';
-import ModuleWorkspaceBar from './ModuleWorkspaceBar';
 
 export default function AppLayout() {
-  const { appPublicSettings, user, impersonatedMunicipality } = useAuth();
-  const hideWorkspaceBar = user?.role === 'superadmin' && !impersonatedMunicipality;
+  const { appPublicSettings, user } = useAuth();
 
   // Show banner if maintenance is active or a notice is set
   const isMaintenance = appPublicSettings?.is_maintenance_active === true;
@@ -41,7 +39,6 @@ export default function AppLayout() {
         <CompassBackground />
         <div className="hidden md:block"><SuperAdminBanner /></div>
         <MobileNav />
-        <ModuleWorkspaceBar hidden={hideWorkspaceBar} />
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">

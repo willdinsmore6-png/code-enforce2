@@ -1,5 +1,5 @@
 /**
- * Canonical property key for matching cases, permits, and land-use files to the same parcel.
+ * Canonical property key for matching enforcement cases to the same parcel (e.g. duplicate intake checks).
  * Not a legal substitute for assessor PID — use `parcel_id` when the town maintains it.
  */
 export function normalizePropertyAddressKey(raw) {

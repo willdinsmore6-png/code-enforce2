@@ -10,14 +10,6 @@
       "type": "string",
       "description": "When set, document is part of a zoning determination file"
     },
-    "building_permit_id": {
-      "type": "string",
-      "description": "When set, document is attached to a building permit"
-    },
-    "land_use_application_id": {
-      "type": "string",
-      "description": "When set, document is attached to a land use application"
-    },
     "town_id": {
       "type": "string",
       "description": "Denormalized for RLS filtering"
@@ -38,15 +30,6 @@
         "citation",
         "attorney_notes",
         "zoning_determination",
-        "permit_application",
-        "plan_set",
-        "inspection_photo",
-        "issued_permit",
-        "application",
-        "plan",
-        "abutter_notice",
-        "hearing",
-        "nod",
         "other"
       ]
     },

@@ -374,7 +374,7 @@ export default function AdminTools() {
                     placeholder="https://… (town assessor or ArcGIS web map)"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for quick links from property, permit, and land-use screens. Opens in a new browser tab.
+                    Used for quick links from the property workspace and staff workflows. Opens in a new browser tab.
                   </p>
                 </div>
                 <div className="sm:col-span-2 space-y-1.5">

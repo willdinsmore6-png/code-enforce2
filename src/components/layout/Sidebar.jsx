@@ -1,29 +1,58 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Shield, LogOut, Settings } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FileText,
+  Search,
+  CalendarClock,
+  Scale,
+  ScrollText,
+  FolderOpen,
+  BookOpen,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  Plus,
+  LogOut,
+  Settings,
+  Sparkles,
+  MapPin,
+} from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
-import {
-  STAFF_NAV_GROUPS,
-  SUPERADMIN_SHELL_ITEMS,
-} from '@/lib/staffNavConfig';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
-const ADMIN_NAV = [{ path: '/admin', icon: Settings, label: 'Admin tools' }];
-const SUPERADMIN_NAV = [{ path: '/superadmin', icon: Shield, label: 'Global dashboard' }];
+const navItems = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/cases', icon: FileText, label: 'Cases' },
+  { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
+  { path: '/new-complaint', icon: Plus, label: 'New complaint' },
+  { path: '/investigations', icon: Search, label: 'Investigations' },
+  { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
+  { path: '/court-actions', icon: Scale, label: 'Court actions' },
+  { path: '/documents', icon: FolderOpen, label: 'Document vault' },
+  { path: '/property-workspace', icon: MapPin, label: 'Property workspace' },
+  { path: '/compass', icon: Sparkles, label: MERIDIAN_DISPLAY_NAME },
+  { path: '/resources', icon: BookOpen, label: 'Resource library' },
+  { path: '/public-portal', icon: Globe, label: 'Public portal' },
+];
+
+const adminNavItems = [{ path: '/admin', icon: Settings, label: 'Admin tools' }];
+const superAdminNavItems = [{ path: '/superadmin', icon: Shield, label: 'Global dashboard' }];
+const superadminShellNav = [{ path: '/superadmin', icon: Shield, label: 'Global dashboard' }];
 
 export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { municipality, user, logout, impersonatedMunicipality } = useAuth();
   const isSuperadminShell = user?.role === 'superadmin' && !impersonatedMunicipality;
-
-  function itemActive(path) {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
-  }
+  const primaryNav = isSuperadminShell ? superadminShellNav : navItems;
 
   function renderNavItem(item, activeClass, inactiveClass, iconActiveClass) {
-    const isActive = itemActive(item.path);
+    const isActive =
+      location.pathname === item.path ||
+      (item.path !== '/' && location.pathname.startsWith(item.path));
     return (
       <Link
         key={item.path}
@@ -40,8 +69,6 @@ export default function Sidebar() {
       </Link>
     );
   }
-
-  const shellItems = isSuperadminShell ? SUPERADMIN_SHELL_ITEMS : null;
 
   return (
     <aside
@@ -72,45 +99,24 @@ export default function Sidebar() {
               {municipality?.short_name || municipality?.town_name || 'CodeEnforce'}
             </span>
             <span className="truncate text-[11px] text-sidebar-foreground/60">
-              {municipality?.tagline || (municipality ? `${municipality.state} municipal hub` : 'Municipal compliance')}
+              {municipality?.tagline || (municipality ? `${municipality.state} Code Enforcement` : 'Municipal compliance')}
             </span>
           </div>
         )}
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3" aria-label="Main navigation">
-        {shellItems ? (
-          shellItems.map((item) =>
-            renderNavItem(
-              item,
-              'bg-purple-800/40 text-purple-200',
-              'text-purple-200/80 hover:bg-purple-800/30 hover:text-purple-100',
-              'text-purple-200'
-            )
+        {primaryNav.map((item) =>
+          renderNavItem(
+            item,
+            isSuperadminShell
+              ? 'bg-purple-800/40 text-purple-200'
+              : 'bg-sidebar-accent text-sidebar-primary',
+            isSuperadminShell
+              ? 'text-purple-200/80 hover:bg-purple-800/30 hover:text-purple-100'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+            isSuperadminShell ? 'text-purple-200' : 'text-sidebar-primary'
           )
-        ) : (
-          STAFF_NAV_GROUPS.map((group) => (
-            <div key={group.id} className="mb-1">
-              {!collapsed && (
-                <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
-                  {group.label}
-                </p>
-              )}
-              {collapsed && (
-                <div className="mx-2 my-2 border-t border-sidebar-border/40" aria-hidden="true" />
-              )}
-              <div className="space-y-0.5">
-                {group.items.map((item) =>
-                  renderNavItem(
-                    item,
-                    'bg-sidebar-accent text-sidebar-primary',
-                    'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-                    'text-sidebar-primary'
-                  )
-                )}
-              </div>
-            </div>
-          ))
         )}
 
         {!isSuperadminShell && (user?.role === 'admin' || user?.role === 'superadmin') && (
@@ -120,7 +126,7 @@ export default function Sidebar() {
                 Admin
               </p>
             )}
-            {ADMIN_NAV.map((item) =>
+            {adminNavItems.map((item) =>
               renderNavItem(
                 item,
                 'bg-sidebar-accent text-sidebar-primary',
@@ -138,7 +144,7 @@ export default function Sidebar() {
                 Super admin
               </p>
             )}
-            {SUPERADMIN_NAV.map((item) =>
+            {superAdminNavItems.map((item) =>
               renderNavItem(
                 item,
                 'bg-purple-800/40 text-purple-300',

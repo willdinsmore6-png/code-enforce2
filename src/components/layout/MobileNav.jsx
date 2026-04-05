@@ -1,13 +1,47 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Shield, LogOut, Settings, ShieldCheck } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FileText,
+  Plus,
+  CalendarClock,
+  Scale,
+  ScrollText,
+  FolderOpen,
+  BookOpen,
+  Globe,
+  Settings,
+  Sparkles,
+  Search,
+  Menu,
+  X,
+  Shield,
+  LogOut,
+  ShieldCheck,
+  MapPin,
+} from 'lucide-react';
 import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
-import { STAFF_NAV_GROUPS, SUPERADMIN_SHELL_ITEMS } from '@/lib/staffNavConfig';
+import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 
-const ADMIN_ITEMS = [{ path: '/admin', icon: Settings, label: 'Admin tools' }];
-const SUPERADMIN_ITEMS = [{ path: '/superadmin', icon: ShieldCheck, label: 'Global dashboard' }];
+const navItems = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/cases', icon: FileText, label: 'Cases' },
+  { path: '/zoning-determinations', icon: ScrollText, label: 'Zoning determinations' },
+  { path: '/new-complaint', icon: Plus, label: 'New complaint' },
+  { path: '/investigations', icon: Search, label: 'Investigations' },
+  { path: '/deadlines', icon: CalendarClock, label: 'Timeline' },
+  { path: '/court-actions', icon: Scale, label: 'Court actions' },
+  { path: '/documents', icon: FolderOpen, label: 'Document vault' },
+  { path: '/property-workspace', icon: MapPin, label: 'Property workspace' },
+  { path: '/compass', icon: Sparkles, label: MERIDIAN_DISPLAY_NAME },
+  { path: '/resources', icon: BookOpen, label: 'Resource library' },
+  { path: '/public-portal', icon: Globe, label: 'Public portal' },
+];
+
+const adminItems = [{ path: '/admin', icon: Settings, label: 'Admin tools' }];
+const superadminShellNav = [{ path: '/superadmin', icon: ShieldCheck, label: 'Global dashboard' }];
 
 const DRAWER_NAV_ID = 'mobile-navigation-drawer';
 
@@ -18,11 +52,10 @@ export default function MobileNav() {
   const drawerTitleId = useId();
   const closeButtonRef = useRef(null);
   const isSuperadminShell = user?.role === 'superadmin' && !impersonatedMunicipality;
+  const primaryNav = isSuperadminShell ? superadminShellNav : navItems;
 
-  function pathActive(path) {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
-  }
+  const isActive = (path) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -126,7 +159,7 @@ export default function MobileNav() {
                 {municipality?.short_name || municipality?.town_name || 'CodeEnforce'}
               </span>
               <span className="truncate text-[10px] text-sidebar-foreground/60">
-                {municipality?.tagline || 'Municipal hub'}
+                {municipality?.tagline || 'Code enforcement'}
               </span>
             </div>
           </div>
@@ -142,71 +175,47 @@ export default function MobileNav() {
         </div>
 
         <nav id={DRAWER_NAV_ID} className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3" aria-label="Primary">
-          {isSuperadminShell ? (
-            SUPERADMIN_SHELL_ITEMS.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setOpen(false)}
-                aria-current={pathActive(item.path) ? 'page' : undefined}
-                className={linkClass(pathActive(item.path), true)}
-              >
-                <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {item.label}
-              </Link>
-            ))
-          ) : (
-            STAFF_NAV_GROUPS.map((group) => (
-              <div key={group.id} className="mb-2">
-                <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
-                  {group.label}
-                </p>
-                {group.items.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setOpen(false)}
-                    aria-current={pathActive(item.path) ? 'page' : undefined}
-                    className={linkClass(pathActive(item.path), false)}
-                  >
-                    <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            ))
-          )}
+          {primaryNav.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setOpen(false)}
+              aria-current={isActive(item.path) ? 'page' : undefined}
+              className={linkClass(isActive(item.path), isSuperadminShell)}
+            >
+              <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              {item.label}
+            </Link>
+          ))}
 
           {!isSuperadminShell && (user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
               <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">
                 Admin
               </p>
-              {ADMIN_ITEMS.map((item) => (
+              {adminItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setOpen(false)}
-                  aria-current={pathActive(item.path) ? 'page' : undefined}
-                  className={linkClass(pathActive(item.path), false)}
+                  aria-current={isActive(item.path) ? 'page' : undefined}
+                  className={linkClass(isActive(item.path), false)}
                 >
                   <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                   {item.label}
                 </Link>
               ))}
-              {user?.role === 'superadmin' &&
-                SUPERADMIN_ITEMS.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setOpen(false)}
-                    aria-current={pathActive(item.path) ? 'page' : undefined}
-                    className={linkClass(pathActive(item.path), false)}
-                  >
-                    <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                ))}
+              {user?.role === 'superadmin' && (
+                <Link
+                  to="/superadmin"
+                  onClick={() => setOpen(false)}
+                  aria-current={isActive('/superadmin') ? 'page' : undefined}
+                  className={linkClass(isActive('/superadmin'), false)}
+                >
+                  <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  Global dashboard
+                </Link>
+              )}
             </>
           )}
         </nav>
