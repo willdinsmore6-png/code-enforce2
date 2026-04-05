@@ -32,6 +32,7 @@ import PageNotFound from './lib/PageNotFound';
 import Onboarding from './pages/Onboarding';
 import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
+import LandingRoute from './pages/LandingPage';
 import {
   isPublicAppPath,
   isTownInactive,
@@ -179,6 +180,7 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingRoute />} />
       <Route path="/public-portal" element={<PublicPortal />} />
       <Route path="/report" element={<Report />} />
       <Route path="/onboarding" element={<Onboarding />} />
@@ -186,7 +188,7 @@ const AuthenticatedApp = () => {
       <Route path="/success" element={<Success />} />
 
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
         <Route path="/zoning-determinations" element={<ZoningDeterminations />} />

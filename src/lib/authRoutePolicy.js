@@ -10,8 +10,9 @@ function normalizePath(pathname) {
   return p;
 }
 
-/** Routes that do not require an active town or paid subscription. */
+/** Routes that do not require an active town or paid subscription (incl. marketing home). */
 export const PUBLIC_ROUTE_PREFIXES = [
+  '/',
   '/public-portal',
   '/report',
   '/subscribe',
@@ -38,9 +39,11 @@ export function userHasNoTown(user) {
   return !user?.town_id || user.town_id === 'Null';
 }
 
-/** Logged-in user with no town may only use public flows (incl. onboarding instructions). */
+/** Logged-in user with no town — not the marketing `/` (they are redirected to app then onboarding). */
 export function isUnassignedAllowedPath(pathname) {
-  return isPublicAppPath(pathname);
+  const p = normalizePath(pathname);
+  const prefixes = ['/public-portal', '/report', '/subscribe', '/success', '/onboarding'];
+  return prefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
 }
 
 /** Inactive subscription: same as public — paywall lives at /subscribe. */

@@ -40,7 +40,7 @@ export default function Success() {
     if (isTownInactive(municipality)) return;
     if (navigatedRef.current) return;
     navigatedRef.current = true;
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   }, [user, municipality, navigate]);
 
   const waiting =
