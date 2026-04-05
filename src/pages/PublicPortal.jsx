@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Globe, Search, CheckCircle, Clock, AlertTriangle, Upload, FileText, Eye, Download, Mail } from 'lucide-react';
 import HelpTip from '@/components/shared/HelpTip';
@@ -11,14 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import StatusBadge from '../components/shared/StatusBadge';
 import { format } from 'date-fns';
-
-/** Match server: ignore spaces/dashes, uppercase (notices often group characters). */
-function normalizePortalCode(raw) {
-  return String(raw ?? '')
-    .trim()
-    .replace(/[\s\-_]/g, '')
-    .toUpperCase();
-}
+import {
+  normalizePublicCode,
+  unwrapFunctionInvokeResult,
+  lookupCaseByCodeViaEntities,
+  mapEntityCaseToPortalSummary,
+  PUBLIC_PORTAL_DOC_TYPES,
+} from '@/lib/publicCaseLookup';
 
 export default function PublicPortal() {
   const [accessCode, setAccessCode] = useState('');
@@ -37,10 +36,16 @@ export default function PublicPortal() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchError, setSearchError] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(setIsLoggedIn);
   }, []);
+
+  useEffect(() => {
+    const q = searchParams.get('code') || searchParams.get('access_code');
+    if (q) setAccessCode(normalizePublicCode(q));
+  }, [searchParams]);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -51,25 +56,63 @@ export default function PublicPortal() {
     setDocuments([]);
     setNotices([]);
 
+    const normalized = normalizePublicCode(accessCode);
+
     try {
-      const response = await base44.functions.invoke('lookupCaseByCode', {
-        access_code: normalizePortalCode(accessCode),
+      const raw = await base44.functions.invoke('lookupCaseByCode', {
+        access_code: normalized,
       });
-      if (response.data?.error) {
-        setSearchError(response.data.error);
+      const data = unwrapFunctionInvokeResult(raw);
+      if (data.error) {
+        setSearchError(data.error);
         setNotFound(true);
         return;
       }
-      if (response.data?.found) {
-        const foundCase = response.data.case;
-        setCaseData(foundCase);
-        setDocuments(response.data.documents || []);
-        setNotices(response.data.notices || []);
-      } else {
-        setNotFound(true);
+      if (data.found) {
+        setCaseData(data.case);
+        setDocuments(data.documents || []);
+        setNotices(data.notices || []);
+        return;
       }
+
+      const viaEntity = await lookupCaseByCodeViaEntities(normalized);
+      if (viaEntity) {
+        const [allDocs, allNotices] = await Promise.all([
+          base44.entities.Document.filter({ case_id: viaEntity.id }),
+          base44.entities.Notice.filter({ case_id: viaEntity.id }),
+        ]);
+        const publicDocs = (allDocs || []).filter((d) =>
+          PUBLIC_PORTAL_DOC_TYPES.includes(d.document_type)
+        );
+        setCaseData(mapEntityCaseToPortalSummary(viaEntity));
+        setDocuments(publicDocs);
+        setNotices(allNotices || []);
+        return;
+      }
+
+      setNotFound(true);
     } catch (err) {
       console.error(err);
+      try {
+        const viaEntity = await lookupCaseByCodeViaEntities(normalized);
+        if (viaEntity) {
+          const [allDocs, allNotices] = await Promise.all([
+            base44.entities.Document.filter({ case_id: viaEntity.id }),
+            base44.entities.Notice.filter({ case_id: viaEntity.id }),
+          ]);
+          const publicDocs = (allDocs || []).filter((d) =>
+            PUBLIC_PORTAL_DOC_TYPES.includes(d.document_type)
+          );
+          setCaseData(mapEntityCaseToPortalSummary(viaEntity));
+          setDocuments(publicDocs);
+          setNotices(allNotices || []);
+          setNotFound(false);
+          setSearchError('');
+          return;
+        }
+      } catch (fallbackErr) {
+        console.warn(fallbackErr);
+      }
       const msg =
         err?.response?.data?.error ||
         err?.message ||
@@ -207,7 +250,10 @@ export default function PublicPortal() {
               <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
                 <li>If you typed a <strong className="text-foreground">1</strong>, try the letter <strong className="text-foreground">I</strong> (and the other way around).</li>
                 <li>Ask the code office to confirm the code or run <strong className="text-foreground">Backfill access codes</strong> in Admin if older cases have no code.</li>
-                <li>Staff must deploy the <strong className="text-foreground">lookupCaseByCode</strong> function for this search to work on the live site.</li>
+                <li>
+                  Staff should deploy the <strong className="text-foreground">lookupCaseByCode</strong> function on the live site. From a
+                  case, use <strong className="text-foreground">Test portal</strong> to verify the same code.
+                </li>
               </ul>
             )}
           </div>

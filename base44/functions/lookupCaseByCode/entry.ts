@@ -94,7 +94,7 @@ async function findCaseByCode(
       entities: {
         Case: {
           filter: (q: Record<string, string>) => Promise<CaseRow[]>;
-          list: (sort: string, limit: number) => Promise<CaseRow[]>;
+          list: (sort: string, limit: number, skip?: number) => Promise<CaseRow[]>;
         };
       };
     };
@@ -112,6 +112,10 @@ async function findCaseByCode(
       { publicAccessCode: tryCode },
       { case_number: tryCode },
       { caseNumber: tryCode },
+      { 'data.public_access_code': tryCode },
+      { 'data.publicAccessCode': tryCode },
+      { 'data.case_number': tryCode },
+      { 'data.caseNumber': tryCode },
     ];
     for (const q of filterQueries) {
       const rows = await tryFilter(Case, q);
@@ -119,18 +123,23 @@ async function findCaseByCode(
     }
   }
 
-  const MAX_SCAN = 20000;
-  let all: CaseRow[] = [];
-  try {
-    all = (await Case.list('-created_date', MAX_SCAN)) || [];
-  } catch {
-    all = [];
-  }
-
-  for (const tryCode of variants) {
-    for (const c of all) {
-      if (rowMatchesCode(c, tryCode)) return c;
+  const PAGE = 2500;
+  const MAX_SKIP = 100000;
+  for (let skip = 0; skip < MAX_SKIP; ) {
+    let batch: CaseRow[] = [];
+    try {
+      batch = (await Case.list('-created_date', PAGE, skip)) || [];
+    } catch {
+      batch = [];
     }
+    if (!batch.length) break;
+    for (const tryCode of variants) {
+      for (const c of batch) {
+        if (rowMatchesCode(c, tryCode)) return c;
+      }
+    }
+    if (batch.length < PAGE) break;
+    skip += PAGE;
   }
   return null;
 }
@@ -138,14 +147,14 @@ async function findCaseByCode(
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    let body: { access_code?: string } = {};
+    let body: { access_code?: string; code?: string } = {};
     try {
-      body = (await req.json()) as { access_code?: string };
+      body = (await req.json()) as { access_code?: string; code?: string };
     } catch {
       body = {};
     }
 
-    const code = normalizeAccessInput(body.access_code);
+    const code = normalizeAccessInput(body.access_code ?? body.code);
     if (!code) {
       return Response.json({ error: 'Access code required' }, { status: 400 });
     }

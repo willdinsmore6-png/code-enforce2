@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { auditTownId, logAuditEntry } from '@/lib/logAuditClient';
+import { portalAccessCodeFromRecord } from '@/lib/publicCaseLookup';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -25,6 +26,8 @@ import {
   Pencil,
   Trash2,
   Download,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 
 import StatusBadge from '../components/shared/StatusBadge';
@@ -492,23 +495,44 @@ export default function CaseDetail() {
         </div>
       </div>
 
-      {caseData.public_access_code && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">
-                Public Portal Access Code
-              </p>
-              <p className="text-xs text-blue-600 mt-0.5">
-                Share this code with the property owner
-              </p>
+      {portalAccessCodeFromRecord(caseData) && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Globe className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Public Portal Access Code</p>
+                <p className="mt-0.5 text-xs text-blue-600">
+                  Property owners use <strong>Public Portal</strong> (no login) and enter this exact code — or open the link below in a
+                  private window to test.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-mono text-lg font-bold tracking-widest text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg">
-              {caseData.public_access_code}
-            </span>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <span className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 font-mono text-lg font-bold tracking-widest text-blue-800">
+                {portalAccessCodeFromRecord(caseData)}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-blue-300 bg-white"
+                onClick={() =>
+                  navigator.clipboard.writeText(portalAccessCodeFromRecord(caseData))
+                }
+              >
+                <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="border-blue-300 bg-white" asChild>
+                <Link
+                  to={`/public-portal?code=${encodeURIComponent(portalAccessCodeFromRecord(caseData))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-1 h-3.5 w-3.5" /> Test portal
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       )}
