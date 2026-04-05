@@ -27,6 +27,7 @@ export default function PublicPortal() {
   const [submitted, setSubmitted] = useState(false);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,18 +38,39 @@ export default function PublicPortal() {
     e.preventDefault();
     setSearching(true);
     setNotFound(false);
+    setSearchError('');
     setCaseData(null);
+    setDocuments([]);
+    setNotices([]);
 
-    const response = await base44.functions.invoke('lookupCaseByCode', { access_code: accessCode.trim().toUpperCase() });
-    if (response.data?.found) {
-      const foundCase = response.data.case;
-      setCaseData(foundCase);
-      setDocuments(response.data.documents || []);
-      setNotices(response.data.notices || []);
-    } else {
+    try {
+      const response = await base44.functions.invoke('lookupCaseByCode', {
+        access_code: accessCode.trim().toUpperCase(),
+      });
+      if (response.data?.error) {
+        setSearchError(response.data.error);
+        setNotFound(true);
+        return;
+      }
+      if (response.data?.found) {
+        const foundCase = response.data.case;
+        setCaseData(foundCase);
+        setDocuments(response.data.documents || []);
+        setNotices(response.data.notices || []);
+      } else {
+        setNotFound(true);
+      }
+    } catch (err) {
+      console.error(err);
+      const msg =
+        err?.response?.data?.error ||
+        err?.message ||
+        'Could not reach the lookup service. If you are on preview, deploy backend functions (lookupCaseByCode) or try again later.';
+      setSearchError(msg);
       setNotFound(true);
+    } finally {
+      setSearching(false);
     }
-    setSearching(false);
   }
 
   async function handleAbatementSubmit(e) {
@@ -157,7 +179,11 @@ export default function PublicPortal() {
         </form>
 
         {notFound && (
-          <p className="text-sm text-destructive mt-3">No case found with that access code. Please check and try again.</p>
+          <p className="text-sm text-destructive mt-3">
+            {searchError
+              ? searchError
+              : 'No case found with that access code. Please check and try again.'}
+          </p>
         )}
       </div>
 

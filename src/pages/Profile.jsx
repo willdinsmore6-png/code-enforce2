@@ -59,7 +59,12 @@ export default function Profile() {
       if (res.data?.error) throw new Error(res.data.error);
       await checkAppState();
     } catch (err) {
-      alert(err.message || 'Could not save profile');
+      const m = err?.message || '';
+      alert(
+        m.includes('404') || m.includes('Not Found')
+          ? 'Profile save failed (function not found). Deploy backend functions from this project (updateUserProfile at base44/functions/updateUserProfile/entry.ts) or run base44 deploy.'
+          : m || 'Could not save profile'
+      );
     } finally {
       setSaving(false);
     }

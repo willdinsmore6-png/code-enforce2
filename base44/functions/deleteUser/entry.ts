@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
-import { checkActingTownAccess } from '../shared/actingTownGuard.ts';
+import { checkActingTownAccess } from '../shared/actingTownGuard/entry.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -11,8 +11,9 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { userId, role } = body;
-    if (!userId || !role) return Response.json({ error: 'userId and role required' }, { status: 400 });
+    const { userId } = body;
+    if (!userId) return Response.json({ error: 'userId required' }, { status: 400 });
+    if (userId === user.id) return Response.json({ error: 'Cannot delete your own account' }, { status: 400 });
 
     const targets = await base44.asServiceRole.entities.User.filter({ id: userId });
     const target = targets?.[0];
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     const actingDenied = checkActingTownAccess(user, body, targetTown);
     if (actingDenied) return actingDenied;
 
-    await base44.asServiceRole.entities.User.update(userId, { role });
+    await base44.asServiceRole.entities.User.delete(userId);
     return Response.json({ success: true });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

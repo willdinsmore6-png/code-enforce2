@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
-import { checkActingTownAccess } from '../../shared/actingTownGuard/entry.ts';
+import { checkActingTownAccess } from '../shared/actingTownGuard/entry.ts';
 
 type ZD = Record<string, unknown>;
 
