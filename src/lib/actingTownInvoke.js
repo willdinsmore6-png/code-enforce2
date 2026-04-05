@@ -8,3 +8,11 @@ export function mergeActingTownPayload(user, impersonatedMunicipality, payload =
   }
   return { ...payload };
 }
+
+/**
+ * Superadmin dashboard mutations must ignore impersonation so you can manage all towns/users.
+ * Do not attach acting_town_id.
+ */
+export function superadminDashboardPayload(payload = {}) {
+  return { ...payload };
+}

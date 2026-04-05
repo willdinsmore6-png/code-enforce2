@@ -18,6 +18,7 @@ import {
   Shield,
   LogOut,
   ShieldCheck,
+  UserCircle,
 } from 'lucide-react';
 import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
@@ -35,16 +36,24 @@ const navItems = [
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
+  { path: '/profile', icon: UserCircle, label: 'My profile' },
 ];
 
 const adminItems = [
   { path: '/admin', icon: Settings, label: 'Admin Tools' },
 ];
 
+const superadminShellNav = [
+  { path: '/superadmin', icon: ShieldCheck, label: 'Global Dashboard' },
+  { path: '/profile', icon: UserCircle, label: 'My profile' },
+];
+
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { municipality, user, logout } = useAuth();
+  const { municipality, user, logout, impersonatedMunicipality } = useAuth();
+  const isSuperadminShell = user?.role === 'superadmin' && !impersonatedMunicipality;
+  const primaryNav = isSuperadminShell ? superadminShellNav : navItems;
 
   const isActive = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
@@ -111,40 +120,46 @@ export default function MobileNav() {
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {navItems.map((item) => (
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+          {primaryNav.map((item) => (
             <Link
               key={item.path}
               to={item.path}
               onClick={() => setOpen(false)}
               className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
                 isActive(item.path)
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  ? isSuperadminShell
+                    ? 'bg-purple-800/50 text-purple-100'
+                    : 'bg-sidebar-accent text-sidebar-primary'
+                  : isSuperadminShell
+                    ? 'text-purple-200/80 hover:bg-purple-800/30 hover:text-purple-50'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
               )}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="h-5 w-5 shrink-0" />
               {item.label}
             </Link>
           ))}
 
-          {(user?.role === 'admin' || user?.role === 'superadmin') && (
+          {!isSuperadminShell && (user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>
+              <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">
+                Admin
+              </p>
               {adminItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
                     isActive(item.path)
-                      ? "bg-sidebar-accent text-sidebar-primary"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? 'bg-sidebar-accent text-sidebar-primary'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                   )}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <item.icon className="h-5 w-5 shrink-0" />
                   {item.label}
                 </Link>
               ))}
@@ -153,13 +168,13 @@ export default function MobileNav() {
                   to="/superadmin"
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
                     isActive('/superadmin')
-                      ? "bg-sidebar-accent text-sidebar-primary"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? 'bg-sidebar-accent text-sidebar-primary'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                   )}
                 >
-                  <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                  <ShieldCheck className="h-5 w-5 shrink-0" />
                   Super Admin
                 </Link>
               )}

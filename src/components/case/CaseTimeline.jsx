@@ -2,7 +2,13 @@ import { format } from 'date-fns';
 import { FileText, Camera, Scale, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function CaseTimeline({ caseData, investigations, notices, courtActions }) {
+export default function CaseTimeline({
+  caseData,
+  investigations,
+  notices,
+  courtActions,
+  assignedOfficerLabel,
+}) {
   const events = [];
 
   // Case created
@@ -18,7 +24,9 @@ export default function CaseTimeline({ caseData, investigations, notices, courtA
         caseData.violation_type ? `Violation type: ${caseData.violation_type.replace(/_/g, ' ')}` : null,
         caseData.violation_description ? caseData.violation_description.slice(0, 200) : null,
         caseData.specific_code_violated ? `Code cited: ${caseData.specific_code_violated}` : null,
-        caseData.assigned_officer ? `Assigned to: ${caseData.assigned_officer}` : null,
+        caseData.assigned_officer
+          ? `Assigned to: ${assignedOfficerLabel || caseData.assigned_officer}`
+          : null,
       ].filter(Boolean),
     });
   }

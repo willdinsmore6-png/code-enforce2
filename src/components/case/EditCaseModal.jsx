@@ -50,7 +50,11 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
     Object.keys(form).forEach(key => {
       if (form[key] !== (caseData[key] || '')) changes[key] = { from: caseData[key], to: form[key] };
     });
-    await base44.entities.Case.update(caseData.id, form);
+    const assigned_officer =
+      !form.assigned_officer || form.assigned_officer === 'unassigned' || form.assigned_officer === '_none'
+        ? null
+        : form.assigned_officer;
+    await base44.entities.Case.update(caseData.id, { ...form, assigned_officer });
     if (Object.keys(changes).length > 0) {
       base44.functions
         .invoke(
@@ -66,7 +70,7 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
         )
         .catch(() => {});
     }
-    onSave({ ...caseData, ...form });
+    onSave({ ...caseData, ...form, assigned_officer });
     setSaving(false);
     onClose();
   }
@@ -160,13 +164,13 @@ export default function EditCaseModal({ caseData, open, onClose, onSave }) {
               </div>
               <div className="space-y-1.5">
                 <Label>Assigned Officer</Label>
-                <Select value={form.assigned_officer} onValueChange={v => update('assigned_officer', v)}>
+                <Select value={form.assigned_officer || '_none'} onValueChange={(v) => update('assigned_officer', v === '_none' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="Select officer..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">— Unassigned —</SelectItem>
-                    {users.map(u => (
+                    <SelectItem value="_none">— Unassigned —</SelectItem>
+                    {users.map((u) => (
                       <SelectItem key={u.id} value={u.email}>
-                        {u.full_name} ({u.email})
+                        {(u.full_name || u.name || u.email) + (u.full_name || u.name ? ` (${u.email})` : '')}
                       </SelectItem>
                     ))}
                   </SelectContent>

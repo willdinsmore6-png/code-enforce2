@@ -14,6 +14,18 @@
     "town_id": {
       "type": "string",
       "description": "Foreign key to TownConfig. Set by superadmin to assign user to a municipality."
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Display name for assignments, timelines, and UI (e.g. Code Enforcement Officer)"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Work or contact phone (optional)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title (optional)"
     }
   }
 }

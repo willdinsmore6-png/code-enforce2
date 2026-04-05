@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 
 import { base44 } from '@/api/base44Client';
@@ -125,6 +125,12 @@ export default function CaseDetail() {
 
     loadUsers();
   }, [user, impersonatedMunicipality]);
+
+  const assignedOfficerLabel = useMemo(() => {
+    if (!caseData?.assigned_officer) return null;
+    const u = users.find((x) => x.email === caseData.assigned_officer);
+    return u?.full_name || u?.name || caseData.assigned_officer;
+  }, [caseData?.assigned_officer, users]);
 
   async function updateStatus(newStatus) {
     await base44.entities.Case.update(id, { status: newStatus });
@@ -427,14 +433,15 @@ export default function CaseDetail() {
           </div>
           <div>
             <Select
-              value={caseData.assigned_officer || ''}
-              onValueChange={async v => {
+              value={caseData.assigned_officer ? caseData.assigned_officer : '_none'}
+              onValueChange={async (v) => {
+                const next = v && v !== '_none' ? v : null;
                 await base44.entities.Case.update(id, {
-                  assigned_officer: v || null
+                  assigned_officer: next
                 });
-                setCaseData(prev => ({
+                setCaseData((prev) => ({
                   ...prev,
-                  assigned_officer: v || null
+                  assigned_officer: next
                 }));
               }}
             >
@@ -442,10 +449,10 @@ export default function CaseDetail() {
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={null}>— Unassigned —</SelectItem>
-                {users.map(u => (
+                <SelectItem value="_none">— Unassigned —</SelectItem>
+                {users.map((u) => (
                   <SelectItem key={u.id} value={u.email}>
-                    {u.full_name}
+                    {u.full_name || u.name || u.email}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -575,6 +582,7 @@ export default function CaseDetail() {
             investigations={investigations}
             notices={notices}
             courtActions={courtActions}
+            assignedOfficerLabel={assignedOfficerLabel}
           />
         </TabsContent>
       </Tabs>

@@ -16,6 +16,7 @@ import {
   LogOut,
   Settings,
   Compass,
+  UserCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/compass', icon: Compass, label: 'Compass AI' },
   { path: '/resources', icon: BookOpen, label: 'Resource Library' },
   { path: '/public-portal', icon: Globe, label: 'Public Portal' },
+  { path: '/profile', icon: UserCircle, label: 'My profile' },
 ];
 
 const adminNavItems = [
@@ -43,10 +45,18 @@ const superAdminNavItems = [
   { path: '/superadmin', icon: Shield, label: 'Global Dashboard' },
 ];
 
+/** Logged-in superadmin not impersonating a town: minimal navigation only. */
+const superadminShellNav = [
+  { path: '/superadmin', icon: Shield, label: 'Global Dashboard' },
+  { path: '/profile', icon: UserCircle, label: 'My profile' },
+];
+
 export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { municipality, user, logout } = useAuth();
+  const { municipality, user, logout, impersonatedMunicipality } = useAuth();
+  const isSuperadminShell = user?.role === 'superadmin' && !impersonatedMunicipality;
+  const primaryNav = isSuperadminShell ? superadminShellNav : navItems;
 
   function renderNavItem(item, activeClass, inactiveClass, iconActiveClass) {
     const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
@@ -85,34 +95,52 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(item => renderNavItem(
-          item,
-          "bg-sidebar-accent text-sidebar-primary",
-          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-          "text-sidebar-primary"
-        ))}
+        {primaryNav.map((item) =>
+          renderNavItem(
+            item,
+            isSuperadminShell
+              ? 'bg-purple-800/40 text-purple-200'
+              : 'bg-sidebar-accent text-sidebar-primary',
+            isSuperadminShell
+              ? 'text-purple-200/80 hover:text-purple-100 hover:bg-purple-800/30'
+              : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50',
+            isSuperadminShell ? 'text-purple-200' : 'text-sidebar-primary'
+          )
+        )}
 
-        {(user?.role === 'admin' || user?.role === 'superadmin') && (
+        {!isSuperadminShell && (user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 px-3 pt-4 pb-1">Admin</p>}
-            {adminNavItems.map(item => renderNavItem(
-              item,
-              "bg-sidebar-accent text-sidebar-primary",
-              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-              "text-sidebar-primary"
-            ))}
+            {!collapsed && (
+              <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">
+                Admin
+              </p>
+            )}
+            {adminNavItems.map((item) =>
+              renderNavItem(
+                item,
+                'bg-sidebar-accent text-sidebar-primary',
+                'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50',
+                'text-sidebar-primary'
+              )
+            )}
           </>
         )}
 
-        {user?.role === 'superadmin' && (
+        {!isSuperadminShell && user?.role === 'superadmin' && (
           <>
-            {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-400 px-3 pt-4 pb-1">Super Admin</p>}
-            {superAdminNavItems.map(item => renderNavItem(
-              item,
-              "bg-purple-800/40 text-purple-300",
-              "text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30",
-              "text-purple-300"
-            ))}
+            {!collapsed && (
+              <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-purple-400">
+                Super Admin
+              </p>
+            )}
+            {superAdminNavItems.map((item) =>
+              renderNavItem(
+                item,
+                'bg-purple-800/40 text-purple-300',
+                'text-purple-400/70 hover:text-purple-300 hover:bg-purple-800/30',
+                'text-purple-300'
+              )
+            )}
           </>
         )}
       </nav>
