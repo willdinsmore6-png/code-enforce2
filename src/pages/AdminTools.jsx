@@ -5,6 +5,7 @@ import { mergeActingTownPayload } from '@/lib/actingTownInvoke';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PageHeader from '../components/shared/PageHeader';
@@ -32,6 +33,8 @@ export default function AdminTools() {
     name: '', short_name: '', municipality_type: 'town', state: 'NH',
     address: '', contact_email: '', contact_phone: '', website: '',
     tagline: '', logo_url: '',
+    gis_map_url: '',
+    adopted_building_codes_summary: '',
   });
   const [savingMuni, setSavingMuni] = useState(false);
   const [muniSaved, setMuniSaved] = useState(false);
@@ -99,6 +102,8 @@ export default function AdminTools() {
         contact_phone: municipality.contact_phone || '',
         website: municipality.website || '',
         address: municipality.address || '',
+        gis_map_url: municipality.gis_map_url || '',
+        adopted_building_codes_summary: municipality.adopted_building_codes_summary || '',
       }));
     }
   }, [municipality]);
@@ -232,6 +237,8 @@ export default function AdminTools() {
         contact_phone: muniForm.contact_phone,
         website: muniForm.website,
         address: muniForm.address,
+        gis_map_url: (muniForm.gis_map_url || '').trim(),
+        adopted_building_codes_summary: (muniForm.adopted_building_codes_summary || '').trim(),
       });
     setSavingMuni(false);
     setMuniSaved(true);
@@ -355,6 +362,34 @@ export default function AdminTools() {
                 <div className="sm:col-span-2 space-y-1.5">
                   <Label>Tagline (shown in app header)</Label>
                   <Input value={muniForm.tagline} onChange={e => setMuniForm(f => ({ ...f, tagline: e.target.value }))} placeholder="Code Enforcement Division" />
+                </div>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label htmlFor="gis_map_url">GIS / parcel viewer URL (optional)</Label>
+                  <Input
+                    id="gis_map_url"
+                    type="url"
+                    inputMode="url"
+                    value={muniForm.gis_map_url}
+                    onChange={(e) => setMuniForm((f) => ({ ...f, gis_map_url: e.target.value }))}
+                    placeholder="https://… (town assessor or ArcGIS web map)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for quick links from property, permit, and land-use screens. Opens in a new browser tab.
+                  </p>
+                </div>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label htmlFor="adopted_codes">Adopted codes summary (for staff &amp; assistant context)</Label>
+                  <Textarea
+                    id="adopted_codes"
+                    value={muniForm.adopted_building_codes_summary}
+                    onChange={(e) => setMuniForm((f) => ({ ...f, adopted_building_codes_summary: e.target.value }))}
+                    rows={5}
+                    placeholder="e.g. NH State Building Code based on 2021 I-Codes effective [date]; local amendments: [chapter/section]; electrical NFPA 70 edition…"
+                    className="min-h-[120px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Does not replace legal advice — documents the editions your building official enforces so Meridian and permit tools stay aligned.
+                  </p>
                 </div>
               </div>
 

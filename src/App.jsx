@@ -32,6 +32,11 @@ import PageNotFound from './lib/PageNotFound';
 import Onboarding from './pages/Onboarding';
 import Subscribe from './pages/Subscribe';
 import Success from './pages/Success';
+import BuildingPermitsPage from './pages/BuildingPermitsPage';
+import BuildingPermitDetailPage from './pages/BuildingPermitDetailPage';
+import LandUseApplicationsPage from './pages/LandUseApplicationsPage';
+import LandUseApplicationDetailPage from './pages/LandUseApplicationDetailPage';
+import PropertyWorkspacePage from './pages/PropertyWorkspacePage';
 import {
   isPublicAppPath,
   isTownInactive,
@@ -202,6 +207,11 @@ const AuthenticatedApp = () => {
         <Route path="/compass" element={<CompassPage />} />
         <Route path="/resources" element={<ResourceLibrary />} />
         <Route path="/documents" element={<DocumentVault />} />
+        <Route path="/permits" element={<BuildingPermitsPage />} />
+        <Route path="/permits/:id" element={<BuildingPermitDetailPage />} />
+        <Route path="/land-use" element={<LandUseApplicationsPage />} />
+        <Route path="/land-use/:id" element={<LandUseApplicationDetailPage />} />
+        <Route path="/property-workspace" element={<PropertyWorkspacePage />} />
         <Route path="/admin" element={<AdminTools />} />
         <Route path="/superadmin" element={<SuperAdminDashboard />} />
       </Route>

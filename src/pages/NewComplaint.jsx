@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { filterRecordsForProperty } from '@/lib/propertyAddress';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +18,7 @@ export default function NewComplaint() {
   const navigate = useNavigate();
   const { municipality } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [townCases, setTownCases] = useState([]);
   const [form, setForm] = useState({
     complaint_date: format(new Date(), 'yyyy-MM-dd'),
     property_address: '',
@@ -31,6 +34,36 @@ export default function NewComplaint() {
     specific_code_violated: '',
     priority: 'medium',
   });
+
+  const townKey = municipality?.id != null ? String(municipality.id) : '';
+
+  useEffect(() => {
+    if (!townKey) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [byRoot, byData] = await Promise.all([
+          base44.entities.Case.filter({ town_id: townKey }, '-created_date', 400).catch(() => []),
+          base44.entities.Case.filter({ 'data.town_id': townKey }, '-created_date', 400).catch(() => []),
+        ]);
+        const map = new Map();
+        for (const c of [...(byRoot || []), ...(byData || [])]) {
+          if (c?.id) map.set(c.id, c);
+        }
+        if (!cancelled) setTownCases([...map.values()]);
+      } catch {
+        if (!cancelled) setTownCases([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [townKey]);
+
+  const propertyDuplicates = useMemo(
+    () => filterRecordsForProperty(townCases, form.property_address, form.parcel_id),
+    [townCases, form.property_address, form.parcel_id]
+  );
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -134,6 +167,40 @@ export default function NewComplaint() {
             <Label>Property Address *</Label>
             <Input value={form.property_address} onChange={e => update('property_address', e.target.value)} placeholder="123 Main St, Concord, NH 03301" required />
           </div>
+          {propertyDuplicates.length > 0 && (
+            <div
+              className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-50"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="mb-2 flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Possible duplicate property
+              </div>
+              <p className="mb-2 text-amber-900/90 dark:text-amber-100/90">
+                {propertyDuplicates.length} case(s) already use this address or parcel. Open an existing case or confirm this is a separate
+                matter.
+              </p>
+              <ul className="space-y-1.5">
+                {propertyDuplicates.slice(0, 5).map((c) => (
+                  <li key={c.id}>
+                    <Link className="font-medium underline-offset-4 hover:underline" to={`/cases/${c.id}`}>
+                      Case {c.case_number || c.id.slice(0, 8)}
+                    </Link>
+                    <span className="text-amber-900/80 dark:text-amber-100/80"> — {c.status}</span>
+                  </li>
+                ))}
+              </ul>
+              {propertyDuplicates.length > 5 && (
+                <p className="mt-2 text-xs opacity-90">Showing 5 of {propertyDuplicates.length}. Use property workspace to see all matches.</p>
+              )}
+              <p className="mt-2 text-xs">
+                <Link to="/property-workspace" className="underline-offset-4 hover:underline">
+                  Property workspace
+                </Link>
+              </p>
+            </div>
+          )}
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Property Owner Name</Label>
