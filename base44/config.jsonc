@@ -8,6 +8,7 @@
 
   // Frontend build output (for `base44 site deploy` if you use it)
   "site": {
-    "outputDirectory": "../dist"
+    // Relative to project root (folder that contains base44/). ../dist was wrong — it pointed at CodeEnforce/dist.
+    "outputDirectory": "./dist"
   }
 }

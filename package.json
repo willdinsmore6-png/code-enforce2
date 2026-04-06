@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "deploy:functions": "base44 functions deploy",
     "deploy:function:export": "base44 functions deploy exportCaseCourtFile",
-    "deploy:function:full": "base44 functions deploy exportFullCourtPacket"
+    "deploy:function:full": "base44 functions deploy exportFullCourtPacket",
+    "deploy:site": "vite build && base44 site deploy"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.24",
