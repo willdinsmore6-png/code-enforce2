@@ -15,7 +15,6 @@ import {
   Search,
   Menu,
   X,
-  Shield,
   LogOut,
   ShieldCheck,
   MapPin,
@@ -24,6 +23,7 @@ import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
+import { municipalityNavTitle } from '@/lib/municipalityDisplay';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -106,11 +106,11 @@ export default function MobileNav() {
                 className="h-full w-full object-contain p-0.5"
               />
             ) : (
-              <Shield className="h-4 w-4 text-sidebar-primary" aria-hidden="true" />
+              <img src="/icon.svg" alt="" className="h-full w-full object-contain p-0.5" />
             )}
           </div>
           <span className="max-w-[180px] truncate text-sm font-semibold text-sidebar-foreground">
-            {municipality?.short_name || municipality?.town_name || 'CodeEnforce'}
+            {municipalityNavTitle(municipality)}
           </span>
         </div>
         <button
@@ -151,12 +151,12 @@ export default function MobileNav() {
               {municipality?.logo_url ? (
                 <img src={municipality.logo_url} alt="" className="h-full w-full object-contain p-0.5" />
               ) : (
-                <Shield className="h-4 w-4 text-sidebar-primary" aria-hidden="true" />
+                <img src="/icon.svg" alt="" className="h-full w-full object-contain p-0.5" />
               )}
             </div>
             <div className="flex min-w-0 flex-col">
               <span id={drawerTitleId} className="truncate text-sm font-semibold">
-                {municipality?.short_name || municipality?.town_name || 'CodeEnforce'}
+                {municipalityNavTitle(municipality)}
               </span>
               <span className="truncate text-[10px] text-sidebar-foreground/60">
                 {municipality?.tagline || 'Code enforcement'}
