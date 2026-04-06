@@ -1,27 +1,31 @@
 /**
- * TownConfig sometimes had placeholder product names; normalize for nav chrome only.
- * Compares alphanumeric-only so "Code Enforce Pro", "CodeEnforce Pro", "code-enforce pro" match.
+ * TownConfig / Base44 sometimes stored the old marketing label "Code Enforce Pro" as a placeholder
+ * town or app name. Spaces and punctuation are stripped so variants like "code-enforce pro" still match.
  */
-const LEGACY_PRODUCT_KEY = 'codeenforcepro';
-
-function nameKey(raw) {
+function lettersOnlyKey(raw) {
   return String(raw || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '');
 }
 
-/** PWA / Base44 app title when the dashboard still says "Code Enforce Pro". */
+/** True when the label is exactly the legacy product name "Code Enforce Pro" (any spacing/casing). */
+function isLegacyCodeEnforceProLabel(raw) {
+  // Compare against letters-only form of "Code Enforce Pro" — not an API key.
+  return lettersOnlyKey(raw) === 'codeenforcepro';
+}
+
+/** PWA / Base44 app title when the dashboard still has the old "Code Enforce Pro" name. */
 export function normalizeProductDisplayName(raw) {
   const t = String(raw || '').trim();
   if (!t) return 'Code Enforce';
-  if (nameKey(t) === LEGACY_PRODUCT_KEY) return 'Code Enforce';
+  if (isLegacyCodeEnforceProLabel(t)) return 'Code Enforce';
   return t;
 }
 
 export function municipalityNavTitle(municipality) {
   const raw = (municipality?.short_name || municipality?.town_name || '').trim();
   if (!raw) return 'Code Enforce';
-  if (nameKey(raw) === LEGACY_PRODUCT_KEY) return 'Code Enforce';
+  if (isLegacyCodeEnforceProLabel(raw)) return 'Code Enforce';
   return raw;
 }
 
