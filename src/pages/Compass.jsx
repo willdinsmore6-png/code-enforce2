@@ -10,6 +10,19 @@ import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
 import { ZONING_DETERMINATIONS_ENABLED } from '@/lib/features';
 
+function normalizeRole(role) {
+  return role != null ? String(role).toLowerCase() : '';
+}
+
+function isUserMessage(role) {
+  return normalizeRole(role) === 'user';
+}
+
+function isAssistantMessage(role) {
+  const r = normalizeRole(role);
+  return r === 'assistant' || r === 'model';
+}
+
 export default function CompassPage() {
   const { user, municipality } = useAuth();
   const [conversation, setConversation] = useState(null);
@@ -24,6 +37,8 @@ export default function CompassPage() {
   const [selectedCase, setSelectedCase] = useState('');
   const [selectedZoningDetermination, setSelectedZoningDetermination] = useState('');
   const [showReviewWaitNotice, setShowReviewWaitNotice] = useState(false);
+  /** True from send until the stream delivers an assistant message (covers gap before subscription updates). */
+  const [pendingAssistantReply, setPendingAssistantReply] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Persistent town-specific filtering for Super Admins
@@ -84,7 +99,10 @@ export default function CompassPage() {
           if (existing?.id) {
             setConversation(existing);
             const cached = sessionStorage.getItem('compass_messages');
-            setMessages(cached ? JSON.parse(cached) : (existing.messages || []));
+            const initialMsgs = cached ? JSON.parse(cached) : (existing.messages || []);
+            setMessages(initialMsgs);
+            const lastLoaded = initialMsgs[initialMsgs.length - 1];
+            if (isUserMessage(lastLoaded?.role)) setPendingAssistantReply(true);
             if (existing.messages?.length > 0) setDocsSharedWithAgent(true);
             window.dispatchEvent(new Event('compass_new_conversation'));
             return;
@@ -109,7 +127,13 @@ export default function CompassPage() {
   }, []);
 
   useEffect(() => {
-    const handler = (e) => setMessages(e.detail.messages || []);
+    const handler = (e) => {
+      const next = e.detail.messages || [];
+      setMessages(next);
+      const last = next[next.length - 1];
+      if (isAssistantMessage(last?.role)) setPendingAssistantReply(false);
+      else if (isUserMessage(last?.role)) setPendingAssistantReply(true);
+    };
     window.addEventListener('compass_update', handler);
     return () => window.removeEventListener('compass_update', handler);
   }, []);
@@ -122,6 +146,12 @@ export default function CompassPage() {
       unsubscribe = base44.agents.subscribeToConversation(conversation.id, (data) => {
         const next = data.messages || [];
         setMessages(next);
+        const last = next[next.length - 1];
+        if (isAssistantMessage(last?.role)) {
+          setPendingAssistantReply(false);
+        } else if (isUserMessage(last?.role)) {
+          setPendingAssistantReply(true);
+        }
         try {
           sessionStorage.setItem('compass_messages', JSON.stringify(next));
         } catch {
@@ -143,9 +173,8 @@ export default function CompassPage() {
     return () => cancelAnimationFrame(id);
   }, [messages]);
 
-  /** True while the model has not yet appended an assistant reply after the latest user message */
-  const awaitingAssistantReply =
-    messages.length > 0 && messages[messages.length - 1]?.role === 'user';
+  const showWorkingOverlay = sending || pendingAssistantReply;
+  const chatInputLocked = showWorkingOverlay;
 
   async function startNewChat() {
     sessionStorage.removeItem('compass_conversation_id');
@@ -155,6 +184,7 @@ export default function CompassPage() {
     setDocsSharedWithAgent(false);
     setPlanFile(null);
     setShowReviewWaitNotice(false);
+    setPendingAssistantReply(false);
     if (planInputRef.current) planInputRef.current.value = '';
     const conv = await base44.agents.createConversation({
       agent_name: 'compass',
@@ -170,13 +200,12 @@ export default function CompassPage() {
 
   async function sendMessage(e) {
     e?.preventDefault();
-    if (!input.trim() || !conversation || sending || awaitingAssistantReply) return;
+    if (!input.trim() || !conversation || sending || pendingAssistantReply) return;
     const msg = input.trim();
     setInput('');
     setSending(true);
-    if (selectedCase || selectedZoningDetermination) {
-      setShowReviewWaitNotice(true);
-    }
+    setPendingAssistantReply(true);
+    setShowReviewWaitNotice(true);
     const caseContext = selectedCase ? ` [Analyzing case ID: ${selectedCase}]` : '';
     const zdContext = selectedZoningDetermination
       ? ` [Analyzing zoning determination ID: ${selectedZoningDetermination}]`
@@ -203,8 +232,15 @@ export default function CompassPage() {
       messagePayload.file_urls = file_urls;
     }
 
-    await base44.agents.addMessage(conversation, messagePayload);
-    setSending(false);
+    try {
+      await base44.agents.addMessage(conversation, messagePayload);
+    } catch (err) {
+      console.error('Meridian send failed:', err);
+      setPendingAssistantReply(false);
+      setShowReviewWaitNotice(false);
+    } finally {
+      setSending(false);
+    }
   }
 
   async function askWithCase() {
@@ -339,20 +375,37 @@ export default function CompassPage() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 max-w-5xl mx-auto w-full space-y-4">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}>
-              <ReactMarkdown className="text-sm prose prose-sm max-w-none">
-                {msg.content.replace(/\s*\[Analyzing (?:case|zoning determination) ID:[^\]]+\]/g, '')}
-              </ReactMarkdown>
+      <div className="relative min-h-0 flex-1 overflow-hidden max-w-5xl mx-auto w-full">
+        <div
+          className={`h-full min-h-[12rem] overflow-y-auto overscroll-contain px-4 py-4 space-y-4 ${showWorkingOverlay ? 'opacity-45' : ''}`}
+          aria-busy={showWorkingOverlay}
+        >
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex gap-3 ${isUserMessage(msg.role) ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isUserMessage(msg.role) ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}
+              >
+                <ReactMarkdown className="text-sm prose prose-sm max-w-none">
+                  {msg.content.replace(/\s*\[Analyzing (?:case|zoning determination) ID:[^\]]+\]/g, '')}
+                </ReactMarkdown>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        {showWorkingOverlay ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/75 px-6 text-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] dark:bg-background/80 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] sm:min-h-[14rem]"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-11 w-11 shrink-0 animate-spin text-primary" aria-hidden />
+            <div className="max-w-sm space-y-1">
+              <p className="text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is working on your answer</p>
+              <p className="text-xs text-muted-foreground">You can leave this page — your reply will appear here when ready.</p>
             </div>
           </div>
-        ))}
-        {awaitingAssistantReply && (
-          <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground shrink-0" aria-label="Waiting for reply" />
-        )}
-        <div ref={messagesEndRef} />
+        ) : null}
       </div>
 
       <div className="shrink-0 border-t border-border bg-card px-4 py-4 space-y-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))]">
@@ -363,12 +416,16 @@ export default function CompassPage() {
           </div>
         )}
         <form onSubmit={sendMessage} className="flex gap-2 max-w-5xl mx-auto items-center">
-          <label className="cursor-pointer shrink-0 p-2 rounded-md border border-input hover:bg-muted" title="Attach plan, PDF, or photo for this message">
+          <label
+            className={`shrink-0 p-2 rounded-md border border-input ${chatInputLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-muted'}`}
+            title="Attach plan, PDF, or photo for this message"
+          >
             <Upload className="w-4 h-4" />
             <input
               ref={planInputRef}
               type="file"
               className="hidden"
+              disabled={chatInputLocked}
               accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"
               onChange={(ev) => setPlanFile(ev.target.files?.[0] || null)}
             />
@@ -378,9 +435,9 @@ export default function CompassPage() {
             onChange={(e) => setInput(e.target.value)}
             placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}… (optional: attach a plan)`}
             className="flex-1"
-            disabled={sending || awaitingAssistantReply}
+            disabled={chatInputLocked}
           />
-          <Button type="submit" disabled={sending || awaitingAssistantReply || !input.trim()} size="icon">
+          <Button type="submit" disabled={chatInputLocked || !input.trim()} size="icon">
             <Send className="w-4 h-4" />
           </Button>
         </form>
