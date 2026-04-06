@@ -117,15 +117,33 @@ export const AuthProvider = ({ children }) => {
         if (currentUser.status === 'pending') {
           setAuthError({ type: 'pending_approval', message: 'Waiting for admin approval' });
         } else if (!currentUser.town_id || currentUser.town_id === 'Null') {
-          const p = window.location.pathname;
-          if (!isUnassignedAllowedPath(p)) {
-            setAuthError({ type: 'unassigned_user', message: 'Account not linked' });
+          try {
+            await base44.functions.invoke('claimStaffInvite', {});
+          } catch (e) {
+            console.warn('claimStaffInvite failed:', e);
+          }
+
+          const resolved = await base44.auth.me();
+          if (resolved) {
+            resolved.town_id = resolved.data?.town_id || resolved.town_id;
+            setUser(resolved);
+          }
+
+          if (!resolved?.town_id || resolved.town_id === 'Null') {
+            const p = window.location.pathname;
+            if (!isUnassignedAllowedPath(p)) {
+              setAuthError({ type: 'unassigned_user', message: 'Account not linked' });
+            }
+          } else {
+            await loadMunicipality(resolved);
+            setAuthError(null);
           }
         } else {
           await loadMunicipality(currentUser);
         }
 
-        if (!currentUser.invitation_accepted) {
+        const latestForInvite = await base44.auth.me();
+        if (latestForInvite && !latestForInvite.invitation_accepted) {
           await base44.auth.updateMe({ invitation_accepted: true });
         }
       }

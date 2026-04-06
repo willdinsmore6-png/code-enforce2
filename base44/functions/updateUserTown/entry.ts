@@ -29,7 +29,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    await base44.asServiceRole.entities.User.update(userId, { town_id: town_id || null });
+    const prevData = (target.data && typeof target.data === 'object' ? target.data : {}) as Record<string, unknown>;
+    const tid = town_id || null;
+    await base44.asServiceRole.entities.User.update(userId, {
+      town_id: tid,
+      data: { ...prevData, town_id: tid },
+    });
 
     return Response.json({ success: true });
   } catch (error) {

@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+function normEmail(e: string) {
+  return e.trim().toLowerCase();
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -15,8 +19,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'email is required' }, { status: 400 });
     }
 
+    const emailNorm = normEmail(email);
+
     let assignedTown = town_id || user.town_id || user.data?.town_id;
-    // Superadmins often have no user.town_id; while impersonating, default invite target to active context
     if (user.role === 'superadmin' && actingTownId && !assignedTown) {
       assignedTown = actingTownId;
     }
@@ -27,35 +32,70 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!assignedTown || String(assignedTown).trim() === '') {
+      return Response.json(
+        { error: 'town_id is required (select a municipality or use town impersonation).' },
+        { status: 400 }
+      );
+    }
+
     if (user.role === 'admin' && role === 'superadmin') {
       return Response.json({ error: 'Admins cannot invite Superadmins' }, { status: 403 });
     }
 
-    // Determine the role to invite with (admins can only invite users)
     const inviteRole = user.role === 'superadmin' && role === 'admin' ? 'admin' : 'user';
 
-    // Invite the user with appropriate role
-    await base44.users.inviteUser(email, inviteRole);
+    await base44.users.inviteUser(email.trim(), inviteRole);
 
-    // Wait briefly for the user record to be created
-    await new Promise(r => setTimeout(r, 2000));
+    // Persist invite so claimStaffInvite can link town after the user finishes signup (User row may not exist yet).
+    try {
+      await base44.asServiceRole.entities.AuditLog.create({
+        case_id: '',
+        zoning_determination_id: '',
+        town_id: String(assignedTown),
+        case_number: '',
+        entity_type: 'StaffInvite',
+        entity_id: emailNorm,
+        user_email: user.email,
+        user_name: (user.full_name as string) || user.email,
+        action: 'staff_invite_pending',
+        changes: JSON.stringify({
+          invitee_email: emailNorm,
+          invited_by: user.email,
+          invite_role: inviteRole,
+        }),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('inviteStaffUser: pending audit log failed', e);
+      return Response.json(
+        { error: 'Invite was sent but town linkage could not be recorded. Contact support if the user cannot access the app.' },
+        { status: 500 }
+      );
+    }
 
-    // Find the newly created user record and set town_id
-    const allUsers = await base44.asServiceRole.entities.User.list();
-    const newUser = allUsers.find(u => u.email === email);
+    // If the platform creates the User row immediately, attach town_id (retry: signup timing varies).
+    const mergeUserTown = async (row: Record<string, unknown>) => {
+      const prevData = (row.data && typeof row.data === 'object' ? row.data : {}) as Record<string, unknown>;
+      await base44.asServiceRole.entities.User.update(String(row.id), {
+        town_id: assignedTown,
+        data: { ...prevData, town_id: assignedTown },
+      });
+    };
 
-    if (newUser) {
-      const updates = {};
-      if (assignedTown) updates.town_id = assignedTown;
-
-      if (Object.keys(updates).length > 0) {
-        await base44.asServiceRole.entities.User.update(newUser.id, updates);
+    for (let i = 0; i < 24; i++) {
+      await new Promise((r) => setTimeout(r, i === 0 ? 300 : 500));
+      const allUsers = await base44.asServiceRole.entities.User.list();
+      const newUser = (allUsers || []).find((u) => normEmail(String(u.email || '')) === emailNorm);
+      if (newUser) {
+        await mergeUserTown(newUser as Record<string, unknown>);
+        break;
       }
     }
 
     return Response.json({ success: true });
   } catch (error) {
     console.error('Invite error:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: (error as Error).message }, { status: 500 });
   }
 });
