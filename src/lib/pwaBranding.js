@@ -1,4 +1,4 @@
-import { appLogoUrlFromPublicSettings } from '@/lib/municipalityDisplay';
+import { appLogoUrlFromPublicSettings, normalizeProductDisplayName } from '@/lib/municipalityDisplay';
 
 let manifestBlobUrl = null;
 
@@ -24,14 +24,14 @@ export function appDisplayNameFromPublicSettings(settings) {
   }
   const s = settings;
   const d = s.data && typeof s.data === 'object' ? s.data : {};
-  const name = String(
-    s.name || s.app_name || s.title || s.display_name || d.name || d.app_name || 'Code Enforce'
-  ).trim();
-  const shortRaw = String(
-    s.short_name || s.shortName || s.app_short_name || d.short_name || name
-  ).trim();
-  const shortName = shortRaw.length > 12 ? shortRaw.slice(0, 12) : shortRaw;
-  return { name: name || 'Code Enforce', shortName: shortName || name || 'Code Enforce' };
+  const name = normalizeProductDisplayName(
+    String(s.name || s.app_name || s.title || s.display_name || d.name || d.app_name || 'Code Enforce').trim()
+  );
+  const shortExplicit = String(s.short_name || s.shortName || s.app_short_name || d.short_name || '').trim();
+  const shortName = shortExplicit
+    ? normalizeProductDisplayName(shortExplicit)
+    : name;
+  return { name: name || 'Code Enforce', shortName: shortName || 'Code Enforce' };
 }
 
 /** Town branding wins over Base44 app logo for install icon (same as nav). */

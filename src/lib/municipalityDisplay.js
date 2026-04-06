@@ -10,6 +10,14 @@ function nameKey(raw) {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+/** PWA / Base44 app title when the dashboard still says "Code Enforce Pro". */
+export function normalizeProductDisplayName(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return 'Code Enforce';
+  if (nameKey(t) === LEGACY_PRODUCT_KEY) return 'Code Enforce';
+  return t;
+}
+
 export function municipalityNavTitle(municipality) {
   const raw = (municipality?.short_name || municipality?.town_name || '').trim();
   if (!raw) return 'Code Enforce';
