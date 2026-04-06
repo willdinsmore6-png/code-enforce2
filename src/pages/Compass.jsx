@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -240,6 +240,14 @@ export default function CompassPage() {
   const showWorkingOverlay = sending || pendingAssistantReply;
   const chatInputLocked = showWorkingOverlay;
 
+  const lastAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m && isAssistantMessage(m.role)) return m;
+    }
+    return null;
+  }, [messages]);
+
   async function startNewChat() {
     stopMeridianPoll();
     sessionStorage.removeItem('compass_conversation_id');
@@ -402,8 +410,26 @@ export default function CompassPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5"><RotateCcw className="w-3.5 h-3.5" /> New Chat</Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-primary/30"
+              disabled={!lastAssistantMessage}
+              title={
+                lastAssistantMessage
+                  ? 'Copy the latest reply as plain text'
+                  : 'Send a question and wait for a reply — then you can copy it'
+              }
+              onClick={() => lastAssistantMessage && copyAssistantAnswer(lastAssistantMessage.content)}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              Copy last answer
+            </Button>
+            <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5" /> New Chat
+            </Button>
           </div>
         </div>
 
