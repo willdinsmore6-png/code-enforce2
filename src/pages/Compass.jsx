@@ -86,6 +86,7 @@ export default function CompassPage() {
             const cached = sessionStorage.getItem('compass_messages');
             setMessages(cached ? JSON.parse(cached) : (existing.messages || []));
             if (existing.messages?.length > 0) setDocsSharedWithAgent(true);
+            window.dispatchEvent(new Event('compass_new_conversation'));
             return;
           }
         } catch (e) {
@@ -102,6 +103,7 @@ export default function CompassPage() {
       sessionStorage.setItem('compass_conversation_id', conv.id);
       setConversation(conv);
       setMessages(conv.messages || []);
+      window.dispatchEvent(new Event('compass_new_conversation'));
     }
     initConversation();
   }, []);
@@ -112,9 +114,38 @@ export default function CompassPage() {
     return () => window.removeEventListener('compass_update', handler);
   }, []);
 
+  /** Must subscribe here — CompassBackground only subscribes on app load; if the conversation is created after that (first visit / SPA), no subscription ran and the UI never updates until navigation. */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!conversation?.id) return undefined;
+    let unsubscribe;
+    try {
+      unsubscribe = base44.agents.subscribeToConversation(conversation.id, (data) => {
+        const next = data.messages || [];
+        setMessages(next);
+        try {
+          sessionStorage.setItem('compass_messages', JSON.stringify(next));
+        } catch {
+          /* ignore quota */
+        }
+      });
+    } catch (err) {
+      console.error('Meridian conversation subscription failed:', err);
+    }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+    return () => cancelAnimationFrame(id);
   }, [messages]);
+
+  /** True while the model has not yet appended an assistant reply after the latest user message */
+  const awaitingAssistantReply =
+    messages.length > 0 && messages[messages.length - 1]?.role === 'user';
 
   async function startNewChat() {
     sessionStorage.removeItem('compass_conversation_id');
@@ -134,11 +165,12 @@ export default function CompassPage() {
     });
     sessionStorage.setItem('compass_conversation_id', conv.id);
     setConversation(conv);
+    window.dispatchEvent(new Event('compass_new_conversation'));
   }
 
   async function sendMessage(e) {
     e?.preventDefault();
-    if (!input.trim() || !conversation || sending) return;
+    if (!input.trim() || !conversation || sending || awaitingAssistantReply) return;
     const msg = input.trim();
     setInput('');
     setSending(true);
@@ -192,8 +224,6 @@ export default function CompassPage() {
     );
     setShowReviewWaitNotice(true);
   }
-
-  const isLoading = messages.length > 0 && messages[messages.length - 1]?.role === 'user' && sending;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -319,7 +349,9 @@ export default function CompassPage() {
             </div>
           </div>
         ))}
-        {isLoading && <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />}
+        {awaitingAssistantReply && (
+          <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground shrink-0" aria-label="Waiting for reply" />
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -341,8 +373,16 @@ export default function CompassPage() {
               onChange={(ev) => setPlanFile(ev.target.files?.[0] || null)}
             />
           </label>
-          <Input value={input} onChange={e => setInput(e.target.value)} placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}… (optional: attach a plan)`} className="flex-1" disabled={sending} />
-          <Button type="submit" disabled={sending || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}… (optional: attach a plan)`}
+            className="flex-1"
+            disabled={sending || awaitingAssistantReply}
+          />
+          <Button type="submit" disabled={sending || awaitingAssistantReply || !input.trim()} size="icon">
+            <Send className="w-4 h-4" />
+          </Button>
         </form>
       </div>
     </div>
