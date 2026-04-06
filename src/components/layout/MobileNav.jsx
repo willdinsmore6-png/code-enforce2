@@ -23,7 +23,7 @@ import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
-import { appIconSrc, municipalityNavTitle, navTagline } from '@/lib/municipalityDisplay';
+import { municipalityNavTitle, navHeaderLogoAlt, navHeaderLogoSrc, navTagline } from '@/lib/municipalityDisplay';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -48,7 +48,7 @@ const DRAWER_NAV_ID = 'mobile-navigation-drawer';
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { municipality, user, logout, impersonatedMunicipality } = useAuth();
+  const { municipality, user, logout, impersonatedMunicipality, appPublicSettings } = useAuth();
   const drawerTitleId = useId();
   const closeButtonRef = useRef(null);
   const isSuperadminShell = user?.role === 'superadmin' && !impersonatedMunicipality;
@@ -95,19 +95,11 @@ export default function MobileNav() {
       <header className="z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-sidebar px-4 md:hidden">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
-            {municipality?.logo_url ? (
-              <img
-                src={municipality.logo_url}
-                alt={
-                  municipality?.short_name || municipality?.town_name
-                    ? `${municipality.short_name || municipality.town_name} logo`
-                    : 'Municipality logo'
-                }
-                className="h-full w-full object-contain p-0.5"
-              />
-            ) : (
-              <img src={appIconSrc()} alt="" className="h-full w-full object-contain p-0.5" />
-            )}
+            <img
+              src={navHeaderLogoSrc(municipality, appPublicSettings)}
+              alt={navHeaderLogoAlt(municipality, appPublicSettings)}
+              className="h-full w-full object-contain p-0.5"
+            />
           </div>
           <span className="max-w-[180px] truncate text-sm font-semibold text-sidebar-foreground">
             {municipalityNavTitle(municipality)}
@@ -148,11 +140,11 @@ export default function MobileNav() {
         <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-sidebar-border px-4">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
-              {municipality?.logo_url ? (
-                <img src={municipality.logo_url} alt="" className="h-full w-full object-contain p-0.5" />
-              ) : (
-                <img src={appIconSrc()} alt="" className="h-full w-full object-contain p-0.5" />
-              )}
+              <img
+                src={navHeaderLogoSrc(municipality, appPublicSettings)}
+                alt={navHeaderLogoAlt(municipality, appPublicSettings)}
+                className="h-full w-full object-contain p-0.5"
+              />
             </div>
             <div className="flex min-w-0 flex-col">
               <span id={drawerTitleId} className="truncate text-sm font-semibold">

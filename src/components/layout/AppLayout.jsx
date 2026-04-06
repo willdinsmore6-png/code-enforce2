@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext'; // Added useAuth
 import { AlertTriangle } from 'lucide-react'; // Added icon
+import { appLogoUrlFromPublicSettings } from '@/lib/municipalityDisplay';
 import SubscriptionGate from './SubscriptionGate';
 import SuperAdminBanner from './SuperAdminBanner';
 import Sidebar from './Sidebar';
@@ -8,7 +10,21 @@ import MobileNav from './MobileNav';
 import CompassBackground from './CompassBackground';
 
 export default function AppLayout() {
-  const { appPublicSettings, user } = useAuth();
+  const { appPublicSettings, user, municipality } = useAuth();
+
+  /** Align tab favicon with Base44 app logo (same as hosted login) when TownConfig has no logo. */
+  useEffect(() => {
+    const link = document.querySelector('link[rel="icon"]');
+    if (!link) return undefined;
+    const initial = link.getAttribute('href');
+    const town = (municipality?.logo_url || '').trim();
+    const app = appLogoUrlFromPublicSettings(appPublicSettings);
+    const href = town || app;
+    if (href) link.setAttribute('href', href);
+    return () => {
+      if (initial) link.setAttribute('href', initial);
+    };
+  }, [appPublicSettings, municipality?.logo_url]);
 
   // Show banner if maintenance is active or a notice is set
   const isMaintenance = appPublicSettings?.is_maintenance_active === true;
