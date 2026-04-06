@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sparkles, Send, Upload, Loader2, RotateCcw, X, Info } from 'lucide-react';
+import { Sparkles, Send, Upload, Loader2, RotateCcw, X, Info, Copy } from 'lucide-react';
 import HelpTip from '@/components/shared/HelpTip';
+import { useToast } from '@/components/ui/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,8 +24,14 @@ function isAssistantMessage(role) {
   return r === 'assistant' || r === 'model';
 }
 
+function cleanAnswerContent(raw) {
+  if (raw == null) return '';
+  return String(raw).replace(/\s*\[Analyzing (?:case|zoning determination) ID:[^\]]+\]/g, '').trim();
+}
+
 export default function CompassPage() {
   const { user, municipality } = useAuth();
+  const { toast } = useToast();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -327,6 +334,27 @@ export default function CompassPage() {
     setShowReviewWaitNotice(true);
   }
 
+  async function copyAssistantAnswer(rawContent) {
+    const text = cleanAnswerContent(rawContent);
+    if (!text) {
+      toast({ title: 'Nothing to copy', description: 'This message is empty.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: 'Copied',
+        description: `${MERIDIAN_DISPLAY_NAME}'s answer is on your clipboard.`,
+      });
+    } catch {
+      toast({
+        title: 'Could not copy',
+        description: 'Select the answer text and copy manually, or check browser permissions.',
+        variant: 'destructive',
+      });
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 py-4">
@@ -451,8 +479,25 @@ export default function CompassPage() {
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isUserMessage(msg.role) ? 'bg-slate-800 text-white' : 'bg-card border border-border'}`}
               >
+                {isAssistantMessage(msg.role) ? (
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {MERIDIAN_DISPLAY_NAME} · answer
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => copyAssistantAnswer(msg.content)}
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                      Copy answer
+                    </Button>
+                  </div>
+                ) : null}
                 <ReactMarkdown className="text-sm prose prose-sm max-w-none">
-                  {msg.content.replace(/\s*\[Analyzing (?:case|zoning determination) ID:[^\]]+\]/g, '')}
+                  {cleanAnswerContent(msg.content)}
                 </ReactMarkdown>
               </div>
             </div>
