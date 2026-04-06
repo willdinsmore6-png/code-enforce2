@@ -214,7 +214,7 @@ export default function AdminTools() {
   }
 
   async function handleRemoveUser(userId, userEmail) {
-    if (!window.confirm(`Are you sure you want to remove ${userEmail} from the system?`)) return;
+    if (!window.confirm(`Are you sure you want to remove, ${userEmail} ,from the system?`)) return;
     try {
       const r = await base44.functions.invoke(
         'deleteUser',
