@@ -1,3 +1,8 @@
+/**
+ * Meridian (Compass) — source of truth: GitHub `willdinsmore6-png/code-enforce2` branch `main`.
+ * If Base44 does not show: `useToast`, `Copy` import, "Copy last answer" button, `subscribeToConversation`,
+ * or `startMeridianPoll`, the editor copy is stale — pull from GitHub or replace this file from the repo.
+ */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
