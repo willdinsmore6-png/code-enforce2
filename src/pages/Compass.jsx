@@ -209,7 +209,7 @@ export default function CompassPage() {
     return () => window.removeEventListener('compass_update', handler);
   }, [applyMessagesFromServer, stopMeridianPoll]);
 
-  /** Must subscribe here — CompassBackground only subscribes on app load; if the conversation is created after that (first visit / SPA), no subscription ran and the UI never updates until navigation. */
+  /* Must subscribe here - CompassBackground only subscribes on app load; if the conversation is created after that (first visit / SPA), no subscription ran and the UI never updates until navigation. */
   useEffect(() => {
     if (!conversation?.id) return undefined;
     let unsubscribe;
