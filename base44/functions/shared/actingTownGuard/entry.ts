@@ -6,6 +6,13 @@
 
 export type BodyWithActing = { acting_town_id?: string };
 
+function normalizeTownId(v: string | null | undefined): string {
+  if (v == null) return '';
+  const s = String(v).trim();
+  if (s === '' || s.toLowerCase() === 'null') return '';
+  return s;
+}
+
 export function checkActingTownAccess(
   user: { role?: string },
   body: BodyWithActing,
@@ -14,7 +21,10 @@ export function checkActingTownAccess(
   if (user.role !== 'superadmin') return null;
   const acting = typeof body.acting_town_id === 'string' ? body.acting_town_id.trim() : '';
   if (!acting) return null;
-  if (!resourceTownId || resourceTownId !== acting) {
+  const rt = normalizeTownId(resourceTownId);
+  // Unassigned users have no town — allow superadmin (incl. when impersonating) to assign them.
+  if (!rt) return null;
+  if (rt !== acting) {
     return Response.json(
       { error: 'Forbidden: not allowed outside the active municipality context' },
       { status: 403 }

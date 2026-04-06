@@ -706,7 +706,11 @@ export default function SuperAdminDashboard() {
               </thead>
               <tbody>
                 {filteredUsers.map((u) => {
-                  const tid = u.town_id || u.data?.town_id || '';
+                  const rawTid = u.town_id || u.data?.town_id || '';
+                  const tid =
+                    rawTid && String(rawTid).trim() !== '' && String(rawTid).toLowerCase() !== 'null'
+                      ? String(rawTid)
+                      : '';
                   const isSuper = u.role === 'superadmin';
                   return (
                     <tr key={u.id} className="border-b border-slate-100 last:border-0">
