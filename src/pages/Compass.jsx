@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ export default function CompassPage() {
   const [selectedCase, setSelectedCase] = useState('');
   const [selectedZoningDetermination, setSelectedZoningDetermination] = useState('');
   const [showReviewWaitNotice, setShowReviewWaitNotice] = useState(false);
-  // pendingAssistantReply: true until assistant message arrives (covers gap before subscription updates).
+  /** True from send until the stream delivers an assistant message (covers gap before subscription updates). */
   const [pendingAssistantReply, setPendingAssistantReply] = useState(false);
   const messagesEndRef = useRef(null);
   const meridianPollRef = useRef(null);
@@ -209,7 +209,7 @@ export default function CompassPage() {
     return () => window.removeEventListener('compass_update', handler);
   }, [applyMessagesFromServer, stopMeridianPoll]);
 
-  // Subscribe on page: CompassBackground may miss first conversation in same tab.
+  /* Must subscribe here - CompassBackground only subscribes on app load; if the conversation is created after that (first visit / SPA), no subscription ran and the UI never updates until navigation. */
   useEffect(() => {
     if (!conversation?.id) return undefined;
     let unsubscribe;
@@ -239,6 +239,14 @@ export default function CompassPage() {
 
   const showWorkingOverlay = sending || pendingAssistantReply;
   const chatInputLocked = showWorkingOverlay;
+
+  const lastAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m && isAssistantMessage(m.role)) return m;
+    }
+    return null;
+  }, [messages]);
 
   async function startNewChat() {
     stopMeridianPoll();
@@ -369,7 +377,7 @@ export default function CompassPage() {
                 <HelpTip title={`Using ${MERIDIAN_DISPLAY_NAME}`} align="start">
                   <p>
                     {MERIDIAN_DISPLAY_NAME} answers questions using NH land-use context, your <strong>town settings</strong> from{' '}
-                    <strong>Admin -&gt; Municipality</strong>, and optional <strong>ordinance PDFs</strong> uploaded there.
+                    <strong>Admin → Municipality</strong>, and optional <strong>ordinance PDFs</strong> uploaded there.
                   </p>
                   <p>
                     Use the <strong>Enforcement case</strong>
@@ -391,18 +399,34 @@ export default function CompassPage() {
                     Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins configure
                     deadlines, penalties, regulations, and training files under{' '}
                     <Link to="/admin" className="font-medium underline underline-offset-2">
-                      Admin Tools -&gt; Municipality
+                      Admin Tools → Municipality
                     </Link>
                     .
                   </p>
                 </HelpTip>
               </div>
               <p className="text-xs text-muted-foreground">
-                NH Land Use &amp; Zoning Advisor{municipality?.town_name ? ` | ${municipality.town_name}` : ''}
+                NH Land Use &amp; Zoning Advisor{municipality?.town_name ? ` · ${municipality.town_name}` : ''}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-primary/30"
+              disabled={!lastAssistantMessage}
+              title={
+                lastAssistantMessage
+                  ? 'Copy the latest reply as plain text'
+                  : 'Send a question and wait for a reply — then you can copy it'
+              }
+              onClick={() => lastAssistantMessage && copyAssistantAnswer(lastAssistantMessage.content)}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              Copy last answer
+            </Button>
             <Button variant="ghost" size="sm" onClick={startNewChat} className="gap-1.5">
               <RotateCcw className="w-3.5 h-3.5" /> New Chat
             </Button>
@@ -412,10 +436,10 @@ export default function CompassPage() {
         <div className="mt-3 max-w-5xl mx-auto flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex flex-1 items-center gap-2 min-w-0">
             <select value={selectedCase} onChange={(e) => setSelectedCase(e.target.value)} className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm">
-              <option value="">- Enforcement case -</option>
+              <option value="">— Enforcement case —</option>
               {cases.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.case_number || 'Case'} - {c.property_address}
+                  {c.case_number || 'Case'} — {c.property_address}
                 </option>
               ))}
             </select>
@@ -432,10 +456,10 @@ export default function CompassPage() {
                 onChange={(e) => setSelectedZoningDetermination(e.target.value)}
                 className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm"
               >
-                <option value="">- Zoning determination file -</option>
+                <option value="">— Zoning determination file —</option>
                 {zoningDeterminations.map((z) => (
                   <option key={z.id} value={z.id}>
-                    {z.file_number || 'ZD'} - {z.property_address}
+                    {z.file_number || 'ZD'} — {z.property_address}
                   </option>
                 ))}
               </select>
@@ -464,7 +488,7 @@ export default function CompassPage() {
             </button>
             <p className="pl-7 leading-relaxed">
               <span className="font-semibold text-sky-900 dark:text-sky-100">Reviews can take a little while.</span>{' '}
-              {MERIDIAN_DISPLAY_NAME} keeps working in the background, so you can leave this page if you need to - when you come back here,
+              {MERIDIAN_DISPLAY_NAME} keeps working in the background, so you can leave this page if you need to — when you come back here,
               your answer will appear in this chat.
             </p>
           </div>
@@ -484,7 +508,7 @@ export default function CompassPage() {
                 {isAssistantMessage(msg.role) ? (
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {MERIDIAN_DISPLAY_NAME} - answer
+                      {MERIDIAN_DISPLAY_NAME} · answer
                     </span>
                     <Button
                       type="button"
@@ -513,7 +537,7 @@ export default function CompassPage() {
             aria-live="polite"
           >
             <Loader2 className="h-10 w-10 shrink-0 animate-spin text-primary" aria-hidden />
-            <p className="max-w-xs text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is working on your answer...</p>
+            <p className="max-w-xs text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is working on your answer…</p>
           </div>
         ) : null}
       </div>
@@ -522,8 +546,8 @@ export default function CompassPage() {
         <div className="sticky bottom-0 z-30 flex w-full shrink-0 items-center justify-center gap-3 border-t border-primary/20 bg-primary/10 px-4 py-3 text-center shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:bg-primary/15">
           <Loader2 className="h-6 w-6 shrink-0 animate-spin text-primary" aria-hidden />
           <div className="min-w-0 text-left">
-            <p className="text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is thinking...</p>
-            <p className="text-xs text-muted-foreground">This bar stays visible until the reply appears - no need to refresh.</p>
+            <p className="text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is thinking…</p>
+            <p className="text-xs text-muted-foreground">This bar stays visible until the reply appears — no need to refresh.</p>
           </div>
         </div>
       ) : null}
@@ -553,7 +577,7 @@ export default function CompassPage() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}... (optional: attach a plan)`}
+            placeholder={`Ask ${MERIDIAN_DISPLAY_NAME}… (optional: attach a plan)`}
             className="flex-1"
             disabled={chatInputLocked}
           />
