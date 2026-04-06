@@ -1,12 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { Building2, LogOut, UserCheck, Mail, ArrowRight, Copy, Check } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { Building2, LogOut, UserCheck, Mail, ArrowRight, Copy, Check, Loader2 } from 'lucide-react';
 import { PublicPageShell } from '@/components/layout/SkipToMainLink';
 
 export default function UnassignedUserScreen() {
+  const { checkAppState } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [claimingInvite, setClaimingInvite] = useState(true);
   const supportEmail = "support@code-enforce.com";
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await base44.functions.invoke('claimStaffInvite', {});
+        if (!cancelled && res.data?.claimed) {
+          await checkAppState();
+        }
+      } catch (e) {
+        console.warn('claimStaffInvite', e);
+      } finally {
+        if (!cancelled) setClaimingInvite(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   
   const handleContactSupport = () => {
     window.location.href = `mailto:${supportEmail}?subject=Onboarding%20Request&body=Hello,%20I%20need%20help%20setting%20up%20my%20town%20on%20CodeEnforce.`;
@@ -21,6 +43,19 @@ export default function UnassignedUserScreen() {
       console.error('Failed to copy email:', err);
     }
   };
+
+  if (claimingInvite) {
+    return (
+      <PublicPageShell mainClassName="outline-none min-h-dvh bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+        <div className="flex min-h-[70vh] items-center justify-center p-6" role="status" aria-live="polite">
+          <div className="flex flex-col items-center gap-4 text-slate-300">
+            <Loader2 className="h-10 w-10 animate-spin text-blue-400" aria-hidden />
+            <p className="text-sm">Checking your invitation...</p>
+          </div>
+        </div>
+      </PublicPageShell>
+    );
+  }
 
   return (
     <PublicPageShell mainClassName="outline-none min-h-dvh bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
