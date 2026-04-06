@@ -13,7 +13,7 @@ function appLoginUrl(): string {
 }
 
 function emailFromName(): string {
-  return Deno.env.get('SUBSCRIPTION_EMAIL_FROM_NAME') || 'CodeEnforce Pro';
+  return Deno.env.get('SUBSCRIPTION_EMAIL_FROM_NAME') || 'Code Enforce';
 }
 
 /**
@@ -169,9 +169,9 @@ function startedEmailHtml(townName: string, loginUrl: string): string {
   return `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;line-height:1.5;color:#1e293b;">
       <p>Hello,</p>
-      <p>Thank you — your <strong>CodeEnforce Pro</strong> subscription is now active for <strong>${escapeHtml(townName)}</strong>.</p>
+      <p>Thank you — your <strong>Code Enforce</strong> subscription is now active for <strong>${escapeHtml(townName)}</strong>.</p>
       <p>You can sign in and use the full dashboard right away:</p>
-      <p><a href="${loginUrl}" style="color:#2563eb;">Open CodeEnforce Pro</a></p>
+      <p><a href="${loginUrl}" style="color:#2563eb;">Open Code Enforce</a></p>
       <p style="font-size:14px;color:#64748b;">If you have questions, reply to this email or contact support.</p>
     </div>
   `;
@@ -181,7 +181,7 @@ function cancelledEmailHtml(townName: string, loginUrl: string): string {
   return `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;line-height:1.5;color:#1e293b;">
       <p>Hello,</p>
-      <p>Your <strong>CodeEnforce Pro</strong> subscription for <strong>${escapeHtml(townName)}</strong> has ended or been cancelled.</p>
+      <p>Your <strong>Code Enforce</strong> subscription for <strong>${escapeHtml(townName)}</strong> has ended or been cancelled.</p>
       <p>Access for your municipality may be limited until billing is restored. If you cancelled on purpose, no further action is needed.</p>
       <p>To re-subscribe or get help, visit:</p>
       <p><a href="${loginUrl}" style="color:#2563eb;">${loginUrl}</a></p>
@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
           if (to) {
             await sendSubscriptionEmail(admin, {
               to,
-              subject: `CodeEnforce Pro — subscription active for ${townName}`,
+              subject: `Code Enforce — subscription active for ${townName}`,
               html: startedEmailHtml(townName, loginUrl),
               adminFooterHtml: adminFooter,
             });
@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
           if (to) {
             await sendSubscriptionEmail(admin, {
               to,
-              subject: `CodeEnforce Pro — subscription ended for ${townName}`,
+              subject: `Code Enforce — subscription ended for ${townName}`,
               html: cancelledEmailHtml(townName, loginUrl),
               adminFooterHtml: adminFooter,
             });

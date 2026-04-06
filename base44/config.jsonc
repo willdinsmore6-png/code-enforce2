@@ -1,7 +1,7 @@
 // Base44 CLI project config — paths are relative to this file (base44/)
 {
   "name": "code-enforce2",
-  "description": "CodeEnforce",
+  "description": "Code Enforce",
 
   // Must point at the folder that contains each function’s entry.ts (this repo keeps them under base44/functions).
   "functionsDir": "./functions",

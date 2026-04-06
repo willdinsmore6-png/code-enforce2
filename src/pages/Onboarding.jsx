@@ -26,7 +26,7 @@ export default function Onboarding() {
         
         <h1 className="text-2xl font-bold mb-3 tracking-tight">Account Pending Setup</h1>
         <p className="text-slate-400 mb-8 leading-relaxed text-sm">
-          Welcome to CodeEnforce Pro. Your account is active, but it hasn't been linked to a municipality yet. Please notify your supervisor or request a town setup below.
+          Welcome to Code Enforce. Your account is active, but it hasn't been linked to a municipality yet. Please notify your supervisor or request a town setup below.
         </p>
 
         <div className="space-y-3">

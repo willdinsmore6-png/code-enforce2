@@ -82,7 +82,7 @@ export default function Subscribe() {
           <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
             <Building2 className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg">CodeEnforce Pro</span>
+          <span className="font-bold text-lg">Code Enforce</span>
         </div>
         
         <div className="flex items-center gap-4">
@@ -189,7 +189,7 @@ export default function Subscribe() {
             </div>
             <div>
               <h3 className="font-semibold text-white mb-1">2. Data Custodianship</h3>
-              <p>While CodeEnforce Pro provides the storage and management infrastructure, the municipality retains full legal ownership of all data entered into the system. We serve as a secure custodian only.</p>
+              <p>While Code Enforce provides the storage and management infrastructure, the municipality retains full legal ownership of all data entered into the system. We serve as a secure custodian only.</p>
             </div>
             <div>
               <h3 className="font-semibold text-white mb-1">3. Privacy and RSA Compliance</h3>
@@ -212,7 +212,7 @@ export default function Subscribe() {
 
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="text-2xl font-bold">CodeEnforce Pro Subscription</div>
+              <div className="text-2xl font-bold">Code Enforce subscription</div>
               <p className="text-xs text-slate-500 mt-1">Full access for all town departments.</p>
             </div>
             <Button 
