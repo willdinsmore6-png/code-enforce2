@@ -16,3 +16,19 @@ export function municipalityNavTitle(municipality) {
   if (nameKey(raw) === LEGACY_PRODUCT_KEY) return 'Code Enforce';
   return raw;
 }
+
+/** Public `icon.svg` with correct path when Vite `base` is not `/` (e.g. Base44 preview). */
+export function appIconSrc() {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base}icon.svg`;
+}
+
+/**
+ * Superadmin global shell has no TownConfig; avoid "Municipal compliance" there.
+ */
+export function navTagline(municipality, isSuperadminShell) {
+  if (isSuperadminShell && !municipality) return 'Global administration';
+  if (municipality?.tagline) return municipality.tagline;
+  if (municipality) return `${municipality.state} Code Enforcement`;
+  return 'Municipal compliance';
+}

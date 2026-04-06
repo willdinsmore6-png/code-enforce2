@@ -23,7 +23,7 @@ import SuperAdminBanner from './SuperAdminBanner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
-import { municipalityNavTitle } from '@/lib/municipalityDisplay';
+import { appIconSrc, municipalityNavTitle, navTagline } from '@/lib/municipalityDisplay';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -106,7 +106,7 @@ export default function MobileNav() {
                 className="h-full w-full object-contain p-0.5"
               />
             ) : (
-              <img src="/icon.svg" alt="" className="h-full w-full object-contain p-0.5" />
+              <img src={appIconSrc()} alt="" className="h-full w-full object-contain p-0.5" />
             )}
           </div>
           <span className="max-w-[180px] truncate text-sm font-semibold text-sidebar-foreground">
@@ -151,7 +151,7 @@ export default function MobileNav() {
               {municipality?.logo_url ? (
                 <img src={municipality.logo_url} alt="" className="h-full w-full object-contain p-0.5" />
               ) : (
-                <img src="/icon.svg" alt="" className="h-full w-full object-contain p-0.5" />
+                <img src={appIconSrc()} alt="" className="h-full w-full object-contain p-0.5" />
               )}
             </div>
             <div className="flex min-w-0 flex-col">
@@ -159,7 +159,7 @@ export default function MobileNav() {
                 {municipalityNavTitle(municipality)}
               </span>
               <span className="truncate text-[10px] text-sidebar-foreground/60">
-                {municipality?.tagline || 'Code enforcement'}
+                {navTagline(municipality, isSuperadminShell)}
               </span>
             </div>
           </div>

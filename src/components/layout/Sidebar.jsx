@@ -22,7 +22,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
-import { municipalityNavTitle } from '@/lib/municipalityDisplay';
+import { appIconSrc, municipalityNavTitle, navTagline } from '@/lib/municipalityDisplay';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -91,7 +91,7 @@ export default function Sidebar() {
               className="h-full w-full object-contain p-0.5"
             />
           ) : (
-            <img src="/icon.svg" alt="" className="h-full w-full object-contain p-0.5" />
+            <img src={appIconSrc()} alt="" className="h-full w-full object-contain p-0.5" />
           )}
         </div>
         {!collapsed && (
@@ -100,7 +100,7 @@ export default function Sidebar() {
               {municipalityNavTitle(municipality)}
             </span>
             <span className="truncate text-[11px] text-sidebar-foreground/60">
-              {municipality?.tagline || (municipality ? `${municipality.state} Code Enforcement` : 'Municipal compliance')}
+              {navTagline(municipality, isSuperadminShell)}
             </span>
           </div>
         )}
