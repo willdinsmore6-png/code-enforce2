@@ -37,6 +37,7 @@ import {
   Copy,
   Trash2,
   KeyRound,
+  Link2,
 } from 'lucide-react';
 
 function normalizeActive(v) {
@@ -93,6 +94,10 @@ export default function SuperAdminDashboard() {
 
   const [confirmingTown, setConfirmingTown] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [relinkEmail, setRelinkEmail] = useState('');
+  const [relinkTownId, setRelinkTownId] = useState('');
+  const [relinkBusy, setRelinkBusy] = useState(false);
+  const [relinkMsg, setRelinkMsg] = useState(null);
   const [pwdResetUser, setPwdResetUser] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
@@ -323,6 +328,36 @@ export default function SuperAdminDashboard() {
       alert(err.message || 'Delete failed');
     }
     setIsUpdatingStatus(false);
+  }
+
+  async function handleRelinkUser(e) {
+    e.preventDefault();
+    if (!relinkEmail.trim() || !relinkTownId) return;
+    setRelinkBusy(true);
+    setRelinkMsg(null);
+    try {
+      const res = await base44.functions.invoke(
+        'relinkUserByEmail',
+        superadminDashboardPayload({ email: relinkEmail.trim(), town_id: relinkTownId })
+      );
+      const d = res?.data;
+      if (d?.success) {
+        setRelinkMsg({ ok: true, text: d.message || 'Done.' });
+        setRelinkEmail('');
+        await load();
+      } else if (d?.error) {
+        setRelinkMsg({ ok: false, text: `${d.detail || d.error}. ${d.hint || ''}`.trim() });
+      } else {
+        setRelinkMsg({ ok: false, text: 'Unexpected response from server.' });
+      }
+    } catch (err) {
+      const extra = err?.response?.data || err?.data;
+      const text = extra?.hint
+        ? `${extra.detail || extra.error || ''}. ${extra.hint}`.trim()
+        : err.message || 'Failed';
+      setRelinkMsg({ ok: false, text });
+    }
+    setRelinkBusy(false);
   }
 
   async function handleUserTownChange(u, townId) {
@@ -616,6 +651,47 @@ export default function SuperAdminDashboard() {
             Tech support: edit anyone&apos;s display profile, send password-reset email, move between towns, or remove accounts. These
             actions use <strong>global superadmin</strong> scope (not limited to an impersonated town).
           </p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-left shadow-sm">
+            <p className="mb-1 text-sm font-semibold text-amber-950">Recover a deleted user / stuck email</p>
+            <p className="mb-3 text-xs text-amber-900">
+              Removing someone from the list only deletes their app profile row. Their email may still exist in Base44, so new invites can
+              fail. Use this to attach them to a town again, or to send a fresh invite when the platform allows it.
+            </p>
+            <form onSubmit={handleRelinkUser} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="min-w-[200px] flex-1 space-y-1">
+                <Label className="text-xs">Email</Label>
+                <Input
+                  type="email"
+                  value={relinkEmail}
+                  onChange={(e) => setRelinkEmail(e.target.value)}
+                  placeholder="user@municipality.gov"
+                  className="border-amber-200 bg-white"
+                />
+              </div>
+              <div className="min-w-[200px] space-y-1">
+                <Label className="text-xs">Town</Label>
+                <Select value={relinkTownId} onValueChange={setRelinkTownId}>
+                  <SelectTrigger className="border-amber-200 bg-white">
+                    <SelectValue placeholder="Select town" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {towns.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.town_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={relinkBusy || !relinkEmail.trim() || !relinkTownId} className="gap-2">
+                {relinkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                Link or re-invite
+              </Button>
+            </form>
+            {relinkMsg ? (
+              <p className={`mt-3 text-xs ${relinkMsg.ok ? 'text-green-800' : 'text-red-700'}`}>{relinkMsg.text}</p>
+            ) : null}
+          </div>
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
