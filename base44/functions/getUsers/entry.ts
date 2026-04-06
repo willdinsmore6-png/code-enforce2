@@ -40,13 +40,16 @@ Deno.serve(async (req) => {
     } else if (wantAllUsers && user.role === 'superadmin') {
       // all users
     } else if (requestedTownId) {
-      // Used for impersonation: only show users for that specific town
+      // Client sends town_id for Admin Tools (incl. superadmin preview / dropdown scope)
       users = users.filter((u) => (u.town_id || u.data?.town_id) === requestedTownId);
     } else if (user.town_id && user.town_id !== 'Null') {
       // Default: only show users in the same town as the logged-in admin
       users = users.filter((u) => (u.town_id || u.data?.town_id) === user.town_id);
+    } else if (user.role === 'superadmin') {
+      // Superadmin must pass town_id, acting_town_id, or all — avoid misleading unassigned-only list
+      users = [];
     } else {
-      // Show unassigned users if the admin has no town set
+      // Town admin with no town_id: unassigned users only
       users = users.filter((u) => !u.town_id || u.town_id === 'Null');
     }
 

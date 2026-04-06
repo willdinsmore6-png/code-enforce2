@@ -60,6 +60,9 @@ export default function AdminTools() {
   const [backfillResult, setBackfillResult] = useState(null);
   const [adminTab, setAdminTab] = useState('municipality');
 
+  /** Town scope for API calls: active municipality (incl. impersonation) or superadmin dropdown selection */
+  const effectiveTownId = municipality?.id || inviteTownId || '';
+
   const loadAuditLogs = useCallback(async () => {
     if (!municipality?.id) {
       setAuditLogs([]);
@@ -134,21 +137,38 @@ export default function AdminTools() {
     }
   }, [municipality]);
 
+  // Keep invite town dropdown aligned when impersonating or when a town admin loads their municipality
   useEffect(() => {
-    base44.functions.invoke(
-      'getUsers',
-      mergeActingTownPayload(user, impersonatedMunicipality, { town_id: municipality?.id })
-    ).then(r => {
-      setUsers(r.data?.users || []);
-      setLoadingUsers(false);
-    });
-    if (user?.role === 'superadmin') {
-      base44.entities.TownConfig.list('town_name', 100).then(t => setTowns(t || []));
-    } else if (municipality) {
+    if (municipality?.id) {
       setInviteTownId(municipality.id);
     }
+  }, [municipality?.id]);
+
+  useEffect(() => {
+    setLoadingUsers(true);
+    base44.functions
+      .invoke(
+        'getUsers',
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          town_id: effectiveTownId || undefined,
+        })
+      )
+      .then((r) => {
+        setUsers(r.data?.users || []);
+      })
+      .catch(() => {
+        setUsers([]);
+      })
+      .finally(() => {
+        setLoadingUsers(false);
+      });
+
+    if (user?.role === 'superadmin') {
+      base44.entities.TownConfig.list('town_name', 100).then((t) => setTowns(t || []));
+    }
+
     loadAuditLogs();
-  }, [municipality?.id, user, impersonatedMunicipality, loadAuditLogs]);
+  }, [effectiveTownId, user?.id, user?.role, impersonatedMunicipality?.id, loadAuditLogs]);
 
   const filteredLogs = auditLogs.filter(log =>
     !filterCase || (log.case_number || '').toLowerCase().includes(filterCase.toLowerCase()) ||
@@ -157,6 +177,14 @@ export default function AdminTools() {
 
   async function handleInvite(e) {
     e.preventDefault();
+    const townForInvite = inviteTownId || municipality?.id;
+    if (!townForInvite?.trim()) {
+      setInviteResult({
+        success: false,
+        message: 'Select a town in the dropdown (or use Super Admin → Enter town) before sending an invite.',
+      });
+      return;
+    }
     setInviting(true);
     setInviteResult(null);
     try {
@@ -165,7 +193,7 @@ export default function AdminTools() {
         mergeActingTownPayload(user, impersonatedMunicipality, {
           email: inviteEmail.trim(),
           role: 'user',
-          town_id: inviteTownId || municipality?.id,
+          town_id: townForInvite,
         })
       );
       if (res.data?.error) throw new Error(res.data.error);
@@ -173,7 +201,9 @@ export default function AdminTools() {
       setInviteEmail('');
       const r = await base44.functions.invoke(
         'getUsers',
-        mergeActingTownPayload(user, impersonatedMunicipality, {})
+        mergeActingTownPayload(user, impersonatedMunicipality, {
+          town_id: effectiveTownId || undefined,
+        })
       );
       setUsers(r.data?.users || []);
     } catch (err) {
@@ -378,6 +408,14 @@ export default function AdminTools() {
           </>
         }
       />
+
+      {user?.role === 'superadmin' && !effectiveTownId ? (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+          <strong className="font-semibold">Superadmin:</strong> Choose a town in the <strong>Assign to Town</strong> dropdown on the Users
+          tab, or use <strong>Super Admin → Enter town (act as admin)</strong>, so invites and the team list use the correct{' '}
+          <code className="rounded bg-amber-100/80 px-1 text-xs dark:bg-amber-900/60">town_id</code>. Preview and production behave the same.
+        </div>
+      ) : null}
 
       <Tabs
         value={adminTab}
@@ -881,7 +919,9 @@ export default function AdminTools() {
                 setBackfillResult(null);
                 const res = await base44.functions.invoke(
                   'backfillAccessCodes',
-                  mergeActingTownPayload(user, impersonatedMunicipality, {})
+                  mergeActingTownPayload(user, impersonatedMunicipality, {
+                    town_id: effectiveTownId || undefined,
+                  })
                 );
                 setBackfillResult(res.data);
                 setBackfilling(false);
