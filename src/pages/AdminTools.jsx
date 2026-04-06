@@ -64,50 +64,26 @@ export default function AdminTools() {
   const effectiveTownId = municipality?.id || inviteTownId || '';
 
   const loadAuditLogs = useCallback(async () => {
-    if (!municipality?.id) {
+    const townScope = municipality?.id || inviteTownId;
+    if (!townScope) {
       setAuditLogs([]);
       setLogsLoading(false);
       return;
     }
     setLogsLoading(true);
     try {
-      const townId = String(municipality.id);
-      const [byTown, caseList] = await Promise.all([
-        base44.entities.AuditLog.filter({ town_id: townId }, '-timestamp', 2500),
-        base44.entities.Case.list('-created_date', 6000),
-      ]);
-      const caseIds = new Set(
-        (caseList || [])
-          .filter((c) => String(c.town_id || c.data?.town_id || '') === townId)
-          .map((c) => c.id)
+      const res = await base44.functions.invoke(
+        'listAuditLogs',
+        mergeActingTownPayload(user, impersonatedMunicipality, { town_id: townScope })
       );
-      let recent = [];
-      try {
-        recent = (await base44.entities.AuditLog.list('-timestamp', 800)) || [];
-      } catch {
-        recent = [];
-      }
-      const orphans = recent.filter(
-        (l) =>
-          l.case_id &&
-          (!l.town_id || String(l.town_id).trim() === '') &&
-          caseIds.has(l.case_id)
-      );
-      const map = new Map();
-      for (const l of [...(byTown || []), ...orphans]) {
-        if (l?.id) map.set(l.id, l);
-      }
-      const merged = [...map.values()].sort(
-        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-      );
-      setAuditLogs(merged);
+      setAuditLogs(res.data?.logs || []);
     } catch (e) {
       console.error(e);
       setAuditLogs([]);
     } finally {
       setLogsLoading(false);
     }
-  }, [municipality?.id]);
+  }, [municipality?.id, inviteTownId, user?.id, user?.role, impersonatedMunicipality?.id]);
 
   useEffect(() => {
     if (municipality) {
