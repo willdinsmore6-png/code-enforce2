@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,71 @@ export default function CompassPage() {
   /** True from send until the stream delivers an assistant message (covers gap before subscription updates). */
   const [pendingAssistantReply, setPendingAssistantReply] = useState(false);
   const messagesEndRef = useRef(null);
+  const meridianPollRef = useRef(null);
+
+  const stopMeridianPoll = useCallback(() => {
+    if (meridianPollRef.current != null) {
+      clearInterval(meridianPollRef.current);
+      meridianPollRef.current = null;
+    }
+  }, []);
+
+  const applyMessagesFromServer = useCallback((next) => {
+    const list = Array.isArray(next) ? next : [];
+    setMessages(list);
+    const last = list[list.length - 1];
+    if (isAssistantMessage(last?.role)) {
+      setPendingAssistantReply(false);
+    } else if (isUserMessage(last?.role)) {
+      setPendingAssistantReply(true);
+    }
+    try {
+      sessionStorage.setItem('compass_messages', JSON.stringify(list));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const startMeridianPoll = useCallback(
+    (conversationId) => {
+      if (!conversationId) return;
+      stopMeridianPoll();
+      let attempts = 0;
+      const maxAttempts = 120;
+      let pollInFlight = false;
+
+      const tick = async () => {
+        if (pollInFlight) return;
+        pollInFlight = true;
+        attempts += 1;
+        try {
+          const conv = await base44.agents.getConversation(conversationId);
+          const next = conv?.messages || [];
+          applyMessagesFromServer(next);
+          const last = next[next.length - 1];
+          if (isAssistantMessage(last?.role)) {
+            stopMeridianPoll();
+            return;
+          }
+        } catch (err) {
+          console.error('Meridian poll failed:', err);
+        } finally {
+          pollInFlight = false;
+        }
+        if (attempts >= maxAttempts) {
+          stopMeridianPoll();
+        }
+      };
+
+      void tick();
+      meridianPollRef.current = setInterval(() => {
+        void tick();
+      }, 1500);
+    },
+    [applyMessagesFromServer, stopMeridianPoll]
+  );
+
+  useEffect(() => () => stopMeridianPoll(), [stopMeridianPoll]);
 
   // Persistent town-specific filtering for Super Admins
   useEffect(() => {
@@ -129,14 +194,13 @@ export default function CompassPage() {
   useEffect(() => {
     const handler = (e) => {
       const next = e.detail.messages || [];
-      setMessages(next);
+      applyMessagesFromServer(next);
       const last = next[next.length - 1];
-      if (isAssistantMessage(last?.role)) setPendingAssistantReply(false);
-      else if (isUserMessage(last?.role)) setPendingAssistantReply(true);
+      if (isAssistantMessage(last?.role)) stopMeridianPoll();
     };
     window.addEventListener('compass_update', handler);
     return () => window.removeEventListener('compass_update', handler);
-  }, []);
+  }, [applyMessagesFromServer, stopMeridianPoll]);
 
   /** Must subscribe here — CompassBackground only subscribes on app load; if the conversation is created after that (first visit / SPA), no subscription ran and the UI never updates until navigation. */
   useEffect(() => {
@@ -145,17 +209,10 @@ export default function CompassPage() {
     try {
       unsubscribe = base44.agents.subscribeToConversation(conversation.id, (data) => {
         const next = data.messages || [];
-        setMessages(next);
+        applyMessagesFromServer(next);
         const last = next[next.length - 1];
         if (isAssistantMessage(last?.role)) {
-          setPendingAssistantReply(false);
-        } else if (isUserMessage(last?.role)) {
-          setPendingAssistantReply(true);
-        }
-        try {
-          sessionStorage.setItem('compass_messages', JSON.stringify(next));
-        } catch {
-          /* ignore quota */
+          stopMeridianPoll();
         }
       });
     } catch (err) {
@@ -164,7 +221,7 @@ export default function CompassPage() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [conversation?.id]);
+  }, [conversation?.id, applyMessagesFromServer, stopMeridianPoll]);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -177,6 +234,7 @@ export default function CompassPage() {
   const chatInputLocked = showWorkingOverlay;
 
   async function startNewChat() {
+    stopMeridianPoll();
     sessionStorage.removeItem('compass_conversation_id');
     sessionStorage.removeItem('compass_messages');
     setConversation(null);
@@ -234,8 +292,16 @@ export default function CompassPage() {
 
     try {
       await base44.agents.addMessage(conversation, messagePayload);
+      try {
+        const conv = await base44.agents.getConversation(conversation.id);
+        if (conv?.messages) applyMessagesFromServer(conv.messages);
+      } catch {
+        /* reply may not be ready yet; polling will pick it up */
+      }
+      startMeridianPoll(conversation.id);
     } catch (err) {
       console.error('Meridian send failed:', err);
+      stopMeridianPoll();
       setPendingAssistantReply(false);
       setShowReviewWaitNotice(false);
     } finally {
@@ -375,9 +441,9 @@ export default function CompassPage() {
         )}
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden max-w-5xl mx-auto w-full">
+      <div className="relative flex min-h-[28vh] flex-1 flex-col overflow-hidden max-w-5xl mx-auto w-full">
         <div
-          className={`h-full min-h-[12rem] overflow-y-auto overscroll-contain px-4 py-4 space-y-4 ${showWorkingOverlay ? 'opacity-45' : ''}`}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 ${showWorkingOverlay ? 'opacity-50' : ''}`}
           aria-busy={showWorkingOverlay}
         >
           {messages.map((msg, i) => (
@@ -395,18 +461,25 @@ export default function CompassPage() {
         </div>
         {showWorkingOverlay ? (
           <div
-            className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/75 px-6 text-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] dark:bg-background/80 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] sm:min-h-[14rem]"
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/80 px-4 text-center dark:bg-background/85"
             role="status"
             aria-live="polite"
           >
-            <Loader2 className="h-11 w-11 shrink-0 animate-spin text-primary" aria-hidden />
-            <div className="max-w-sm space-y-1">
-              <p className="text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is working on your answer</p>
-              <p className="text-xs text-muted-foreground">You can leave this page — your reply will appear here when ready.</p>
-            </div>
+            <Loader2 className="h-10 w-10 shrink-0 animate-spin text-primary" aria-hidden />
+            <p className="max-w-xs text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is working on your answer…</p>
           </div>
         ) : null}
       </div>
+
+      {showWorkingOverlay ? (
+        <div className="sticky bottom-0 z-30 flex w-full shrink-0 items-center justify-center gap-3 border-t border-primary/20 bg-primary/10 px-4 py-3 text-center shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:bg-primary/15">
+          <Loader2 className="h-6 w-6 shrink-0 animate-spin text-primary" aria-hidden />
+          <div className="min-w-0 text-left">
+            <p className="text-sm font-semibold text-foreground">{MERIDIAN_DISPLAY_NAME} is thinking…</p>
+            <p className="text-xs text-muted-foreground">This bar stays visible until the reply appears — no need to refresh.</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="shrink-0 border-t border-border bg-card px-4 py-4 space-y-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))]">
         {planFile && (
