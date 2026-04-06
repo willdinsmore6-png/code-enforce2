@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext'; // Added useAuth
 import { AlertTriangle } from 'lucide-react'; // Added icon
 import { appLogoUrlFromPublicSettings } from '@/lib/municipalityDisplay';
+import { syncPwaInstallBranding } from '@/lib/pwaBranding';
 import SubscriptionGate from './SubscriptionGate';
 import SuperAdminBanner from './SuperAdminBanner';
 import Sidebar from './Sidebar';
@@ -23,6 +24,14 @@ export default function AppLayout() {
     if (href) link.setAttribute('href', href);
     return () => {
       if (initial) link.setAttribute('href', initial);
+    };
+  }, [appPublicSettings, municipality?.logo_url]);
+
+  /** PWA “Install app” + apple-touch-icon use the same logo URL as Base44 login (and town logo when set). */
+  useEffect(() => {
+    syncPwaInstallBranding(municipality, appPublicSettings);
+    return () => {
+      syncPwaInstallBranding(null, null);
     };
   }, [appPublicSettings, municipality?.logo_url]);
 

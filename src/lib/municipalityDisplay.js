@@ -32,6 +32,7 @@ export function appLogoUrlFromPublicSettings(settings) {
   const s = settings;
   const d = s.data && typeof s.data === 'object' ? s.data : {};
   const candidates = [
+    typeof s.logo === 'string' ? s.logo : '',
     s.logo_url,
     s.logoUrl,
     s.app_logo_url,
@@ -43,6 +44,7 @@ export function appLogoUrlFromPublicSettings(settings) {
     s.branding?.icon_url,
     s.app?.logo_url,
     s.app?.icon_url,
+    typeof d.logo === 'string' ? d.logo : '',
     d.logo_url,
     d.icon_url,
     d.favicon_url,
