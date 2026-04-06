@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { MERIDIAN_DISPLAY_NAME } from '@/lib/meridianAssistant';
+import { ZONING_DETERMINATIONS_ENABLED } from '@/lib/features';
 
 export default function CompassPage() {
   const { user, municipality } = useAuth();
@@ -32,10 +33,9 @@ export default function CompassPage() {
       const townKey = activeTownId != null && activeTownId !== '' ? String(activeTownId) : '';
       try {
         if (townKey) {
-          const [byRoot, byDataBag, zd] = await Promise.all([
+          const [byRoot, byDataBag] = await Promise.all([
             base44.entities.Case.filter({ town_id: townKey }, '-created_date', 500).catch(() => []),
             base44.entities.Case.filter({ 'data.town_id': townKey }, '-created_date', 500).catch(() => []),
-            base44.entities.ZoningDetermination.filter({ town_id: townKey }, '-created_date', 150).catch(() => []),
           ]);
           const caseMap = new Map();
           for (const ca of [...(byRoot || []), ...(byDataBag || [])]) {
@@ -46,16 +46,27 @@ export default function CompassPage() {
           );
           merged.sort((a, b) => String(b.created_date || '').localeCompare(String(a.created_date || '')));
           setCases(merged);
-          setZoningDeterminations(zd || []);
+          if (ZONING_DETERMINATIONS_ENABLED) {
+            const zd = await base44.entities.ZoningDetermination.filter(
+              { town_id: townKey },
+              '-created_date',
+              150
+            ).catch(() => []);
+            setZoningDeterminations(zd || []);
+          } else {
+            setZoningDeterminations([]);
+          }
           return;
         }
         if (user?.role === 'superadmin') {
-          const [c, zd] = await Promise.all([
-            base44.entities.Case.list('-created_date', 2500),
-            base44.entities.ZoningDetermination.list('-created_date', 150),
-          ]);
+          const c = await base44.entities.Case.list('-created_date', 2500);
           setCases((c || []).filter((ca) => !['resolved', 'closed'].includes(ca.status)));
-          setZoningDeterminations(zd || []);
+          if (ZONING_DETERMINATIONS_ENABLED) {
+            const zd = await base44.entities.ZoningDetermination.list('-created_date', 150).catch(() => []);
+            setZoningDeterminations(zd || []);
+          } else {
+            setZoningDeterminations([]);
+          }
         }
       } catch (error) {
         console.error('Error loading Meridian context lists:', error);
@@ -201,8 +212,20 @@ export default function CompassPage() {
                     <strong>Admin → Municipality</strong>, and optional <strong>ordinance PDFs</strong> uploaded there.
                   </p>
                   <p>
-                    Use the <strong>Enforcement case</strong> or <strong>Zoning determination</strong> dropdown, then <strong>Analyze</strong>, to
-                    load that matter into the chat so the assistant can review investigations, documents, and notes.
+                    Use the <strong>Enforcement case</strong>
+                    {ZONING_DETERMINATIONS_ENABLED ? (
+                      <>
+                        {' '}
+                        or <strong>Zoning determination</strong> dropdown, then <strong>Analyze</strong>, to load that matter into the chat so the
+                        assistant can review investigations, documents, and notes.
+                      </>
+                    ) : (
+                      <>
+                        {' '}
+                        dropdown, then <strong>Analyze</strong>, to load that matter into the chat so the assistant can review investigations,
+                        documents, and notes. Zoning determination files are not available until that feature is enabled for your app.
+                      </>
+                    )}
                   </p>
                   <p>
                     Attach a plan or photo with the paperclip when needed. Use <strong>New Chat</strong> to clear the thread. Admins configure
@@ -240,25 +263,27 @@ export default function CompassPage() {
               </Button>
             ) : null}
           </div>
-          <div className="flex flex-1 items-center gap-2 min-w-0">
-            <select
-              value={selectedZoningDetermination}
-              onChange={(e) => setSelectedZoningDetermination(e.target.value)}
-              className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm"
-            >
-              <option value="">— Zoning determination file —</option>
-              {zoningDeterminations.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.file_number || 'ZD'} — {z.property_address}
-                </option>
-              ))}
-            </select>
-            {selectedZoningDetermination ? (
-              <Button size="sm" variant="outline" onClick={askWithZoningDetermination} className="h-8 shrink-0 text-xs">
-                Analyze
-              </Button>
-            ) : null}
-          </div>
+          {ZONING_DETERMINATIONS_ENABLED ? (
+            <div className="flex flex-1 items-center gap-2 min-w-0">
+              <select
+                value={selectedZoningDetermination}
+                onChange={(e) => setSelectedZoningDetermination(e.target.value)}
+                className="flex h-8 min-w-0 flex-1 text-xs rounded-md border border-input bg-transparent px-3 py-1 max-w-sm"
+              >
+                <option value="">— Zoning determination file —</option>
+                {zoningDeterminations.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.file_number || 'ZD'} — {z.property_address}
+                  </option>
+                ))}
+              </select>
+              {selectedZoningDetermination ? (
+                <Button size="sm" variant="outline" onClick={askWithZoningDetermination} className="h-8 shrink-0 text-xs">
+                  Analyze
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {showReviewWaitNotice && (
