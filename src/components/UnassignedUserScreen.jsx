@@ -17,7 +17,11 @@ export default function UnassignedUserScreen() {
       try {
         const res = await base44.functions.invoke('claimStaffInvite', {});
         if (!cancelled && res.data?.claimed) {
-          await checkAppState();
+          try {
+            await checkAppState();
+          } catch (e) {
+            console.warn('checkAppState after claim failed', e);
+          }
         }
       } catch (e) {
         console.warn('claimStaffInvite', e);

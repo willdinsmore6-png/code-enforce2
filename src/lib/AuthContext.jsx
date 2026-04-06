@@ -125,8 +125,12 @@ export const AuthProvider = ({ children }) => {
           await loadMunicipality(currentUser);
         }
 
-        if (!currentUser.invitation_accepted) {
-          await base44.auth.updateMe({ invitation_accepted: true });
+        try {
+          if (!currentUser.invitation_accepted) {
+            await base44.auth.updateMe({ invitation_accepted: true });
+          }
+        } catch (e) {
+          console.warn('invitation_accepted update skipped:', e);
         }
       }
       setIsLoadingAuth(false);

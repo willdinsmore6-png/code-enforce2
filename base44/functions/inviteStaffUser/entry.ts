@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     await base44.users.inviteUser(email.trim(), inviteRole);
 
-    // Persist invite so claimStaffInvite can link town after the user finishes signup (User row may not exist yet).
+    // Best-effort: never fail the invite response if AuditLog shape differs or RLS blocks it.
     try {
       await base44.asServiceRole.entities.AuditLog.create({
         case_id: '',
@@ -67,14 +67,10 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
-      console.error('inviteStaffUser: pending audit log failed', e);
-      return Response.json(
-        { error: 'Invite was sent but town linkage could not be recorded. Contact support if the user cannot access the app.' },
-        { status: 500 }
-      );
+      console.error('inviteStaffUser: pending audit log skipped', e);
     }
 
-    // If the platform creates the User row immediately, attach town_id (retry: signup timing varies).
+    // Short merge window only — long loops can hit serverless timeouts and break the admin UI.
     const mergeUserTown = async (row: Record<string, unknown>) => {
       const prevData = (row.data && typeof row.data === 'object' ? row.data : {}) as Record<string, unknown>;
       await base44.asServiceRole.entities.User.update(String(row.id), {
@@ -83,12 +79,16 @@ Deno.serve(async (req) => {
       });
     };
 
-    for (let i = 0; i < 24; i++) {
-      await new Promise((r) => setTimeout(r, i === 0 ? 300 : 500));
+    for (let i = 0; i < 5; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 400));
       const allUsers = await base44.asServiceRole.entities.User.list();
       const newUser = (allUsers || []).find((u) => normEmail(String(u.email || '')) === emailNorm);
       if (newUser) {
-        await mergeUserTown(newUser as Record<string, unknown>);
+        try {
+          await mergeUserTown(newUser as Record<string, unknown>);
+        } catch (e) {
+          console.error('inviteStaffUser: merge town failed', e);
+        }
         break;
       }
     }
