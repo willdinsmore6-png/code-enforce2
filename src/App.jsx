@@ -26,6 +26,8 @@ import Report from './pages/Report';
 import DocumentVault from './pages/DocumentVault';
 import ZoningDeterminations from './pages/ZoningDeterminations';
 import ZoningDeterminationDetail from './pages/ZoningDeterminationDetail';
+import ZoningDeterminationsUnderConstruction from './pages/ZoningDeterminationsUnderConstruction';
+import { ZONING_DETERMINATIONS_ENABLED } from '@/lib/features';
 import AdminTools from './pages/AdminTools';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import PageNotFound from './lib/PageNotFound';
@@ -193,8 +195,26 @@ const AuthenticatedApp = () => {
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:id" element={<CaseDetail />} />
-        <Route path="/zoning-determinations" element={<ZoningDeterminations />} />
-        <Route path="/zoning-determinations/:id" element={<ZoningDeterminationDetail />} />
+        <Route
+          path="/zoning-determinations"
+          element={
+            ZONING_DETERMINATIONS_ENABLED ? (
+              <ZoningDeterminations />
+            ) : (
+              <ZoningDeterminationsUnderConstruction />
+            )
+          }
+        />
+        <Route
+          path="/zoning-determinations/:id"
+          element={
+            ZONING_DETERMINATIONS_ENABLED ? (
+              <ZoningDeterminationDetail />
+            ) : (
+              <ZoningDeterminationsUnderConstruction />
+            )
+          }
+        />
         <Route path="/new-complaint" element={<NewComplaint />} />
         <Route path="/investigations" element={<Investigations />} />
         <Route path="/deadlines" element={<Deadlines />} />
