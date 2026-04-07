@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -215,6 +216,8 @@ function EditInvestigationModal({ inv, onClose, onSave, onDelete }) {
 
 export default function Investigations() {
   const { impersonatedMunicipality, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openedFromCaseParam = useRef('');
   const [investigations, setInvestigations] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -276,6 +279,30 @@ export default function Investigations() {
     }
     load();
   }, [impersonatedMunicipality, user?.town_id, user?.role]);
+
+  /** Open "Log investigation" from case detail (`/investigations?case=<caseId>`). */
+  useEffect(() => {
+    const caseIdParam = searchParams.get('case');
+    if (!caseIdParam) {
+      openedFromCaseParam.current = '';
+      return;
+    }
+    if (!cases.length) return;
+    if (openedFromCaseParam.current === caseIdParam) return;
+    const exists = cases.some((c) => c.id === caseIdParam);
+    if (!exists) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('case');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    openedFromCaseParam.current = caseIdParam;
+    setForm((f) => ({ ...f, case_id: caseIdParam }));
+    setOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('case');
+    setSearchParams(next, { replace: true });
+  }, [cases, searchParams, setSearchParams]);
 
   async function handleSubmit(e) {
     e.preventDefault();

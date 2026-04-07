@@ -28,6 +28,7 @@ import {
   Download,
   Copy,
   ExternalLink,
+  Plus,
 } from 'lucide-react';
 
 import StatusBadge from '../components/shared/StatusBadge';
@@ -343,6 +344,12 @@ export default function CaseDetail() {
             <Button variant="outline" size="sm" className="gap-1.5" asChild>
               <Link to={`/deadlines?case=${caseData.id}`}>
                 <CalendarClock className="h-3.5 w-3.5" /> Timeline
+              </Link>
+            </Button>
+
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Link to={`/investigations?case=${encodeURIComponent(caseData.id)}`}>
+                <Plus className="h-3.5 w-3.5" /> Add investigation
               </Link>
             </Button>
 
