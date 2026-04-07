@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext'; // Added useAuth
 import { AlertTriangle } from 'lucide-react'; // Added icon
-import { appLogoUrlFromPublicSettings } from '@/lib/municipalityDisplay';
 import { syncPwaInstallBranding } from '@/lib/pwaBranding';
 import SubscriptionGate from './SubscriptionGate';
 import SuperAdminBanner from './SuperAdminBanner';
@@ -13,21 +12,24 @@ import CompassBackground from './CompassBackground';
 export default function AppLayout() {
   const { appPublicSettings, user, municipality } = useAuth();
 
-  /** Align tab favicon with Base44 app logo (same as hosted login) when TownConfig has no logo. */
+  /**
+   * Tab favicon: only replace when TownConfig has a municipal logo.
+   * Otherwise keep the document default from index.html (what you see in view-source and on Base44 login).
+   * public-settings app logo URLs were overriding that with a different/wrong asset after hydration.
+   */
   useEffect(() => {
     const link = document.querySelector('link[rel="icon"]');
     if (!link) return undefined;
     const initial = link.getAttribute('href');
     const town = (municipality?.logo_url || '').trim();
-    const app = appLogoUrlFromPublicSettings(appPublicSettings);
-    const href = town || app;
-    if (href) link.setAttribute('href', href);
+    if (!town) return undefined;
+    link.setAttribute('href', town);
     return () => {
       if (initial) link.setAttribute('href', initial);
     };
-  }, [appPublicSettings, municipality?.logo_url]);
+  }, [municipality?.logo_url]);
 
-  /** PWA “Install app” + apple-touch-icon use the same logo URL as Base44 login (and town logo when set). */
+  /** PWA install + apple-touch-icon: bundled icon.svg (same as tab) or town logo; titles never use “Code Enforce Pro”. */
   useEffect(() => {
     syncPwaInstallBranding(municipality, appPublicSettings);
     return () => {

@@ -4,6 +4,8 @@
  */
 function lettersOnlyKey(raw) {
   return String(raw || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '');
 }
@@ -14,19 +16,39 @@ function isLegacyCodeEnforceProLabel(raw) {
   return lettersOnlyKey(raw) === 'codeenforcepro';
 }
 
-/** PWA / Base44 app title when the dashboard still has the old "Code Enforce Pro" name. */
+/**
+ * Dashboard / install prompts sometimes use "Code Enforce Pro", "Code-Enforce Pro", or a dash suffix.
+ * Avoid matching longer names like "Code Enforce Professional" (letters-only ≠ codeenforcepro…).
+ */
 export function normalizeProductDisplayName(raw) {
   const t = String(raw || '').trim();
   if (!t) return 'Code Enforce';
   if (isLegacyCodeEnforceProLabel(t)) return 'Code Enforce';
+  const collapsed = t.replace(/\s+/g, ' ');
+  if (/^code[\s\-_]*enforce[\s\-_]*pro$/i.test(collapsed)) return 'Code Enforce';
+  const dash = collapsed.match(/^code[\s\-_]*enforce[\s\-_]*pro\s*[-–—]\s*(.+)$/i);
+  if (dash) return `Code Enforce – ${dash[1].trim()}`;
+  const key = lettersOnlyKey(t);
+  if (key === 'codeenforcepro' || /^codeenforcepro(demo|beta|test|staging|app|prod|live|v2|2|3)$/i.test(key)) {
+    return 'Code Enforce';
+  }
   return t;
+}
+
+/**
+ * PWA / browser install prompts: strip any remaining "Code Enforce Pro" phrase (not "Professional").
+ */
+export function coercePwaInstallTitle(raw) {
+  let t = normalizeProductDisplayName(String(raw || '').trim());
+  if (!t) return 'Code Enforce';
+  t = t.replace(/\bcode[\s\-_]*enforce[\s\-_]*pro\b/gi, 'Code Enforce');
+  return t.replace(/\s{2,}/g, ' ').trim() || 'Code Enforce';
 }
 
 export function municipalityNavTitle(municipality) {
   const raw = (municipality?.short_name || municipality?.town_name || '').trim();
   if (!raw) return 'Code Enforce';
-  if (isLegacyCodeEnforceProLabel(raw)) return 'Code Enforce';
-  return raw;
+  return normalizeProductDisplayName(raw);
 }
 
 /** Public `icon.svg` with correct path when Vite `base` is not `/` (e.g. Base44 preview). */
@@ -62,6 +84,8 @@ export function appLogoUrlFromPublicSettings(settings) {
     d.favicon_url,
     d.app_logo_url,
     d.app_icon_url,
+    d.branding?.logo_url,
+    d.app?.logo_url,
   ];
   for (const c of candidates) {
     if (typeof c === 'string' && c.trim()) return c.trim();
