@@ -11,8 +11,11 @@ export default function Onboarding() {
     base44.auth.logout(`${window.location.origin}/`);
   };
 
-  // Pre-fills an email so they don't have to type much
-  const mailtoLink = `mailto:admin@://code-enforce.com Town Onboarding Request&body=User: ${user?.email}%0D%0A%0D%0AI need to be linked to the following municipality:%0D%0A- Town Name:%0D%0A- State:`;
+  const onboardingSubject = encodeURIComponent('Town onboarding request');
+  const onboardingBody = encodeURIComponent(
+    `User: ${user?.email || '(unknown)'}\n\nI need to be linked to the following municipality:\n- Town name:\n- State:`
+  );
+  const mailtoLink = `mailto:support@code-enforce.com?subject=${onboardingSubject}&body=${onboardingBody}`;
 
   return (
     <PublicPageShell mainClassName="outline-none min-h-dvh bg-slate-900 font-sans text-white">
